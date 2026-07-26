@@ -56,6 +56,8 @@ public class ArhiahnKit implements PowerKit, Listener {
     private double worldCooldown = 240.0d;
     private boolean worldAffectsPlayers = true;
     private boolean worldAffectsMobs = true;
+    /** False by default: a time-stop you cannot attack into is only half a power. */
+    private boolean worldBlocksDamage;
 
     private int mihDuration = 20;
     private double mihCooldown = 240.0d;
@@ -96,6 +98,7 @@ public class ArhiahnKit implements PowerKit, Listener {
             worldCooldown = world.getDouble("cooldown-seconds", worldCooldown);
             worldAffectsPlayers = world.getBoolean("affect-players", true);
             worldAffectsMobs = world.getBoolean("affect-mobs", true);
+            worldBlocksDamage = world.getBoolean("block-damage-to-frozen", false);
         }
         ConfigurationSection mih = section.getConfigurationSection("made-in-heaven");
         if (mih != null) {
@@ -173,7 +176,8 @@ public class ArhiahnKit implements PowerKit, Listener {
             if (!isPlayer && !worldAffectsMobs) {
                 continue;
             }
-            plugin.freeze().freeze(entity, ticks);
+            // Frozen targets can never deal damage; whether they can take it is the config above.
+            plugin.freeze().freeze(entity, ticks, worldBlocksDamage);
             caught++;
             if (entity instanceof Player frozenPlayer) {
                 frozenPlayer.showTitle(Title.title(

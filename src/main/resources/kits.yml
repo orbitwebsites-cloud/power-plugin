@@ -140,7 +140,7 @@ mavricc:
     # stance" without giving numbers. scale is an absolute value (1.0 is
     # normal); health-bonus is added to the 20.0 base.
     red:   { scale: 1.2, health-bonus: 6.0 }
-    blue:  { scale: 0.8, health-bonus: -4.0 }
+    blue:  { scale: 0.8, health-bonus: 4.0 }
     green: { scale: 1.4, health-bonus: 10.0 }
     none:  { scale: 1.0, health-bonus: 0.0 }
 
@@ -167,6 +167,10 @@ arhiahn:
     cooldown-seconds: 240          # ASSUMED (spec suggests 3-5 min)
     affect-players: true
     affect-mobs: true
+    # false = frozen targets stay hittable, so the time-stop is an opening
+    # to attack rather than a shield. true = the spec's literal reading,
+    # where a frozen target can be neither hurt nor hurt anyone.
+    block-damage-to-frozen: false
 
   made-in-heaven:
     # NOTE: does NOT touch /tick rate -- that is a global server setting.
@@ -226,9 +230,8 @@ kornflakis:
     upgrade-kills:                 # ASSUMED
       4: 15
       5: 40
-    # Per-hit cooldown. Without this, every single hit is a 5s stun.
-    # ASSUMED -- the spec does not mention one, but it is unplayable at 0.
-    hit-cooldown-seconds: 8
+    # Per-hit cooldown. 0 = every hit lunges and stuns, as originally specced.
+    hit-cooldown-seconds: 0
     # Trident's own throwing is disabled so it stays a melee spear.
     disable-throw: true
 
@@ -243,13 +246,13 @@ monkeyman:
     # the default reading.
     mode: ON_HIT                   # ASSUMED
     blind-duration-seconds: 3      # ASSUMED
-    blind-internal-cooldown-seconds: 5   # ASSUMED, anti-spam
+    blind-internal-cooldown-seconds: 0   # 0 = every hit blinds
     activate-radius: 6.0
     activate-cooldown-seconds: 30
 
   power-of-the-sun:
     speed-amplifier: 0             # Speed I
-    strength-amplifier: 0          # ASSUMED -- spec says "Strength I or II"
+    strength-amplifier: 1          # Strength II (the higher of the spec's "I or II")
     # Only counts as daytime when the sky is actually visible.
     require-sky-access: false
 
@@ -268,7 +271,7 @@ monkeyman:
     drift-blocks-per-second: 0.6
     # Buffs while Mirage is active.
     speed-amplifier: 1             # Speed II
-    strength-amplifier: 0          # ASSUMED -- spec says "Strength I or II"
+    strength-amplifier: 1          # Strength II (the higher of the spec's "I or II")
     fire-resistance: true
 
 # =====================================================================
@@ -284,17 +287,16 @@ techknight:
     # LITERAL -> Density literally equals the kill count, past the vanilla
     #            cap, up to literal-max-density. Density scales damage with
     #            fall distance, so this becomes a one-shot machine quickly.
-    mode: LADDER                   # ASSUMED reading of "and so on"
-    literal-max-density: 10        # LITERAL mode only
+    mode: LITERAL                  # "and so on", taken literally
+    # 255 is the hard ceiling of the enchantment data component, not a
+    # balance choice -- the format cannot store more than that.
+    literal-max-density: 255
 
-    # "every kill" taken literally: mobs count too. Note this maxes the whole
-    # ladder in a few minutes of mob grinding -- set count-mob-kills to false
-    # if it should be a real progression.
+    # "every kill" taken literally: mobs and players, mace in hand or not.
     count-player-kills: true
-    count-mob-kills: true          # ASSUMED
-    # Only kills made while actually holding the mace count.
-    require-mace-in-hand: true     # ASSUMED
-    unbreakable: true              # ASSUMED -- not specified either way
+    count-mob-kills: true
+    require-mace-in-hand: false
+    unbreakable: true
 
   restock:
     # 5 hours. Persisted to data.yml, so a restart does not refund it.

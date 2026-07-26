@@ -80,7 +80,10 @@ slow the server for players nowhere near the fight. Built as: caster gets Speed 
 bonus attack speed + fall-damage immunity; everything else in radius gets Slowness II + Mining
 Fatigue II. The relative speed difference — the part that's actually felt — is preserved.
 
-**The World** — freezes everything in radius except the caster for exactly 9s. Mobs freeze cleanly
+**The World** — freezes everything in radius except the caster for exactly 9s. Frozen targets can
+never *deal* damage, and by default can still *take* it, so the stop is an opening to attack rather
+than a shield around whoever got caught. `block-damage-to-frozen: true` restores the spec's literal
+"cancel all damage dealt/received" reading. Mobs freeze cleanly
 (AI off, velocity zeroed). Players get four things stacked: positional `PlayerMoveEvent` cancelled,
 velocity pinned, Slowness 250 + a *negative* Jump Boost (this is what actually stops client-side
 movement prediction, and is why it looks far less janky than move-cancelling alone), and their
@@ -160,14 +163,20 @@ not a rebuild. Replace them once the players weigh in.
 | Ka-Chow combo window | 3s, 3 hits | `kornflakis.ka-chow` |
 | Overdrive damage semantics | Getting hit resets the sprint timer but does **not** strip an already-granted Strength II (the spec's recommended reading) | `damage-strips-tier2: false` |
 | Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 15 and 40 spear kills | `kornflakis.spear-master` |
-| Spear hit cooldown | **8s — added, not in the spec.** A 5s stun on every single hit is unplayable at 0 | `hit-cooldown-seconds` |
-| Flash trigger | `ON_HIT` (blinds what you hit), with a 5s internal cooldown so a combo can't chain-blind forever. `ON_ACTIVATE` is also built | `monkeyman.flash.mode` |
-| Ambiguous "Strength I or II" | Strength **I** for both Power of the Sun and Mirage | `strength-amplifier` |
+| Spear hit cooldown | **0** — every hit lunges and stuns, as specced | `hit-cooldown-seconds` |
+| Flash trigger | `ON_HIT` (blinds what you hit), no internal cooldown. `ON_ACTIVATE` is also built | `monkeyman.flash.mode` |
+| Ambiguous "Strength I or II" | Strength **II** for both Power of the Sun and Mirage | `strength-amplifier` |
 | Green stance knockback resistance | 1.0 (full immunity) — the spec named the perk but no number | `mavricc.stances.green` |
-| Dimensional Adaptation scale/health | red 1.2/+6, blue 0.8/−4, green 1.4/+10 — entirely invented | `mavricc.dimensional-adaptation` |
-| Mace levelling past kill 5 | `LADDER` — Density I–V, then Breach I–IV, then Wind Burst I–III. `LITERAL` keeps pumping Density past the vanilla cap | `techknight.mace.mode` |
-| "every kill" | Mobs and players both count, mace must be in hand | `techknight.mace` |
+| Dimensional Adaptation scale/health | red 1.2/+6, blue 0.8/+4, green 1.4/+10 — invented, no stance loses health | `mavricc.dimensional-adaptation` |
+| Mace levelling past kill 5 | `LITERAL` — Density equals the kill count, past the vanilla cap, to the format ceiling of 255. `LADDER` (Density→Breach→Wind Burst) is the alternative | `techknight.mace.mode` |
+| "every kill" | Mobs and players both count; the mace does not need to be in hand | `techknight.mace` |
+| The World's damage rule | `block-damage-to-frozen: false` — frozen targets stay hittable, so the time-stop is an opening rather than a shield | `arhiahn.the-world` |
 | Restock contents | Placeholder list — "any utils I need" can't be built literally | `techknight.restock.items` |
+
+**No invented nerfs.** Where a value was ambiguous, the stronger reading wins: Strength II over I,
+Density past the vanilla cap, no internal cooldown on the spear's stun or Flash's blind, no stance
+that loses max health. The costs that remain are the ones the original design asked for — Red's
+−2 armour bars, Blue's Weakness, Green's Slowness, and the bread-tier rework of non-mushroom food.
 
 Two judgement calls worth flagging explicitly:
 
