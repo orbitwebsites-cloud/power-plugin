@@ -22,6 +22,7 @@ import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -66,6 +67,7 @@ public class ArhiahnKit implements PowerKit, Listener {
     private int mihSelfHaste = 1;
     private double mihSelfAttackSpeed = 2.0d;
     private boolean mihNoFall = true;
+    private boolean mihPlayersOnly = true;
     private int mihOthersSlowness = 1;
     private int mihOthersFatigue = 1;
     private double mihOthersVelocityMultiplier = 0.35d;
@@ -110,6 +112,7 @@ public class ArhiahnKit implements PowerKit, Listener {
             mihSelfHaste = mih.getInt("self-haste-amplifier", mihSelfHaste);
             mihSelfAttackSpeed = mih.getDouble("self-bonus-attack-speed", mihSelfAttackSpeed);
             mihNoFall = mih.getBoolean("self-no-fall-damage", true);
+            mihPlayersOnly = mih.getBoolean("others-players-only", true);
             mihOthersSlowness = mih.getInt("others-slowness-amplifier", mihOthersSlowness);
             mihOthersFatigue = mih.getInt("others-mining-fatigue-amplifier", mihOthersFatigue);
             mihOthersVelocityMultiplier =
@@ -232,8 +235,9 @@ public class ArhiahnKit implements PowerKit, Listener {
         startSlowField(owner, ticks);
 
         owner.getWorld().playSound(owner.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.0f, 0.7f);
-        Text.msg(owner, "<gold><bold>MADE IN HEAVEN</bold></gold> <gray>-- "
-                + slowed + " slowed for " + mihDuration + "s.</gray>");
+        Text.msg(owner, "<gold><bold>MADE IN HEAVEN</bold></gold> <gray>-- Speed III for "
+                + mihDuration + "s; " + slowed + (mihPlayersOnly ? " player(s)" : " target(s)")
+                + " slowed.</gray>");
 
         // Attribute modifiers do not expire on their own; take the attack speed back afterwards.
         Bukkit.getScheduler().runTaskLater(plugin,
@@ -241,11 +245,18 @@ public class ArhiahnKit implements PowerKit, Listener {
         return true;
     }
 
-    /** Applies the Slowness/Mining Fatigue pair to every living thing in range except the caster. */
+    /**
+     * Applies the Slowness/Mining Fatigue pair in range. Targets other players by default -- this is
+     * a duel-winning power, not crowd control for mobs -- but {@code others-players-only: false}
+     * widens it to everything living.
+     */
     private int applySlow(Player owner, int ticks) {
         int slowed = 0;
         for (Entity entity : owner.getNearbyEntities(mihRadius, mihRadius, mihRadius)) {
             if (entity.equals(owner) || !(entity instanceof LivingEntity target)) {
+                continue;
+            }
+            if (mihPlayersOnly && !(target instanceof Player)) {
                 continue;
             }
             Effects.apply(target, PotionEffectType.SLOWNESS, ticks, mihOthersSlowness);
@@ -280,9 +291,13 @@ public class ArhiahnKit implements PowerKit, Listener {
                     if (elapsed[0] % 20 == 0) {
                         applySlow(owner, Math.max(40, ticks - elapsed[0]));
                     }
-                } else {
-                    entity.setVelocity(entity.getVelocity().multiply(mihOthersVelocityMultiplier));
+                    continue;
                 }
+                // Do not slow arhiahn's own arrows -- he is the one who sped up.
+                if (entity instanceof Projectile projectile && owner.equals(projectile.getShooter())) {
+                    continue;
+                }
+                entity.setVelocity(entity.getVelocity().multiply(mihOthersVelocityMultiplier));
             }
         }, 1L, 1L);
     }

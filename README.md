@@ -94,8 +94,9 @@ real workaround, and the workaround is what ships.
 Everything below is a workaround that was found and built.
 
 **Made In Heaven** — the relative speed difference is what's actually felt, so that is what gets
-built. Caster: Speed III, Haste II, bonus attack speed, fall-damage immunity. Everything else in
-range: Slowness II + Mining Fatigue II, *plus* a per-tick velocity damper on anything non-living.
+built. Caster: **Speed III**, Haste II, bonus attack speed, fall-damage immunity. Other **players**
+in range (mobs are left alone by default — `others-players-only`): Slowness II + Mining Fatigue II,
+*plus* a per-tick velocity damper on anything non-living, excluding arhiahn's own projectiles.
 That damper is the piece potions can't do — arrows, fireballs, TNT, minecarts and boats all crawl
 too, which is what makes it read as the world slowing rather than as a debuff aura. The slow field
 also re-applies to anyone who walks into the radius mid-cast, instead of only catching whoever was
@@ -206,7 +207,7 @@ not a rebuild. Replace them once the players weigh in.
 | Unlock gating (open Q2) | `unlock-all: true` — everything on. Thresholds are present but inert until you flip it; nothing is set above 10 kills, so they stay reachable on an SMP | `progression:` |
 | The World radius / cooldown | 8 blocks, 240s | `arhiahn.the-world` |
 | Made In Heaven duration / cooldown | 20s / 240s, radius 12 | `arhiahn.made-in-heaven` |
-| Requiem | **Disabled** — gated behind "if marb allows it" | `arhiahn.requiem.enabled` |
+| Requiem | **Enabled** — marb approved it. 2s damage immunity, 10min cooldown | `arhiahn.requiem` |
 | Ka-Chow combo window | 3s, 3 hits | `kornflakis.ka-chow` |
 | Overdrive damage semantics | Getting hit resets the sprint timer but does **not** strip an already-granted Strength II (the spec's recommended reading) | `damage-strips-tier2: false` |
 | Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 5 and 10 spear kills | `kornflakis.spear-master` |
@@ -245,7 +246,7 @@ Still genuinely blocked on a human:
 2. ~~**Mirage backend**~~ — resolved: ProtocolLib approved, real clones built. Needs an in-game test
    to confirm the packet layouts, since it could not be compiled here.
 3. **Draconic Evolution** — needs a design before it can be more than a stub.
-4. **Requiem** — needs marb's yes, then flip `arhiahn.requiem.enabled`.
+4. ~~**Requiem**~~ — resolved: marb approved it, and it is live.
 5. **The `# ASSUMED` numbers** — all guesses until the four players confirm them.
 
 ---

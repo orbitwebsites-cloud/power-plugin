@@ -192,16 +192,18 @@ arhiahn:
     self-haste-amplifier: 1        # Haste II
     self-bonus-attack-speed: 2.0   # ASSUMED
     self-no-fall-damage: true
+    # The slow targets other PLAYERS. Set to false to catch mobs as well.
+    others-players-only: true
     others-slowness-amplifier: 1   # Slowness II
     others-mining-fatigue-amplifier: 1
     # Potions cannot slow arrows, fireballs, TNT or minecarts. Everything
-    # non-living in range has its velocity scaled by this every tick instead.
-    # 1.0 disables the effect; lower is slower.
+    # non-living in range has its velocity scaled by this every tick instead
+    # -- except anything arhiahn fired himself. 1.0 disables it.
     others-velocity-multiplier: 0.35
 
   requiem:
-    # Gated behind "if marb allows it" -- off until someone says yes.
-    enabled: false
+    # marb approved it.
+    enabled: true
     duration-seconds: 2            # per spec
     cooldown-seconds: 600          # ASSUMED (must exceed the other two)
 
