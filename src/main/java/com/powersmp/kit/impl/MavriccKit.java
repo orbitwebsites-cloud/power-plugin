@@ -1,0 +1,428 @@
+package com.powersmp.kit.impl;
+
+import com.powersmp.PowerSMP;
+import com.powersmp.event.DraconicEvolutionEvent;
+import com.powersmp.kit.Ability;
+import com.powersmp.kit.PowerKit;
+import com.powersmp.progression.Power;
+import com.powersmp.stance.Stance;
+import com.powersmp.util.Attributes;
+import com.powersmp.util.Crits;
+import com.powersmp.util.Effects;
+import com.powersmp.util.Keys;
+import com.powersmp.util.Text;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.Material;
+import org.bukkit.Sound;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.entity.Wither;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+
+/**
+ * Mavricc: stances, Mushroom Affinity, Mushroom Hunger, and the achievement-gated powers.
+ *
+ * <p>The stance and food mechanics live in {@code StanceManager} and {@code MushroomHungerService}
+ * -- this class wires them to the owner and owns the achievement layer on top.
+ */
+public class MavriccKit implements PowerKit, Listener {
+
+    public static final String ID = "mavricc";
+
+    private static final String ADV_ALL_NETHER_BIOMES = "minecraft:nether/all_biomes";
+    private static final String ADV_STAR_TRADER = "minecraft:adventure/trade_at_world_height";
+    private static final String ADV_VERY_VERY_FRIGHTENING = "minecraft:adventure/very_very_frightening";
+
+    private static final String ABILITY_LAUNCH = "wither_launch";
+    private static final String ABILITY_RIPTIDE = "sporic_riptide";
+
+    private final PowerSMP plugin;
+
+    /** Crit counter for Sporic of the Sea (red): lightning on every Nth axe crit. */
+    private final Map<UUID, Integer> axeCrits = new ConcurrentHashMap<>();
+
+    // Tuning
+    private Set<Material> fungusItems = EnumSet.of(Material.RED_MUSHROOM, Material.BROWN_MUSHROOM);
+    private boolean grantElytra = true;
+    private double launchPower = 1.6d;
+    private double launchCooldown = 45.0d;
+    private final Map<String, double[]> adaptation = new HashMap<>();
+    private int heroAmplifier = 1;
+    private int heroAmplifierAffinity = 3;
+    private int critsPerLightning = 3;
+    private double riptideCooldown = 6.0d;
+    private double riptidePower = 2.2d;
+    private boolean draconicEnabled = true;
+
+    public MavriccKit(PowerSMP plugin) {
+        this.plugin = plugin;
+    }
+
+    @Override
+    public String id() {
+        return ID;
+    }
+
+    @Override
+    public String displayName() {
+        return "Mycelial";
+    }
+
+    public void reload(ConfigurationSection mavricc) {
+        if (mavricc == null) {
+            return;
+        }
+        ConfigurationSection wings = mavricc.getConfigurationSection("wither-wings");
+        if (wings != null) {
+            Set<Material> parsed = EnumSet.noneOf(Material.class);
+            for (String name : wings.getStringList("fungus-items")) {
+                Material material = Material.matchMaterial(name);
+                if (material == null) {
+                    plugin.getLogger().warning("Unknown fungus item '" + name + "' in kits.yml");
+                } else {
+                    parsed.add(material);
+                }
+            }
+            if (!parsed.isEmpty()) {
+                fungusItems = parsed;
+            }
+            grantElytra = wings.getBoolean("grant-elytra", true);
+            launchPower = wings.getDouble("launch-power", launchPower);
+            launchCooldown = wings.getDouble("launch-cooldown-seconds", launchCooldown);
+        }
+
+        ConfigurationSection adapt = mavricc.getConfigurationSection("dimensional-adaptation");
+        adaptation.clear();
+        if (adapt != null) {
+            for (Stance stance : Stance.values()) {
+                String key = stance.configKey();
+                adaptation.put(key, new double[]{
+                        adapt.getDouble(key + ".scale", 1.0d),
+                        adapt.getDouble(key + ".health-bonus", 0.0d)});
+            }
+        }
+
+        ConfigurationSection mind = mavricc.getConfigurationSection("sporic-mind-control");
+        if (mind != null) {
+            heroAmplifier = mind.getInt("hero-amplifier", heroAmplifier);
+            heroAmplifierAffinity = mind.getInt("hero-amplifier-affinity", heroAmplifierAffinity);
+        }
+        ConfigurationSection sea = mavricc.getConfigurationSection("sporic-of-the-sea");
+        if (sea != null) {
+            critsPerLightning = Math.max(1, sea.getInt("red-crits-per-lightning", critsPerLightning));
+            riptideCooldown = sea.getDouble("blue-riptide-cooldown-seconds", riptideCooldown);
+            riptidePower = sea.getDouble("blue-riptide-power", riptidePower);
+        }
+        draconicEnabled = mavricc.getBoolean("draconic-evolution.enabled", true);
+
+        plugin.cooldowns().registerLabel(ABILITY_LAUNCH, "Wither Wings");
+        plugin.cooldowns().registerLabel(ABILITY_RIPTIDE, "Riptide");
+    }
+
+    // ---- lifecycle ------------------------------------------------------
+
+    @Override
+    public void onJoin(Player owner) {
+        // Attribute modifiers persist in player NBT, so wipe ours before re-deriving them.
+        plugin.stances().clearAttributes(owner);
+        clearAdaptation(owner);
+        plugin.food().scanPlayer(owner);
+        if (plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
+            ensureElytra(owner);
+        }
+    }
+
+    @Override
+    public void onQuit(Player owner) {
+        plugin.stances().clearAttributes(owner);
+        clearAdaptation(owner);
+        axeCrits.remove(owner.getUniqueId());
+    }
+
+    @Override
+    public void onDisable() {
+        for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+            if (plugin.kits().isOwner(player, ID)) {
+                plugin.stances().clearAttributes(player);
+                clearAdaptation(player);
+            }
+        }
+    }
+
+    @Override
+    public void onUnlock(Player owner, Power power) {
+        if (power == Power.WITHER_WINGS) {
+            ensureElytra(owner);
+        }
+    }
+
+    @Override
+    public void tick(Player owner) {
+        plugin.stances().apply(owner);
+
+        boolean affinity = plugin.stances().hasAffinity(owner);
+        Stance stance = plugin.stances().stanceOf(owner);
+
+        if (plugin.unlocks().isUnlocked(owner, Power.DIMENSIONAL_ADAPTATION)) {
+            applyAdaptation(owner, stance);
+        }
+        if (plugin.unlocks().isUnlocked(owner, Power.SPORIC_MIND_CONTROL)) {
+            Effects.applyInfinite(owner, org.bukkit.potion.PotionEffectType.HERO_OF_THE_VILLAGE,
+                    affinity ? heroAmplifierAffinity : heroAmplifier);
+        }
+        if (plugin.unlocks().isUnlocked(owner, Power.SPORIC_OF_THE_SEA) && stance == Stance.GREEN) {
+            Effects.refresh(owner, org.bukkit.potion.PotionEffectType.CONDUIT_POWER, 0);
+        }
+        if (grantElytra && plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
+            ensureElytra(owner);
+        }
+    }
+
+    // ---- Dimensional Adaptation -----------------------------------------
+
+    private void applyAdaptation(Player owner, Stance stance) {
+        double[] values = adaptation.get(stance.configKey());
+        if (values == null) {
+            return;
+        }
+        // SCALE is multiplicative around 1.0, so the modifier is the delta from normal size.
+        Attributes.set(owner, Attributes.SCALE, Keys.ADAPTATION_SCALE, values[0] - 1.0d);
+        Attributes.set(owner, Attributes.MAX_HEALTH, Keys.ADAPTATION_HEALTH, values[1]);
+
+        // Shrinking max health below current health leaves the health bar over-full until the next
+        // damage tick; clamp it here so the display is honest immediately.
+        double max = Attributes.valueOf(owner, Attributes.MAX_HEALTH, 20.0d);
+        if (owner.getHealth() > max) {
+            owner.setHealth(Math.max(1.0d, max));
+        }
+    }
+
+    private void clearAdaptation(Player owner) {
+        Attributes.clear(owner, Attributes.SCALE, Keys.ADAPTATION_SCALE);
+        Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.ADAPTATION_HEALTH);
+    }
+
+    // ---- Wither Wings ---------------------------------------------------
+
+    /**
+     * Custom trigger: no vanilla advancement matches "kill the Wither while holding fungus", so the
+     * kill is caught directly and the killer's hands and head are checked at that moment.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onWitherDeath(EntityDeathEvent event) {
+        if (!(event.getEntity() instanceof Wither)) {
+            return;
+        }
+        Player killer = event.getEntity().getKiller();
+        if (killer == null || !plugin.kits().isOwner(killer, ID)) {
+            return;
+        }
+        if (!holdingFungus(killer)) {
+            Text.msg(killer, "<gray>The wither dies, but you had no fungus to absorb it with.</gray>");
+            return;
+        }
+        plugin.unlocks().unlock(killer, Power.WITHER_WINGS);
+    }
+
+    private boolean holdingFungus(Player player) {
+        ItemStack[] candidates = {
+                player.getInventory().getItemInMainHand(),
+                player.getInventory().getItemInOffHand(),
+                player.getInventory().getHelmet()};
+        for (ItemStack item : candidates) {
+            if (item != null && fungusItems.contains(item.getType())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Re-issues the bound elytra if it has gone missing, so "permanent" actually means permanent. */
+    private void ensureElytra(Player owner) {
+        if (!grantElytra) {
+            return;
+        }
+        for (ItemStack item : owner.getInventory().getContents()) {
+            if (isBoundElytra(item)) {
+                return;
+            }
+        }
+        ItemStack chest = owner.getInventory().getChestplate();
+        if (isBoundElytra(chest)) {
+            return;
+        }
+        ItemStack elytra = new ItemStack(Material.ELYTRA);
+        ItemMeta meta = elytra.getItemMeta();
+        meta.displayName(Text.mm("<dark_purple>Sporeic Wither Wings</dark_purple>"));
+        meta.setUnbreakable(true);
+        meta.getPersistentDataContainer().set(Keys.BOUND_ELYTRA, PersistentDataType.BYTE, (byte) 1);
+        elytra.setItemMeta(meta);
+
+        if (chest == null || chest.getType().isAir()) {
+            owner.getInventory().setChestplate(elytra);
+        } else {
+            owner.getInventory().addItem(elytra);
+        }
+    }
+
+    private boolean isBoundElytra(ItemStack item) {
+        if (item == null || item.getType() != Material.ELYTRA) {
+            return false;
+        }
+        ItemMeta meta = item.getItemMeta();
+        return meta != null && meta.getPersistentDataContainer()
+                .has(Keys.BOUND_ELYTRA, PersistentDataType.BYTE);
+    }
+
+    // ---- advancement-gated powers ---------------------------------------
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onAdvancement(PlayerAdvancementDoneEvent event) {
+        Player player = event.getPlayer();
+        if (!plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        String key = event.getAdvancement().getKey().toString().toLowerCase(Locale.ROOT);
+        switch (key) {
+            case ADV_ALL_NETHER_BIOMES -> plugin.unlocks().unlock(player, Power.DIMENSIONAL_ADAPTATION);
+            case ADV_STAR_TRADER -> plugin.unlocks().unlock(player, Power.SPORIC_MIND_CONTROL);
+            case ADV_VERY_VERY_FRIGHTENING -> plugin.unlocks().unlock(player, Power.SPORIC_OF_THE_SEA);
+            default -> {
+                // Not one of ours.
+            }
+        }
+    }
+
+    // ---- Sporic of the Sea (red): lightning on every Nth axe crit ---------
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onAxeCrit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player) || !plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        if (!plugin.unlocks().isUnlocked(player, Power.SPORIC_OF_THE_SEA)) {
+            return;
+        }
+        if (plugin.stances().stanceOf(player) != Stance.RED) {
+            return;
+        }
+        Material weapon = player.getInventory().getItemInMainHand().getType();
+        if (!weapon.name().endsWith("_AXE")) {
+            return;
+        }
+        if (!Crits.isCriticalMelee(player)) {
+            return;
+        }
+        int count = axeCrits.merge(player.getUniqueId(), 1, Integer::sum);
+        if (count < critsPerLightning) {
+            return;
+        }
+        axeCrits.put(player.getUniqueId(), 0);
+        Entity target = event.getEntity();
+        if (target.getWorld() != null) {
+            target.getWorld().strikeLightning(target.getLocation());
+        }
+    }
+
+    // ---- Draconic Evolution (stub) --------------------------------------
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDragonEggPickup(EntityPickupItemEvent event) {
+        if (!draconicEnabled || !(event.getEntity() instanceof Player player)) {
+            return;
+        }
+        if (event.getItem().getItemStack().getType() != Material.DRAGON_EGG) {
+            return;
+        }
+        if (!plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        plugin.getLogger().info("[DraconicEvolution] " + player.getName()
+                + " picked up the dragon egg. Power is a stub -- no design yet.");
+        org.bukkit.Bukkit.getPluginManager()
+                .callEvent(new DraconicEvolutionEvent(player, event.getItem().getItemStack()));
+        Text.msg(player, "<dark_purple>Something stirs in the egg... but nothing happens yet.</dark_purple>");
+    }
+
+    // ---- abilities ------------------------------------------------------
+
+    @Override
+    public List<Ability> abilities() {
+        return List.of(
+                new Ability(ABILITY_LAUNCH, "Wither Wings Launch",
+                        "Launch yourself skyward and start gliding."),
+                new Ability(ABILITY_RIPTIDE, "Sporic Riptide",
+                        "Blue stance, in water: hurl yourself where you are looking."));
+    }
+
+    @Override
+    public String primaryAbilityId() {
+        return ABILITY_LAUNCH;
+    }
+
+    @Override
+    public boolean activate(Player owner, String abilityId) {
+        return switch (abilityId) {
+            case ABILITY_LAUNCH -> launch(owner);
+            case ABILITY_RIPTIDE -> riptide(owner);
+            default -> false;
+        };
+    }
+
+    private boolean launch(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
+            return plugin.unlocks().denyLocked(owner, Power.WITHER_WINGS);
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_LAUNCH, launchCooldown)) {
+            return false;
+        }
+        owner.setVelocity(owner.getVelocity().setY(launchPower));
+        owner.setFallDistance(0.0f);
+        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.8f, 1.6f);
+        // Kick off gliding a moment later, once they are clear of the ground.
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (owner.isOnline() && !owner.isOnGround() && !owner.isInWater()) {
+                owner.setGliding(true);
+            }
+        }, 6L);
+        return true;
+    }
+
+    private boolean riptide(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.SPORIC_OF_THE_SEA)) {
+            return plugin.unlocks().denyLocked(owner, Power.SPORIC_OF_THE_SEA);
+        }
+        if (plugin.stances().stanceOf(owner) != Stance.BLUE) {
+            Text.msg(owner, "<red>Sporic Riptide only works in <aqua>blue</aqua> stance.");
+            return false;
+        }
+        if (!owner.isInWater()) {
+            Text.msg(owner, "<red>You need to be in water.");
+            return false;
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_RIPTIDE, riptideCooldown)) {
+            return false;
+        }
+        owner.setVelocity(owner.getLocation().getDirection().multiply(riptidePower));
+        owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_2, 1.0f, 1.0f);
+        return true;
+    }
+
+}

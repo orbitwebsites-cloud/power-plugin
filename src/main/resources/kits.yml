@@ -1,0 +1,271 @@
+# =====================================================================
+# PowerSMP tuning config
+# ---------------------------------------------------------------------
+# Every number the build spec left open lives here so it can be changed
+# without recompiling. Values marked  # ASSUMED  are guesses made during
+# the build because the spec said "needs a number from <player>".
+# Reload with /powersmp reload.
+# =====================================================================
+
+general:
+  # How often (in ticks) the per-player kit tick runs. 20 = once a second,
+  # which is what the spec asks for ("polled ~1x/sec").
+  tick-interval-ticks: 20
+  # Show remaining cooldowns on the action bar.
+  cooldown-action-bar: true
+  # Sneak + right-click air with an empty main hand fires your kit's
+  # primary ability, as a shortcut for /power use <primary>.
+  sneak-right-click-primary: true
+  # Auto-save interval for data.yml, in seconds.
+  autosave-seconds: 300
+
+# ---------------------------------------------------------------------
+# Kit assignment. The spec recommends hardcoding this, and the defaults
+# below are compiled into KitRegistry. Anything listed here overrides or
+# extends the hardcoded map, so an admin can reassign without a rebuild.
+# Names are matched case-insensitively; UUIDs also work as the key.
+# ---------------------------------------------------------------------
+assignments:
+  Mavricc: mavricc
+  arhiahn: arhiahn
+  KornFlakis: kornflakis
+  MonkeyMan4167: monkeyman
+
+# ---------------------------------------------------------------------
+# Progression / unlock gating.
+# OPEN QUESTION #2 in the spec: nobody has decided what unlocks each
+# tier. Default is "everything on at once", which is the behaviour if
+# unlock-all is true. Flip it to false and the kill-thresholds below
+# start applying; /powersmp grant still works either way.
+# ---------------------------------------------------------------------
+progression:
+  unlock-all: true
+  # Player kills required for each gated power. Only consulted when
+  # unlock-all is false. 0 = available immediately.
+  # Advancement/trigger-gated powers (wither_wings, dimensional_adaptation,
+  # sporic_mind_control, sporic_of_the_sea) ignore this list entirely --
+  # they unlock from their own trigger.
+  kill-thresholds:            # ASSUMED (spec open question #2)
+    ka_chow: 0
+    overdrive: 10
+    spear_master: 25
+    flash: 0
+    power_of_the_sun: 10
+    mirage: 25
+    the_world: 0
+    made_in_heaven: 15
+    requiem: 40
+  # Announce unlocks in chat to the whole server.
+  broadcast-unlocks: true
+
+# =====================================================================
+# Mavricc -- stances / mushroom affinity / mushroom hunger
+# =====================================================================
+mavricc:
+  stances:
+    # Effect durations are refreshed every tick-interval, so these only
+    # need to outlast one interval. Amplifier 0 = level I.
+    red:
+      strength-amplifier: 1        # Strength II
+      armor-points: -4.0           # "-2 bars"; 1 armour bar = 2 armour points
+    blue:
+      speed-amplifier: 1           # Speed II
+      weakness-amplifier: 0        # Weakness I
+      haste-amplifier: 1           # Haste II
+      bonus-block-reach: 1.0
+      bonus-entity-reach: 1.0
+    green:
+      resistance-amplifier: 1      # Resistance II
+      slowness-amplifier: 0        # Slowness I
+      knockback-resistance: 1.0    # ASSUMED (spec says "knockback resistance",
+                                   # no number). 1.0 = fully immune.
+
+  affinity:
+    # Blocks that grant affinity when stood on.
+    blocks: [MYCELIUM]
+    # Any biome whose key contains one of these substrings grants affinity.
+    biome-key-contains: [mushroom]
+    # Affinity bumps every active potion amplifier by +1 and adds this
+    # much extra armour penalty ("armor penalty by +1 bar").
+    extra-armor-points: -2.0
+    red-bonus-attack-speed: 1.0    # ASSUMED. Base player attack speed is 4.0.
+    blue-hunger-loss-multiplier: 0.5   # ASSUMED ("reduced hunger loss")
+    blue-extra-entity-reach: 1.0
+    # Green: strip harmful effects. Effects this plugin applied itself
+    # (e.g. green's own Slowness I) are never stripped.
+    green-debuff-immunity: true
+
+  mushroom-hunger:
+    enabled: true
+    # OWNER_ONLY  -> only stamp items the kit owner touches (picks up,
+    #                crafts, has in inventory). Matches "this is Mavricc's
+    #                power", but a stamped item keeps its values if traded
+    #                away -- item components travel with the stack.
+    # GLOBAL      -> also stamp items moved by hoppers/dispensers and any
+    #                item entity that spawns. Covers the edge case flagged
+    #                in the spec, at the cost of a lot more event traffic.
+    scope: OWNER_ONLY
+    mushroom-foods:
+      # Raw RED_MUSHROOM / BROWN_MUSHROOM are not edible in vanilla and already
+      # stack to 64, so they are left out: the rework only ever raises a stack
+      # limit, and only edible items get the nutrition override.
+      items: [MUSHROOM_STEW]
+      nutrition: 8                 # cooked beef
+      saturation: 12.8             # cooked beef
+      max-stack-size: 32
+    suspicious-stew:
+      nutrition: 6                 # golden carrot
+      saturation: 14.4             # golden carrot
+      max-stack-size: 32
+    other-food:
+      nutrition: 5                 # bread
+      saturation: 6.0              # bread
+      # Items never touched by the rework.
+      exempt: [GOLDEN_APPLE, ENCHANTED_GOLDEN_APPLE]
+
+  wither-wings:
+    # Items that count as "holding fungi" when the Wither dies. Checked in
+    # main hand, off hand and helmet slot.
+    fungus-items: [RED_MUSHROOM, BROWN_MUSHROOM, CRIMSON_FUNGUS, WARPED_FUNGUS,
+                   MUSHROOM_STEW, RED_MUSHROOM_BLOCK, BROWN_MUSHROOM_BLOCK, MUSHROOM_STEM]
+    # A bound, unbreakable elytra is re-issued on join if it goes missing.
+    grant-elytra: true
+    # "one-time launch": an upward boost, once per cooldown.
+    launch-power: 1.6              # ASSUMED
+    launch-cooldown-seconds: 45    # ASSUMED
+
+  dimensional-adaptation:
+    # ASSUMED throughout -- the spec says "size + max-health change per
+    # stance" without giving numbers. scale is an absolute value (1.0 is
+    # normal); health-bonus is added to the 20.0 base.
+    red:   { scale: 1.2, health-bonus: 6.0 }
+    blue:  { scale: 0.8, health-bonus: -4.0 }
+    green: { scale: 1.4, health-bonus: 10.0 }
+    none:  { scale: 1.0, health-bonus: 0.0 }
+
+  sporic-mind-control:
+    hero-amplifier: 1              # Hero of the Village II
+    hero-amplifier-affinity: 3     # Hero of the Village IV
+
+  sporic-of-the-sea:
+    red-crits-per-lightning: 3
+    blue-riptide-cooldown-seconds: 6
+    blue-riptide-power: 2.2        # ASSUMED
+
+  draconic-evolution:
+    # Stub only -- fires DraconicEvolutionEvent and logs. No power yet.
+    enabled: true
+
+# =====================================================================
+# arhiahn -- JoJo-flavoured heavy-cooldown ults
+# =====================================================================
+arhiahn:
+  the-world:
+    radius: 8.0                    # ASSUMED (spec suggests ~8)
+    duration-seconds: 9            # exact, per spec
+    cooldown-seconds: 240          # ASSUMED (spec suggests 3-5 min)
+    affect-players: true
+    affect-mobs: true
+
+  made-in-heaven:
+    # NOTE: does NOT touch /tick rate -- that is a global server setting.
+    # See README "Flagged mechanics". Caster gets buffed, everyone else
+    # in radius gets slowed; the net feel is the same.
+    duration-seconds: 20           # ASSUMED
+    cooldown-seconds: 240          # ASSUMED
+    radius: 12.0                   # ASSUMED
+    self-speed-amplifier: 2        # Speed III
+    self-haste-amplifier: 1        # Haste II
+    self-bonus-attack-speed: 2.0   # ASSUMED
+    self-no-fall-damage: true
+    others-slowness-amplifier: 1   # Slowness II
+    others-mining-fatigue-amplifier: 1
+
+  requiem:
+    # Gated behind "if marb allows it" -- off until someone says yes.
+    enabled: false
+    duration-seconds: 2            # per spec
+    cooldown-seconds: 600          # ASSUMED (must exceed the other two)
+
+# =====================================================================
+# KornFlakis -- combo / momentum fighter
+# =====================================================================
+kornflakis:
+  ka-chow:
+    combo-window-seconds: 3.0      # ASSUMED (spec suggests 3s)
+    hits-required: 3
+    wither-duration-seconds: 3
+    wither-amplifier: 0
+    cooldown-seconds: 10
+    # false = real lightning (deals vanilla lightning damage and can set
+    # fires). true = visual strike only, no damage, no fire.
+    cosmetic-lightning-only: false
+
+  overdrive:
+    # Sprint continuously without taking damage.
+    tier1-seconds: 30
+    tier1-speed-amplifier: 2       # Speed III
+    tier2-seconds: 60
+    tier2-strength-amplifier: 1    # Strength II
+    tier2-duration-seconds: 120    # "for 2 minutes"
+    # RECOMMENDED INTERPRETATION (spec asks for confirmation): taking a
+    # hit resets the sprint timer -- so Speed III drops -- but does not
+    # strip an already-granted Strength II mid-duration.
+    damage-strips-tier2: false
+
+  spear-master:
+    # 1.21.1 has no vanilla spear item, so this is a Trident tagged in its
+    # PersistentDataContainer. Lunge is not a vanilla enchant; the pull and
+    # stun below are entirely custom.
+    tiers:                         # ASSUMED deltas (spec asks for exact numbers)
+      3: { pull-strength: 0.8, stun-seconds: 3.0 }
+      4: { pull-strength: 1.1, stun-seconds: 4.0 }
+      5: { pull-strength: 1.4, stun-seconds: 5.0 }
+    # Kills with the spear needed to reach each tier.
+    upgrade-kills:                 # ASSUMED
+      4: 15
+      5: 40
+    # Per-hit cooldown. Without this, every single hit is a 5s stun.
+    # ASSUMED -- the spec does not mention one, but it is unplayable at 0.
+    hit-cooldown-seconds: 8
+    # Trident's own throwing is disabled so it stays a melee spear.
+    disable-throw: true
+
+# =====================================================================
+# MonkeyMan4167 -- "Light" progression kit
+# =====================================================================
+monkeyman:
+  flash:
+    speed-amplifier: 0             # permanent Speed I
+    # ON_HIT = blind whoever you hit. ON_ACTIVATE = blind everyone in
+    # radius when you fire the ability. The spec asks which; ON_HIT is
+    # the default reading.
+    mode: ON_HIT                   # ASSUMED
+    blind-duration-seconds: 3      # ASSUMED
+    blind-internal-cooldown-seconds: 5   # ASSUMED, anti-spam
+    activate-radius: 6.0
+    activate-cooldown-seconds: 30
+
+  power-of-the-sun:
+    speed-amplifier: 0             # Speed I
+    strength-amplifier: 0          # ASSUMED -- spec says "Strength I or II"
+    # Only counts as daytime when the sky is actually visible.
+    require-sky-access: false
+
+  mirage:
+    # Clone backend. ARMOR_STAND is the zero-dependency fallback: invisible
+    # armour stands wearing your player head with your name above them.
+    # PROTOCOLLIB (real skin, walks, attackable) is not built -- adding it
+    # is open question #4 and needs a dependency decision.
+    provider: ARMOR_STAND
+    clone-count: 3                 # ASSUMED
+    duration-seconds: 12           # ASSUMED
+    cooldown-seconds: 60           # ASSUMED
+    spawn-radius: 3.0
+    # Clones drift a little so they are not obviously statues.
+    drift: true
+    drift-blocks-per-second: 0.6
+    # Buffs while Mirage is active.
+    speed-amplifier: 1             # Speed II
+    strength-amplifier: 0          # ASSUMED -- spec says "Strength I or II"
+    fire-resistance: true

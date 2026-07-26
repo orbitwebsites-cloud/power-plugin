@@ -1,0 +1,31 @@
+name: PowerSMP
+version: '${project.version}'
+main: com.powersmp.PowerSMP
+api-version: '1.21'
+authors: [PowerSMP]
+description: Bespoke per-player power kits.
+folia-supported: false
+
+commands:
+  stance:
+    description: Change your combat stance (kits that support stances only).
+    usage: /stance <red|blue|green|none>
+    permission: powersmp.use
+  power:
+    description: List and activate the abilities of your kit.
+    usage: /power [list|use <ability>|info]
+    aliases: [powers, ability]
+    permission: powersmp.use
+  powersmp:
+    description: PowerSMP administration.
+    usage: /powersmp <reload|info [player]|grant <player> <power>|revoke <player> <power>|kills <player> [amount]|spear [player]>
+    aliases: [psmp]
+    permission: powersmp.admin
+
+permissions:
+  powersmp.use:
+    description: Use your assigned kit's commands.
+    default: true
+  powersmp.admin:
+    description: Administrate PowerSMP.
+    default: op

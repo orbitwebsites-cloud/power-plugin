@@ -1,0 +1,285 @@
+package com.powersmp;
+
+import com.powersmp.combat.FreezeUtil;
+import com.powersmp.command.PowerCommand;
+import com.powersmp.command.PowerSMPCommand;
+import com.powersmp.cooldown.CooldownManager;
+import com.powersmp.data.DataStore;
+import com.powersmp.food.MushroomHungerService;
+import com.powersmp.kit.KitRegistry;
+import com.powersmp.kit.PowerKit;
+import com.powersmp.kit.impl.ArhiahnKit;
+import com.powersmp.kit.impl.KornFlakisKit;
+import com.powersmp.kit.impl.MavriccKit;
+import com.powersmp.kit.impl.MonkeyManKit;
+import com.powersmp.progression.UnlockManager;
+import com.powersmp.stance.StanceCommand;
+import com.powersmp.stance.StanceManager;
+import com.powersmp.util.Attributes;
+import com.powersmp.util.Keys;
+import java.io.File;
+import org.bukkit.Bukkit;
+import org.bukkit.command.CommandExecutor;
+import org.bukkit.command.PluginCommand;
+import org.bukkit.command.TabCompleter;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
+import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.plugin.java.JavaPlugin;
+
+/**
+ * Entry point: builds the shared services, registers the kits, and drives the one shared tick.
+ *
+ * <p>Kits do not own tasks or schedulers of their own -- there is a single timer here that calls
+ * {@link PowerKit#tick(Player)} for whoever is online. One timer is easier to reason about than
+ * four, and it keeps the "polled ~1x/sec" contract in one place.
+ */
+public class PowerSMP extends JavaPlugin implements Listener {
+
+    private static final String KITS_FILE = "kits.yml";
+
+    private FileConfiguration kitsConfig;
+
+    private DataStore data;
+    private CooldownManager cooldowns;
+    private FreezeUtil freeze;
+    private KitRegistry kits;
+    private UnlockManager unlocks;
+    private StanceManager stances;
+    private MushroomHungerService food;
+
+    private MavriccKit mavricc;
+    private ArhiahnKit arhiahn;
+    private KornFlakisKit kornflakis;
+    private MonkeyManKit monkeyman;
+
+    private int tickInterval = 20;
+
+    @Override
+    public void onEnable() {
+        Keys.init(this);
+        Attributes.warnMissing(getLogger());
+
+        saveResource(KITS_FILE, false);
+        kitsConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), KITS_FILE));
+
+        data = new DataStore(this, "data.yml");
+        data.load();
+
+        cooldowns = new CooldownManager(this);
+        freeze = new FreezeUtil(this);
+        kits = new KitRegistry(this);
+        unlocks = new UnlockManager(this);
+        stances = new StanceManager(this);
+        food = new MushroomHungerService(this);
+
+        mavricc = new MavriccKit(this);
+        arhiahn = new ArhiahnKit(this);
+        kornflakis = new KornFlakisKit(this);
+        monkeyman = new MonkeyManKit(this);
+        kits.register(mavricc);
+        kits.register(arhiahn);
+        kits.register(kornflakis);
+        kits.register(monkeyman);
+
+        applyConfig();
+
+        Bukkit.getPluginManager().registerEvents(this, this);
+        Bukkit.getPluginManager().registerEvents(freeze, this);
+        Bukkit.getPluginManager().registerEvents(unlocks, this);
+        Bukkit.getPluginManager().registerEvents(stances, this);
+        Bukkit.getPluginManager().registerEvents(food, this);
+        Bukkit.getPluginManager().registerEvents(mavricc, this);
+        Bukkit.getPluginManager().registerEvents(arhiahn, this);
+        Bukkit.getPluginManager().registerEvents(kornflakis, this);
+        Bukkit.getPluginManager().registerEvents(monkeyman, this);
+
+        bind("stance", new StanceCommand(this));
+        bind("power", new PowerCommand(this));
+        bind("powersmp", new PowerSMPCommand(this));
+
+        freeze.start();
+        cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
+        startKitTick();
+        startAutosave();
+
+        for (PowerKit kit : kits.all()) {
+            kit.onEnable();
+        }
+        // Covers /reload and a mid-session plugin enable.
+        for (Player online : Bukkit.getOnlinePlayers()) {
+            handleJoin(online);
+        }
+
+        getLogger().info("PowerSMP enabled with " + kits.all().size() + " kit(s).");
+    }
+
+    @Override
+    public void onDisable() {
+        for (PowerKit kit : kits == null ? java.util.List.<PowerKit>of() : kits.all()) {
+            kit.onDisable();
+        }
+        if (freeze != null) {
+            freeze.shutdown();
+        }
+        if (cooldowns != null) {
+            cooldowns.shutdown();
+        }
+        Bukkit.getScheduler().cancelTasks(this);
+        if (data != null) {
+            data.markDirty();
+            data.save();
+        }
+    }
+
+    private void bind(String name, CommandExecutor handler) {
+        PluginCommand command = getCommand(name);
+        if (command == null) {
+            getLogger().severe("Command '" + name + "' is missing from plugin.yml");
+            return;
+        }
+        command.setExecutor(handler);
+        if (handler instanceof TabCompleter completer) {
+            command.setTabCompleter(completer);
+        }
+    }
+
+    /** Pushes the current kits.yml into every service. Safe to call repeatedly. */
+    private void applyConfig() {
+        tickInterval = Math.max(1, kitsConfig.getInt("general.tick-interval-ticks", 20));
+        kits.loadAssignments(kitsConfig.getConfigurationSection("assignments"));
+        unlocks.reload(kitsConfig.getConfigurationSection("progression"));
+        stances.reload(kitsConfig.getConfigurationSection("mavricc"));
+        food.reload(kitsConfig.getConfigurationSection("mavricc"));
+        mavricc.reload(kitsConfig.getConfigurationSection("mavricc"));
+        arhiahn.reload(kitsConfig.getConfigurationSection("arhiahn"));
+        kornflakis.reload(kitsConfig.getConfigurationSection("kornflakis"));
+        monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
+    }
+
+    /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */
+    public void reloadKits() {
+        kitsConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), KITS_FILE));
+        applyConfig();
+        // Everything scheduled is torn down and rebuilt so a changed tick interval takes effect.
+        Bukkit.getScheduler().cancelTasks(this);
+        cooldowns.stopDisplay();
+        freeze.start();
+        cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
+        startKitTick();
+        startAutosave();
+    }
+
+    private void startKitTick() {
+        Bukkit.getScheduler().runTaskTimer(this, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                PowerKit kit = kits.kitOf(player);
+                if (kit == null) {
+                    continue;
+                }
+                try {
+                    kit.tick(player);
+                } catch (Exception ex) {
+                    // One kit throwing must not stop the others from ticking.
+                    getLogger().warning("Kit '" + kit.id() + "' threw during tick for "
+                            + player.getName() + ": " + ex);
+                }
+            }
+        }, tickInterval, tickInterval);
+    }
+
+    private void startAutosave() {
+        long seconds = Math.max(30, kitsConfig.getInt("general.autosave-seconds", 300));
+        Bukkit.getScheduler().runTaskTimer(this, () -> data.save(), seconds * 20L, seconds * 20L);
+    }
+
+    // ---- player lifecycle ------------------------------------------------
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent event) {
+        handleJoin(event.getPlayer());
+    }
+
+    private void handleJoin(Player player) {
+        data.get(player.getUniqueId()).lastKnownName(player.getName());
+        data.markDirty();
+        PowerKit kit = kits.kitOf(player);
+        if (kit != null) {
+            kit.onJoin(player);
+        }
+    }
+
+    @EventHandler
+    public void onQuit(PlayerQuitEvent event) {
+        PowerKit kit = kits.kitOf(event.getPlayer());
+        if (kit != null) {
+            kit.onQuit(event.getPlayer());
+        }
+        cooldowns.clearAll(event.getPlayer().getUniqueId());
+    }
+
+    /** Sneak + right-click air with an empty hand fires the kit's primary ability. */
+    @EventHandler
+    public void onSneakRightClick(PlayerInteractEvent event) {
+        if (!kitsConfig.getBoolean("general.sneak-right-click-primary", true)) {
+            return;
+        }
+        // RIGHT_CLICK_AIR fires once per hand; only react to the main hand.
+        if (event.getAction() != Action.RIGHT_CLICK_AIR || event.getHand() != EquipmentSlot.HAND) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!player.isSneaking() || !player.getInventory().getItemInMainHand().getType().isAir()) {
+            return;
+        }
+        PowerKit kit = kits.kitOf(player);
+        if (kit == null) {
+            return;
+        }
+        String primary = kit.primaryAbilityId();
+        if (primary != null) {
+            kit.activate(player, primary);
+        }
+    }
+
+    // ---- service accessors ----------------------------------------------
+
+    public FileConfiguration kitsConfig() {
+        return kitsConfig;
+    }
+
+    public DataStore data() {
+        return data;
+    }
+
+    public CooldownManager cooldowns() {
+        return cooldowns;
+    }
+
+    public FreezeUtil freeze() {
+        return freeze;
+    }
+
+    public KitRegistry kits() {
+        return kits;
+    }
+
+    public UnlockManager unlocks() {
+        return unlocks;
+    }
+
+    public StanceManager stances() {
+        return stances;
+    }
+
+    public MushroomHungerService food() {
+        return food;
+    }
+}

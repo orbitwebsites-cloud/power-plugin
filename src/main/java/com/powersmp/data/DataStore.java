@@ -1,0 +1,107 @@
+package com.powersmp.data;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Level;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.plugin.Plugin;
+
+/**
+ * Flat YAML store keyed by UUID, cached in memory and flushed on an interval and on shutdown.
+ *
+ * <p>Small enough that rewriting the whole file is cheaper than anything clever, and it stays
+ * hand-editable, which matters when an admin needs to fix someone's unlock state.
+ */
+public class DataStore {
+
+    private final Plugin plugin;
+    private final File file;
+    private final Map<UUID, PlayerData> cache = new ConcurrentHashMap<>();
+    private volatile boolean dirty;
+
+    public DataStore(Plugin plugin, String fileName) {
+        this.plugin = plugin;
+        this.file = new File(plugin.getDataFolder(), fileName);
+    }
+
+    public void load() {
+        cache.clear();
+        if (!file.exists()) {
+            return;
+        }
+        YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
+        ConfigurationSection players = yaml.getConfigurationSection("players");
+        if (players == null) {
+            return;
+        }
+        for (String rawUuid : players.getKeys(false)) {
+            UUID uuid;
+            try {
+                uuid = UUID.fromString(rawUuid);
+            } catch (IllegalArgumentException ex) {
+                plugin.getLogger().warning("Skipping malformed UUID in data file: " + rawUuid);
+                continue;
+            }
+            ConfigurationSection section = players.getConfigurationSection(rawUuid);
+            if (section == null) {
+                continue;
+            }
+            PlayerData data = new PlayerData(uuid);
+            data.stance(section.getString("stance", "NONE"));
+            data.kills(section.getInt("kills", 0));
+            data.spearKills(section.getInt("spear-kills", 0));
+            data.spearTier(section.getInt("spear-tier", 3));
+            data.lastKnownName(section.getString("name", ""));
+            data.unlocked().addAll(section.getStringList("unlocked"));
+            cache.put(uuid, data);
+        }
+        plugin.getLogger().info("Loaded PowerSMP data for " + cache.size() + " player(s).");
+    }
+
+    public void save() {
+        if (!dirty) {
+            return;
+        }
+        YamlConfiguration yaml = new YamlConfiguration();
+        for (PlayerData data : cache.values()) {
+            String path = "players." + data.uuid();
+            yaml.set(path + ".name", data.lastKnownName());
+            yaml.set(path + ".stance", data.stance());
+            yaml.set(path + ".kills", data.kills());
+            yaml.set(path + ".spear-kills", data.spearKills());
+            yaml.set(path + ".spear-tier", data.spearTier());
+            yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
+        }
+        try {
+            File parent = file.getParentFile();
+            if (parent != null && !parent.exists() && !parent.mkdirs()) {
+                plugin.getLogger().warning("Could not create data folder " + parent);
+            }
+            yaml.save(file);
+            dirty = false;
+        } catch (IOException ex) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save PowerSMP data", ex);
+        }
+    }
+
+    /** Never returns null -- an unknown player gets a fresh, empty record. */
+    public PlayerData get(UUID uuid) {
+        return cache.computeIfAbsent(uuid, PlayerData::new);
+    }
+
+    public Collection<PlayerData> all() {
+        return List.copyOf(cache.values());
+    }
+
+    /** Call after any mutation, otherwise {@link #save()} is a no-op. */
+    public void markDirty() {
+        dirty = true;
+    }
+}
