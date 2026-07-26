@@ -34,7 +34,14 @@ public enum Power {
     // --- MonkeyMan4167 ---------------------------------------------------
     FLASH("flash", "Flash", "monkeyman", Gate.KILLS),
     POWER_OF_THE_SUN("power_of_the_sun", "Power of the Sun", "monkeyman", Gate.KILLS),
-    MIRAGE("mirage", "Mirage", "monkeyman", Gate.KILLS);
+    MIRAGE("mirage", "Mirage", "monkeyman", Gate.KILLS),
+
+    // --- TechKnightGaming -------------------------------------------------
+    // All three are ALWAYS: the spec describes them as things he simply has,
+    // with no unlock condition mentioned.
+    MACE_MASSACRE("mace_massacre", "Mace Massacre", "techknight", Gate.ALWAYS),
+    RESTOCK("restock", "Restock", "techknight", Gate.ALWAYS),
+    INFINITE_XP("infinite_xp", "Infinite XP Bottles", "techknight", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

@@ -30,7 +30,8 @@ public class KitRegistry {
             "mavricc", "mavricc",
             "arhiahn", "arhiahn",
             "kornflakis", "kornflakis",
-            "monkeyman4167", "monkeyman");
+            "monkeyman4167", "monkeyman",
+            "techknightgaming", "techknight");
 
     private final Plugin plugin;
     private final Map<String, PowerKit> kitsById = new LinkedHashMap<>();

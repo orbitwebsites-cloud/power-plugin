@@ -58,8 +58,21 @@ public class DataStore {
             data.kills(section.getInt("kills", 0));
             data.spearKills(section.getInt("spear-kills", 0));
             data.spearTier(section.getInt("spear-tier", 3));
+            data.maceKills(section.getInt("mace-kills", 0));
             data.lastKnownName(section.getString("name", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
+
+            ConfigurationSection cooldowns = section.getConfigurationSection("cooldowns");
+            if (cooldowns != null) {
+                long now = System.currentTimeMillis();
+                for (String ability : cooldowns.getKeys(false)) {
+                    long until = cooldowns.getLong(ability, 0L);
+                    // Drop entries that already elapsed while the server was down.
+                    if (until > now) {
+                        data.cooldowns().put(ability, until);
+                    }
+                }
+            }
             cache.put(uuid, data);
         }
         plugin.getLogger().info("Loaded PowerSMP data for " + cache.size() + " player(s).");
@@ -77,7 +90,14 @@ public class DataStore {
             yaml.set(path + ".kills", data.kills());
             yaml.set(path + ".spear-kills", data.spearKills());
             yaml.set(path + ".spear-tier", data.spearTier());
+            yaml.set(path + ".mace-kills", data.maceKills());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
+            long now = System.currentTimeMillis();
+            for (Map.Entry<String, Long> entry : data.cooldowns().entrySet()) {
+                if (entry.getValue() > now) {
+                    yaml.set(path + ".cooldowns." + entry.getKey(), entry.getValue());
+                }
+            }
         }
         try {
             File parent = file.getParentFile();

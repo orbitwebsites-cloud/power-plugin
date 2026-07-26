@@ -1,6 +1,8 @@
 package com.powersmp.data;
 
+import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -16,7 +18,10 @@ public class PlayerData {
     private int kills;
     private int spearKills;
     private int spearTier = 3;
+    private int maceKills;
     private String lastKnownName = "";
+    /** ability id -> epoch millis, for cooldowns long enough that a restart must not clear them. */
+    private final Map<String, Long> cooldowns = new HashMap<>();
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -73,6 +78,18 @@ public class PlayerData {
 
     public void spearTier(int spearTier) {
         this.spearTier = spearTier;
+    }
+
+    public int maceKills() {
+        return maceKills;
+    }
+
+    public void maceKills(int maceKills) {
+        this.maceKills = Math.max(0, maceKills);
+    }
+
+    public Map<String, Long> cooldowns() {
+        return cooldowns;
     }
 
     public String lastKnownName() {

@@ -26,6 +26,7 @@ from a common ability pool.
 | `/powersmp grant\|revoke <player> <power>` | admin | Hand-manage unlocks |
 | `/powersmp kills <player> [n]` | admin | Read or set the kill counter |
 | `/powersmp spear [player]` | admin | Issue a spear |
+| `/xp` (alias `/xpbottles`) | TechKnightGaming | Fill inventory with XP bottles |
 
 Sneak + right-click with an empty hand fires your kit's primary ability
 (`general.sneak-right-click-primary`).
@@ -122,6 +123,20 @@ unbreakable elytra (re-issued if it goes missing) plus a launch on cooldown.
 **Draconic Evolution** — stub. Picking up the dragon egg fires `DraconicEvolutionEvent` and logs it.
 No power, because there is no design yet.
 
+**Mace Massacre** — all vanilla-possible. The mace is soulbound via PDC: pulled out of death drops
+and returned on respawn, undroppable, and blocked from any container inventory. If it is ever lost
+anyway (void, lava, `/clear`), it is re-issued on join at the correct level, because the kill count
+is mirrored in player data as well as on the item.
+
+**`/xp` shadows a vanilla command.** `/xp` is vanilla's alias for `/experience`. Registering it here
+takes over the unqualified name; vanilla stays reachable as `/minecraft:xp`, and this one as
+`/powersmp:xp` or `/xpbottles`. Rename it in `plugin.yml` if that trade is not worth it.
+
+**Long cooldowns now persist.** The 5-hour restock is written through to `data.yml` and rehydrated
+on join. In-memory tracking is fine for a 10-second cooldown but not a 5-hour one, where a restart
+or crash would have handed back a free use — `CooldownManager.registerPersistent` marks which
+cooldowns get this treatment.
+
 **Advancement keys used** (the corrected ones from the spec):
 `minecraft:adventure/trade_at_world_height`, `minecraft:adventure/very_very_frightening`,
 `minecraft:nether/all_biomes`.
@@ -150,6 +165,9 @@ not a rebuild. Replace them once the players weigh in.
 | Ambiguous "Strength I or II" | Strength **I** for both Power of the Sun and Mirage | `strength-amplifier` |
 | Green stance knockback resistance | 1.0 (full immunity) — the spec named the perk but no number | `mavricc.stances.green` |
 | Dimensional Adaptation scale/health | red 1.2/+6, blue 0.8/−4, green 1.4/+10 — entirely invented | `mavricc.dimensional-adaptation` |
+| Mace levelling past kill 5 | `LADDER` — Density I–V, then Breach I–IV, then Wind Burst I–III. `LITERAL` keeps pumping Density past the vanilla cap | `techknight.mace.mode` |
+| "every kill" | Mobs and players both count, mace must be in hand | `techknight.mace` |
+| Restock contents | Placeholder list — "any utils I need" can't be built literally | `techknight.restock.items` |
 
 Two judgement calls worth flagging explicitly:
 

@@ -16,6 +16,13 @@ commands:
     usage: /power [list|use <ability>|info]
     aliases: [powers, ability]
     permission: powersmp.use
+  xp:
+    # NOTE: this shadows vanilla /xp (an alias of /experience) for unqualified use.
+    # Vanilla remains reachable as /minecraft:xp; this one as /powersmp:xp.
+    description: Fill your inventory with experience bottles (TechKnightGaming).
+    usage: /xp
+    aliases: [xpbottles]
+    permission: powersmp.use
   powersmp:
     description: PowerSMP administration.
     usage: /powersmp <reload|info [player]|grant <player> <power>|revoke <player> <power>|kills <player> [amount]|spear [player]>

@@ -30,6 +30,8 @@ public final class Keys {
     public static NamespacedKey SPEAR_OWNER;
     public static NamespacedKey BOUND_ELYTRA;
     public static NamespacedKey MIRAGE_CLONE;
+    public static NamespacedKey SOULBOUND_MACE;
+    public static NamespacedKey MACE_KILLS;
 
     public static void init(Plugin plugin) {
         STANCE_ARMOR = new NamespacedKey(plugin, "stance_armor");
@@ -46,5 +48,7 @@ public final class Keys {
         SPEAR_OWNER = new NamespacedKey(plugin, "spear_owner");
         BOUND_ELYTRA = new NamespacedKey(plugin, "bound_elytra");
         MIRAGE_CLONE = new NamespacedKey(plugin, "mirage_clone");
+        SOULBOUND_MACE = new NamespacedKey(plugin, "soulbound_mace");
+        MACE_KILLS = new NamespacedKey(plugin, "mace_kills");
     }
 }

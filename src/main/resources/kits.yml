@@ -30,6 +30,7 @@ assignments:
   arhiahn: arhiahn
   KornFlakis: kornflakis
   MonkeyMan4167: monkeyman
+  TechKnightGaming: techknight
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -269,3 +270,48 @@ monkeyman:
     speed-amplifier: 1             # Speed II
     strength-amplifier: 0          # ASSUMED -- spec says "Strength I or II"
     fire-resistance: true
+
+# =====================================================================
+# TechKnightGaming -- Mace Massacre
+# =====================================================================
+techknight:
+  mace:
+    # "1 kill density 1 and so on" runs out of vanilla at 5 kills.
+    #
+    # LADDER  -> Density I-V (kills 1-5), then Breach I-IV (6-9), then
+    #            Wind Burst I-III (10-12). Stays inside vanilla levels and
+    #            keeps escalating past kill 5.
+    # LITERAL -> Density literally equals the kill count, past the vanilla
+    #            cap, up to literal-max-density. Density scales damage with
+    #            fall distance, so this becomes a one-shot machine quickly.
+    mode: LADDER                   # ASSUMED reading of "and so on"
+    literal-max-density: 10        # LITERAL mode only
+
+    # "every kill" taken literally: mobs count too. Note this maxes the whole
+    # ladder in a few minutes of mob grinding -- set count-mob-kills to false
+    # if it should be a real progression.
+    count-player-kills: true
+    count-mob-kills: true          # ASSUMED
+    # Only kills made while actually holding the mace count.
+    require-mace-in-hand: true     # ASSUMED
+    unbreakable: true              # ASSUMED -- not specified either way
+
+  restock:
+    # 5 hours. Persisted to data.yml, so a restart does not refund it.
+    cooldown-seconds: 18000
+    # "any utils I need" cannot be built literally -- this is a placeholder
+    # list. ASSUMED: replace it with what TechKnightGaming actually wants.
+    # Format: MATERIAL:amount
+    items:
+      - ENDER_PEARL:16
+      - GOLDEN_APPLE:8
+      - COOKED_BEEF:32
+      - OBSIDIAN:16
+      - COBBLESTONE:64
+      - ARROW:64
+      - WATER_BUCKET:1
+
+  xp-bottles:
+    # No cooldown, as specified.
+    fill-inventory: true
+    max-stacks: 36
