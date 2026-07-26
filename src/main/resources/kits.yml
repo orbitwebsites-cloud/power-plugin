@@ -46,16 +46,17 @@ progression:
   # Advancement/trigger-gated powers (wither_wings, dimensional_adaptation,
   # sporic_mind_control, sporic_of_the_sea) ignore this list entirely --
   # they unlock from their own trigger.
-  kill-thresholds:            # ASSUMED (spec open question #2)
+  # Nothing goes above 10 -- these have to be reachable on an SMP.
+  kill-thresholds:
     ka_chow: 0
-    overdrive: 10
-    spear_master: 25
+    overdrive: 4
+    spear_master: 8
     flash: 0
-    power_of_the_sun: 10
-    mirage: 25
+    power_of_the_sun: 4
+    mirage: 8
     the_world: 0
-    made_in_heaven: 15
-    requiem: 40
+    made_in_heaven: 5
+    requiem: 10
   # Announce unlocks in chat to the whole server.
   broadcast-unlocks: true
 
@@ -238,10 +239,11 @@ kornflakis:
       3: { pull-strength: 0.8, stun-seconds: 3.0 }
       4: { pull-strength: 1.1, stun-seconds: 4.0 }
       5: { pull-strength: 1.4, stun-seconds: 5.0 }
-    # Kills with the spear needed to reach each tier.
-    upgrade-kills:                 # ASSUMED
-      4: 15
-      5: 40
+    # Kills with the spear needed to reach each tier. Kept reachable on an
+    # SMP -- Lunge V lands at 10 kills, not a number nobody hits.
+    upgrade-kills:
+      4: 5
+      5: 10
     # Per-hit cooldown. 0 = every hit lunges and stuns, as originally specced.
     hit-cooldown-seconds: 0
     # Trident's own throwing is disabled so it stays a melee spear.

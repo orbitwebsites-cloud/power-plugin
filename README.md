@@ -193,13 +193,13 @@ not a rebuild. Replace them once the players weigh in.
 | Gap | Decision | Where |
 |---|---|---|
 | Kit assignment (open Q1) | Hardcoded in `KitRegistry`, overridable via `assignments:` | `kits.yml` |
-| Unlock gating (open Q2) | `unlock-all: true` — everything on. Thresholds are present but inert until you flip it | `progression:` |
+| Unlock gating (open Q2) | `unlock-all: true` — everything on. Thresholds are present but inert until you flip it; nothing is set above 10 kills, so they stay reachable on an SMP | `progression:` |
 | The World radius / cooldown | 8 blocks, 240s | `arhiahn.the-world` |
 | Made In Heaven duration / cooldown | 20s / 240s, radius 12 | `arhiahn.made-in-heaven` |
 | Requiem | **Disabled** — gated behind "if marb allows it" | `arhiahn.requiem.enabled` |
 | Ka-Chow combo window | 3s, 3 hits | `kornflakis.ka-chow` |
 | Overdrive damage semantics | Getting hit resets the sprint timer but does **not** strip an already-granted Strength II (the spec's recommended reading) | `damage-strips-tier2: false` |
-| Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 15 and 40 spear kills | `kornflakis.spear-master` |
+| Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 5 and 10 spear kills | `kornflakis.spear-master` |
 | Spear hit cooldown | **0** — every hit lunges and stuns, as specced | `hit-cooldown-seconds` |
 | Flash trigger | `ON_HIT` (blinds what you hit), no internal cooldown. `ON_ACTIVATE` is also built | `monkeyman.flash.mode` |
 | Ambiguous "Strength I or II" | Strength **II** for both Power of the Sun and Mirage | `strength-amplifier` |
