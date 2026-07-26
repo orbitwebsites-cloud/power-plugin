@@ -36,14 +36,16 @@ public class ArmorStandMirageProvider implements MirageProvider {
 
     private boolean drift = true;
     private double driftBlocksPerSecond = 0.6d;
+    private boolean wearOwnerArmor = true;
 
     public ArmorStandMirageProvider(Plugin plugin) {
         this.plugin = plugin;
     }
 
-    public void configure(boolean drift, double driftBlocksPerSecond) {
+    public void configure(boolean drift, double driftBlocksPerSecond, boolean wearOwnerArmor) {
         this.drift = drift;
         this.driftBlocksPerSecond = driftBlocksPerSecond;
+        this.wearOwnerArmor = wearOwnerArmor;
     }
 
     @Override
@@ -70,6 +72,24 @@ public class ArmorStandMirageProvider implements MirageProvider {
                         .set(Keys.MIRAGE_CLONE, PersistentDataType.STRING, owner.getUniqueId().toString());
                 if (s.getEquipment() != null) {
                     s.getEquipment().setHelmet(head);
+                    if (wearOwnerArmor) {
+                        // An invisible stand wearing visible armour renders as a floating armour set
+                        // under a player head -- which is very close to a player silhouette, and far
+                        // more convincing at a distance than a bare head on nothing.
+                        s.getEquipment().setChestplate(copy(owner.getInventory().getChestplate()));
+                        s.getEquipment().setLeggings(copy(owner.getInventory().getLeggings()));
+                        s.getEquipment().setBoots(copy(owner.getInventory().getBoots()));
+                        s.getEquipment().setItemInMainHand(
+                                copy(owner.getInventory().getItemInMainHand()));
+                    }
+                    // Critical: the decoy wears copies of real gear. Without zeroed drop chances,
+                    // breaking a clone would duplicate the owner's armour on the ground.
+                    s.getEquipment().setHelmetDropChance(0.0f);
+                    s.getEquipment().setChestplateDropChance(0.0f);
+                    s.getEquipment().setLeggingsDropChance(0.0f);
+                    s.getEquipment().setBootsDropChance(0.0f);
+                    s.getEquipment().setItemInMainHandDropChance(0.0f);
+                    s.getEquipment().setItemInOffHandDropChance(0.0f);
                 }
             });
             spawned.add(stand);
@@ -119,6 +139,11 @@ public class ArmorStandMirageProvider implements MirageProvider {
         where.setYaw(origin.getYaw() + (float) ((random.nextDouble() - 0.5d) * 60.0d));
         where.setPitch(0.0f);
         return where;
+    }
+
+    /** Clones a piece of the owner's kit for a decoy; the copy is cosmetic and never drops. */
+    private ItemStack copy(ItemStack source) {
+        return source == null || source.getType().isAir() ? null : source.clone();
     }
 
     private ItemStack playerHead(Player owner) {

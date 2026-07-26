@@ -6,6 +6,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Item;
@@ -51,6 +52,8 @@ public class MushroomHungerService implements Listener {
 
     private boolean enabled = true;
     private boolean globalScope;
+    /** True = nutrition is applied to the eater at consume time, not baked into the item. */
+    private boolean consumeTimeNutrition = true;
     private Set<Material> mushroomFoods = EnumSet.of(Material.MUSHROOM_STEW);
     private Set<Material> exempt = EnumSet.of(Material.GOLDEN_APPLE, Material.ENCHANTED_GOLDEN_APPLE);
     private FoodProfile mushroomProfile = new FoodProfile(8, 12.8f, 32);
@@ -71,6 +74,8 @@ public class MushroomHungerService implements Listener {
         }
         enabled = section.getBoolean("enabled", true);
         globalScope = "GLOBAL".equalsIgnoreCase(section.getString("scope", "OWNER_ONLY"));
+        consumeTimeNutrition =
+                !"ITEM_COMPONENT".equalsIgnoreCase(section.getString("nutrition-mode", "CONSUME_TIME"));
 
         mushroomFoods = materials(section.getStringList("mushroom-foods.items"), mushroomFoods);
         mushroomProfile = new FoodProfile(
@@ -149,7 +154,9 @@ public class MushroomHungerService implements Listener {
         }
 
         boolean changed = false;
-        if (material.isEdible()) {
+        // In CONSUME_TIME mode the item is left alone nutritionally -- only the stack limit, which
+        // genuinely cannot be anything but per-item, is written here.
+        if (!consumeTimeNutrition && material.isEdible()) {
             FoodComponent food = meta.getFood();
             food.setNutrition(profile.nutrition());
             food.setSaturation(profile.saturation());
@@ -249,6 +256,44 @@ public class MushroomHungerService implements Listener {
         if (stamp(item)) {
             event.setItem(item);
         }
+    }
+
+    /**
+     * Applies the reworked nutrition to the eater rather than to the item.
+     *
+     * <p>This is what makes the rework leak-proof. Vanilla resolves the meal on its own, and one
+     * tick later the eater's food and saturation are overwritten with the values this kit says the
+     * meal should have been worth. Because nothing is written to the stack:
+     * <ul>
+     *   <li>Food handed to another player behaves normally for them -- neither the buff nor the
+     *       bread-tier nerf follows the item around.</li>
+     *   <li>Every delivery route works, including the "obscure vectors" the spec flagged: hoppers,
+     *       dispensers, villager trades, creative-given items. The item never had to be seen first,
+     *       only eaten.</li>
+     * </ul>
+     * Stack size still has to be stamped onto items, because there is no per-player equivalent.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onConsumeNutrition(PlayerItemConsumeEvent event) {
+        if (!enabled || !consumeTimeNutrition) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!inScope(player)) {
+            return;
+        }
+        FoodProfile profile = profileFor(event.getItem().getType());
+        if (profile == null) {
+            return;
+        }
+        int targetFood = Math.min(20, player.getFoodLevel() + profile.nutrition());
+        float targetSaturation = Math.min(targetFood, player.getSaturation() + profile.saturation());
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) {
+                player.setFoodLevel(targetFood);
+                player.setSaturation(targetSaturation);
+            }
+        });
     }
 
     // ---- GLOBAL scope only ----------------------------------------------

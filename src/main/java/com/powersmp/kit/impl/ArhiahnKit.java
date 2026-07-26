@@ -68,6 +68,7 @@ public class ArhiahnKit implements PowerKit, Listener {
     private boolean mihNoFall = true;
     private int mihOthersSlowness = 1;
     private int mihOthersFatigue = 1;
+    private double mihOthersVelocityMultiplier = 0.35d;
 
     private boolean requiemEnabled;
     private int requiemDuration = 2;
@@ -111,6 +112,8 @@ public class ArhiahnKit implements PowerKit, Listener {
             mihNoFall = mih.getBoolean("self-no-fall-damage", true);
             mihOthersSlowness = mih.getInt("others-slowness-amplifier", mihOthersSlowness);
             mihOthersFatigue = mih.getInt("others-mining-fatigue-amplifier", mihOthersFatigue);
+            mihOthersVelocityMultiplier =
+                    mih.getDouble("others-velocity-multiplier", mihOthersVelocityMultiplier);
         }
         ConfigurationSection requiem = section.getConfigurationSection("requiem");
         if (requiem != null) {
@@ -221,15 +224,12 @@ public class ArhiahnKit implements PowerKit, Listener {
             noFallDamage.put(owner.getUniqueId(), System.currentTimeMillis() + ticks * 50L);
         }
 
-        int slowed = 0;
-        for (Entity entity : owner.getNearbyEntities(mihRadius, mihRadius, mihRadius)) {
-            if (entity.equals(owner) || !(entity instanceof LivingEntity target)) {
-                continue;
-            }
-            Effects.apply(target, PotionEffectType.SLOWNESS, ticks, mihOthersSlowness);
-            Effects.apply(target, PotionEffectType.MINING_FATIGUE, ticks, mihOthersFatigue);
-            slowed++;
-        }
+        int slowed = applySlow(owner, ticks);
+
+        // Potions cannot touch arrows, fireballs, TNT or minecarts, so anything non-living in range
+        // gets its velocity scaled down every tick instead. This also re-slows anyone who walks into
+        // the radius after the cast, rather than only whoever happened to be standing there.
+        startSlowField(owner, ticks);
 
         owner.getWorld().playSound(owner.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.0f, 0.7f);
         Text.msg(owner, "<gold><bold>MADE IN HEAVEN</bold></gold> <gray>-- "
@@ -239,6 +239,52 @@ public class ArhiahnKit implements PowerKit, Listener {
         Bukkit.getScheduler().runTaskLater(plugin,
                 () -> Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.MIH_ATTACK_SPEED), ticks);
         return true;
+    }
+
+    /** Applies the Slowness/Mining Fatigue pair to every living thing in range except the caster. */
+    private int applySlow(Player owner, int ticks) {
+        int slowed = 0;
+        for (Entity entity : owner.getNearbyEntities(mihRadius, mihRadius, mihRadius)) {
+            if (entity.equals(owner) || !(entity instanceof LivingEntity target)) {
+                continue;
+            }
+            Effects.apply(target, PotionEffectType.SLOWNESS, ticks, mihOthersSlowness);
+            Effects.apply(target, PotionEffectType.MINING_FATIGUE, ticks, mihOthersFatigue);
+            slowed++;
+        }
+        return slowed;
+    }
+
+    /**
+     * Drags everything non-living in range toward a standstill for the duration, and keeps re-slowing
+     * living things that wander in. This is the part that sells "the world slowed down" for objects
+     * a potion effect can never reach.
+     */
+    private void startSlowField(Player owner, int ticks) {
+        if (mihOthersVelocityMultiplier >= 1.0d) {
+            return;
+        }
+        final int[] elapsed = {0};
+        Bukkit.getScheduler().runTaskTimer(plugin, taskHandle -> {
+            if (elapsed[0] >= ticks || !owner.isOnline()) {
+                taskHandle.cancel();
+                return;
+            }
+            elapsed[0]++;
+            for (Entity entity : owner.getNearbyEntities(mihRadius, mihRadius, mihRadius)) {
+                if (entity.equals(owner)) {
+                    continue;
+                }
+                if (entity instanceof LivingEntity) {
+                    // Re-slow on a one-second cadence; every tick would be wasted packets.
+                    if (elapsed[0] % 20 == 0) {
+                        applySlow(owner, Math.max(40, ticks - elapsed[0]));
+                    }
+                } else {
+                    entity.setVelocity(entity.getVelocity().multiply(mihOthersVelocityMultiplier));
+                }
+            }
+        }, 1L, 1L);
     }
 
     private boolean requiem(Player owner) {

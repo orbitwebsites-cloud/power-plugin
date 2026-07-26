@@ -71,47 +71,84 @@ and 1.21.3+ (`max_health`) spellings, so one jar covers the whole 1.21 line.
 
 ## Flagged mechanics — what was actually built
 
-The spec flagged seven things as vanilla-impossible or needing a caveat. All defaults below follow
-the spec's proposed fake unless noted.
+Only four things in this plugin are genuinely impossible. Everything else the spec flagged has a
+real workaround, and the workaround is what ships.
 
-**Made In Heaven** — does not touch tick rate. `/tick rate` is a single global server clock; there is
-no per-entity tick rate, so speeding it up would speed the caster up too and slowing it down would
-slow the server for players nowhere near the fight. Built as: caster gets Speed III + Haste II +
-bonus attack speed + fall-damage immunity; everything else in radius gets Slowness II + Mining
-Fatigue II. The relative speed difference — the part that's actually felt — is preserved.
+**Actually impossible, no workaround exists:**
+
+1. **Per-entity tick rate.** `/tick rate` is one global server clock. There is no API, NMS path or
+   packet that gives one entity a different tick rate. Made In Heaven delivers the *effect* by other
+   means; the mechanism is off the table.
+2. **A fake `Player` entity in pure Bukkit.** Spawning something that carries a real player skin,
+   walks, and can be attacked requires packet-level entity spoofing — ProtocolLib, an NPC library, or
+   version-locked NMS. The Bukkit API has no entry point for it at all.
+3. **Perfectly smooth player freezing.** The client predicts its own movement and is corrected
+   afterwards. Every correction is visible. This is much smaller now (see below) but cannot reach
+   zero.
+4. **Global base food values.** Nutrition is a per-`ItemStack` data component; there is no server
+   setting or datapack hook that rewrites what mushroom stew is worth for everyone. *(Worked around
+   completely for per-player behaviour — see Mushroom Hunger.)*
+
+Everything below is a workaround that was found and built.
+
+**Made In Heaven** — the relative speed difference is what's actually felt, so that is what gets
+built. Caster: Speed III, Haste II, bonus attack speed, fall-damage immunity. Everything else in
+range: Slowness II + Mining Fatigue II, *plus* a per-tick velocity damper on anything non-living.
+That damper is the piece potions can't do — arrows, fireballs, TNT, minecarts and boats all crawl
+too, which is what makes it read as the world slowing rather than as a debuff aura. The slow field
+also re-applies to anyone who walks into the radius mid-cast, instead of only catching whoever was
+standing there at the moment of the cast.
 
 **The World** — freezes everything in radius except the caster for exactly 9s. Frozen targets can
 never *deal* damage, and by default can still *take* it, so the stop is an opening to attack rather
 than a shield around whoever got caught. `block-damage-to-frozen: true` restores the spec's literal
 "cancel all damage dealt/received" reading. Mobs freeze cleanly
-(AI off, velocity zeroed). Players get four things stacked: positional `PlayerMoveEvent` cancelled,
-velocity pinned, Slowness 250 + a *negative* Jump Boost (this is what actually stops client-side
-movement prediction, and is why it looks far less janky than move-cancelling alone), and their
-actions cancelled — damage in and out, item use, block break/place, drops, projectiles, containers.
+(AI off, velocity zeroed). Players get five things stacked:
 
-> Frozen players will still stutter, and can still look around, chat and swing their arm. That is
-> client-side prediction, not a bug: the client moves first and asks permission after, and every
-> rejection is a visible correction. Expect it to look rough on the receiving end.
+- **Walk speed and fly speed set to zero.** This is the one that matters. It tells the *client* it
+  cannot move, so it never predicts movement the server then has to reject — which is the actual
+  cause of rubber-banding. Restored on unfreeze, and repaired on join if a crash left it at zero.
+- Slowness 250 and a *negative* Jump Boost, pinning them to the ground.
+- Velocity zeroed every tick, with a teleport-back safety net past one block of drift.
+- Positional `PlayerMoveEvent` cancelled (look is still allowed).
+- Actions cancelled: damage dealt, item use, block break/place, drops, projectiles, containers.
 
-**Mirage** — built on the **armour-stand fallback**, because adding ProtocolLib is
-[open question #4](#open-questions) and nobody has approved a new dependency. Invisible armour
-stands wearing the owner's player head with their nametag, lightly drifting, destructible. It is a
-downgrade and the spec says so: at range the heads and nametags read as players, up close they are
-obviously stands and they neither walk nor fight. `MirageProvider` is an interface — when the
-dependency is approved, drop in a `ProtocolLibMirageProvider` and change one config line.
+Non-living entities also get gravity switched off, so arrows and thrown potions hang in the air
+instead of dropping, and primed TNT has its fuse held so it cannot detonate during the stop.
 
-**Mushroom Hunger** — implemented as a stamping service, since nutrition and stack size are
-per-`ItemStack` data components with no global switch. Stacks are stamped on first contact (join
-scan, inventory open/click, pickup, craft, consume) and tagged with a hash of the current profile,
-so a `kits.yml` change re-stamps on next contact instead of leaving stale values behind. Two
-guardrails beyond the spec: a stack limit is only ever *raised*, and food values are only written to
-materials that are actually edible.
+> Residual jank: frozen players can still look around, chat and swing their arm, and there may be
+> slight stutter. Zeroing walk speed removes most of what the spec warned about, but client-side
+> prediction cannot be fully eliminated.
 
-`mushroom-hunger.scope` controls the flagged edge case:
-- `OWNER_ONLY` *(default)* — only what Mavricc touches. Honest caveat: components travel with the
-  stack, so stew handed to someone else keeps its buffed values.
-- `GLOBAL` — also hooks hopper/dispenser movement and item spawns, at the cost of much more event
-  traffic.
+**Mirage** — the one place where the impossible part really does bite. Real clones need packet-level
+entity spoofing, so the built version is the armour-stand fallback, pushed as far as it goes:
+invisible stands wearing the owner's **player head plus a copy of their actual armour and held
+item**, with their nametag above. An invisible stand in visible armour renders as a floating armour
+set under a player head — a genuine player silhouette, not a bare head on nothing — so at range and
+in a fight they read convincingly. Equipment drop chances are forced to zero, or breaking a clone
+would duplicate the owner's gear.
+
+What the fallback still cannot do: they don't walk properly (only drift), don't fight, don't have
+the owner's skin on the body, and are obvious up close. `MirageProvider` is an interface — when a
+dependency is approved, add a `ProtocolLibMirageProvider` and change one config line.
+
+**Mushroom Hunger** — the spec's caveat about retroactively tagging every item in the world is
+solved rather than mitigated. **Nutrition is applied to the eater, not the item.** Vanilla resolves
+the meal, and one tick later the eater's food and saturation are overwritten with what this kit says
+the meal was worth. Nothing is written to the stack, which kills the whole class of problem:
+
+- No leak. Food handed to another player behaves normally for them — neither the stew buff nor the
+  bread-tier nerf follows the item around.
+- Every delivery route works, including the "obscure vectors" the spec flagged: hoppers, dispensers,
+  villager trades, `/give`. The item never has to be seen beforehand, only eaten.
+- Changing `kits.yml` takes effect on the next bite, with nothing stale in circulation.
+
+`nutrition-mode: ITEM_COMPONENT` restores the old bake-into-the-item behaviour if it is ever wanted.
+
+**Stack size is the one part that still has to be stamped onto items** — there is no per-player
+equivalent of a stack limit — so that piece keeps the on-contact stamping (join scan, inventory
+open/click, pickup, craft, consume, plus hopper and item-spawn hooks in `GLOBAL` scope), with a
+profile hash so stacks are not reprocessed and a stack limit is only ever *raised*.
 
 Raw mushrooms are **not** in the default list: they aren't edible in vanilla and already stack to
 64, so including them would have been a nerf. Mushroom stew and suspicious stew are.
@@ -195,8 +232,8 @@ Still genuinely blocked on a human:
 
 1. **Unlock gating** — what actually unlocks each tier for KornFlakis and MonkeyMan4167? Kills,
    playtime, admin grant? Kill-count scaffolding is built and inert.
-2. **Mirage backend** — accept the armour-stand downgrade, or add ProtocolLib? The interface is
-   ready either way.
+2. **Mirage backend** — accept the armour-stand fallback, or add ProtocolLib for real clones? This is
+   the only remaining genuine capability gap; the interface is ready either way.
 3. **Draconic Evolution** — needs a design before it can be more than a stub.
 4. **Requiem** — needs marb's yes, then flip `arhiahn.requiem.enabled`.
 5. **The `# ASSUMED` numbers** — all guesses until the four players confirm them.

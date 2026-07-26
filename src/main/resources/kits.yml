@@ -98,13 +98,21 @@ mavricc:
 
   mushroom-hunger:
     enabled: true
-    # OWNER_ONLY  -> only stamp items the kit owner touches (picks up,
-    #                crafts, has in inventory). Matches "this is Mavricc's
-    #                power", but a stamped item keeps its values if traded
-    #                away -- item components travel with the stack.
-    # GLOBAL      -> also stamp items moved by hoppers/dispensers and any
-    #                item entity that spawns. Covers the edge case flagged
-    #                in the spec, at the cost of a lot more event traffic.
+    # How the reworked nutrition is delivered.
+    #
+    # CONSUME_TIME (default) -> applied to the EATER when they finish eating.
+    #   Nothing is written to the item, so nothing leaks: food handed to
+    #   another player behaves normally for them, and every delivery route
+    #   works (hoppers, dispensers, villager trades, /give) because the item
+    #   never has to be seen beforehand.
+    # ITEM_COMPONENT -> bakes the values into each ItemStack. Kept as an
+    #   option, but the values then travel with the item to whoever holds it.
+    nutrition-mode: CONSUME_TIME
+    # Scope of the whole rework, and of stack-size stamping specifically.
+    # Stack size is the one part that MUST live on the item -- there is no
+    # per-player equivalent -- so it is still stamped in either mode.
+    # OWNER_ONLY -> only Mavricc. GLOBAL -> everyone, plus hopper/dispenser
+    # and item-spawn hooks for stack sizes.
     scope: OWNER_ONLY
     mushroom-foods:
       # Raw RED_MUSHROOM / BROWN_MUSHROOM are not edible in vanilla and already
@@ -185,6 +193,10 @@ arhiahn:
     self-no-fall-damage: true
     others-slowness-amplifier: 1   # Slowness II
     others-mining-fatigue-amplifier: 1
+    # Potions cannot slow arrows, fireballs, TNT or minecarts. Everything
+    # non-living in range has its velocity scaled by this every tick instead.
+    # 1.0 disables the effect; lower is slower.
+    others-velocity-multiplier: 0.35
 
   requiem:
     # Gated behind "if marb allows it" -- off until someone says yes.
@@ -269,6 +281,11 @@ monkeyman:
     # Clones drift a little so they are not obviously statues.
     drift: true
     drift-blocks-per-second: 0.6
+    # Dress decoys in a copy of the owner's armour and held item. An invisible
+    # stand wearing visible armour under a player head reads as a player
+    # silhouette at range. Drop chances are forced to zero, so breaking a
+    # clone cannot duplicate the owner's gear.
+    wear-owner-armor: true
     # Buffs while Mirage is active.
     speed-amplifier: 1             # Speed II
     strength-amplifier: 1          # Strength II (the higher of the spec's "I or II")

@@ -103,7 +103,8 @@ public class MonkeyManKit implements PowerKit, Listener {
             mirageFireResistance = mirage.getBoolean("fire-resistance", true);
             armorStandProvider.configure(
                     mirage.getBoolean("drift", true),
-                    mirage.getDouble("drift-blocks-per-second", 0.6d));
+                    mirage.getDouble("drift-blocks-per-second", 0.6d),
+                    mirage.getBoolean("wear-owner-armor", true));
 
             String requested = mirage.getString("provider", "ARMOR_STAND");
             if (!"ARMOR_STAND".equalsIgnoreCase(requested)) {

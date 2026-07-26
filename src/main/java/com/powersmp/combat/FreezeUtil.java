@@ -12,6 +12,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
+import org.bukkit.entity.TNTPrimed;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -25,6 +26,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
@@ -55,6 +57,8 @@ public class FreezeUtil implements Listener {
     /** Amplifier at which Jump Boost becomes a jump *penalty*, pinning the player to the ground. */
     private static final int NEGATIVE_JUMP_AMPLIFIER = 128;
     private static final int IMMOBILISING_SLOWNESS = 250;
+    private static final float DEFAULT_WALK_SPEED = 0.2f;
+    private static final float DEFAULT_FLY_SPEED = 0.1f;
     /** Safety net: if a player somehow drifts further than this, snap them back. */
     private static final double DRIFT_TOLERANCE_SQUARED = 1.0d;
 
@@ -127,10 +131,23 @@ public class FreezeUtil implements Listener {
         entity.setVelocity(new Vector(0, 0, 0));
 
         if (entity instanceof Player player) {
+            // The important part. Zeroing walk and fly speed tells the *client* it cannot move, so
+            // it never predicts movement we then have to reject. Move-cancelling alone is what
+            // causes rubber-banding; this removes most of it.
+            record.walkSpeed = player.getWalkSpeed();
+            record.flySpeed = player.getFlySpeed();
+            player.setWalkSpeed(0.0f);
+            player.setFlySpeed(0.0f);
             player.addPotionEffect(new PotionEffect(
                     PotionEffectType.SLOWNESS, (int) durationTicks + 5, IMMOBILISING_SLOWNESS, true, false, false));
             player.addPotionEffect(new PotionEffect(
                     PotionEffectType.JUMP_BOOST, (int) durationTicks + 5, NEGATIVE_JUMP_AMPLIFIER, true, false, false));
+        } else {
+            // Arrows, fireballs, thrown potions: zero velocity alone just makes them drop. Killing
+            // gravity too actually suspends them mid-flight, which is what a time-stop should look
+            // like.
+            record.hadGravity = entity.hasGravity();
+            entity.setGravity(false);
         }
     }
 
@@ -156,8 +173,12 @@ public class FreezeUtil implements Listener {
             mob.setAI(record.hadAi);
         }
         if (entity instanceof Player player) {
+            player.setWalkSpeed(record.walkSpeed);
+            player.setFlySpeed(record.flySpeed);
             player.removePotionEffect(PotionEffectType.SLOWNESS);
             player.removePotionEffect(PotionEffectType.JUMP_BOOST);
+        } else {
+            entity.setGravity(record.hadGravity);
         }
     }
 
@@ -180,6 +201,10 @@ public class FreezeUtil implements Listener {
             entity.setVelocity(new Vector(0, 0, 0));
             if (entity.getFallDistance() > 0.0f) {
                 entity.setFallDistance(0.0f);
+            }
+            // Hold the fuse: primed TNT caught in a time-stop should not go off during it.
+            if (entity instanceof TNTPrimed tnt) {
+                tnt.setFuseTicks(tnt.getFuseTicks() + 1);
             }
             Location anchor = entry.getValue().anchor;
             Location current = entity.getLocation();
@@ -307,11 +332,37 @@ public class FreezeUtil implements Listener {
         unfreeze(event.getPlayer().getUniqueId());
     }
 
+    /**
+     * Crash recovery. Walk speed is persisted in player data, so a server that died mid-freeze would
+     * otherwise leave someone permanently unable to move. Nothing else legitimately sets it to
+     * exactly zero, so a zero on join with no active freeze means we left it there.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
+        if (isFrozen(player.getUniqueId())) {
+            return;
+        }
+        if (player.getWalkSpeed() == 0.0f) {
+            player.setWalkSpeed(DEFAULT_WALK_SPEED);
+            plugin.getLogger().info("Restored walk speed for " + player.getName()
+                    + " (left at zero by an unclean shutdown during a freeze).");
+        }
+        if (player.getFlySpeed() == 0.0f) {
+            player.setFlySpeed(DEFAULT_FLY_SPEED);
+        }
+    }
+
     private static final class Frozen {
         private final Location anchor;
         private final boolean hadAi;
         private long expiresAt;
         private boolean blockIncomingDamage;
+        /** Restored on unfreeze -- players only. */
+        private float walkSpeed = DEFAULT_WALK_SPEED;
+        private float flySpeed = DEFAULT_FLY_SPEED;
+        /** Restored on unfreeze -- non-players only. */
+        private boolean hadGravity = true;
 
         private Frozen(Location anchor, long expiresAt, boolean hadAi, boolean blockIncomingDamage) {
             this.anchor = anchor;
