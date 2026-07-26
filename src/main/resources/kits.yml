@@ -271,11 +271,15 @@ monkeyman:
     require-sky-access: false
 
   mirage:
-    # Clone backend. ARMOR_STAND is the zero-dependency fallback: invisible
-    # armour stands wearing your player head with your name above them.
-    # PROTOCOLLIB (real skin, walks, attackable) is not built -- adding it
-    # is open question #4 and needs a dependency decision.
-    provider: ARMOR_STAND
+    # Clone backend.
+    #   PROTOCOLLIB  -> real player entities with MonkeyMan4167's actual skin.
+    #                   They walk, and swinging at one pops it. Requires the
+    #                   ProtocolLib plugin on the server.
+    #   ARMOR_STAND  -> zero-dependency fallback: invisible armour stands in
+    #                   a copy of the owner's gear under a player head.
+    # PROTOCOLLIB degrades to ARMOR_STAND on its own if ProtocolLib is
+    # missing, or if a game update moves a packet field it relies on.
+    provider: PROTOCOLLIB
     clone-count: 3                 # ASSUMED
     duration-seconds: 12           # ASSUMED
     cooldown-seconds: 60           # ASSUMED

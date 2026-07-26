@@ -5,6 +5,7 @@ api-version: '1.21'
 authors: [PowerSMP]
 description: Bespoke per-player power kits.
 folia-supported: false
+softdepend: [ProtocolLib]
 
 commands:
   stance:

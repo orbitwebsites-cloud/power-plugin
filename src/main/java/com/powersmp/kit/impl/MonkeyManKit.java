@@ -10,6 +10,8 @@ import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.List;
 import java.util.Locale;
+import java.util.logging.Level;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.World;
@@ -20,6 +22,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
 
 /**
@@ -106,17 +109,53 @@ public class MonkeyManKit implements PowerKit, Listener {
                     mirage.getDouble("drift-blocks-per-second", 0.6d),
                     mirage.getBoolean("wear-owner-armor", true));
 
-            String requested = mirage.getString("provider", "ARMOR_STAND");
-            if (!"ARMOR_STAND".equalsIgnoreCase(requested)) {
-                plugin.getLogger().warning("Mirage provider '" + requested
-                        + "' is not built (open question #4: the ProtocolLib dependency has not been"
-                        + " approved). Falling back to armour stands.");
-            }
-            mirageProvider = armorStandProvider;
+            mirageProvider = resolveProvider(mirage.getString("provider", "PROTOCOLLIB"));
         }
 
         plugin.cooldowns().registerLabel(ABILITY_MIRAGE, "Mirage");
         plugin.cooldowns().registerLabel(ABILITY_FLASH, "Flash");
+    }
+
+    /**
+     * Picks the clone backend.
+     *
+     * <p>The ProtocolLib provider is loaded by name rather than referenced directly, so that a
+     * server without ProtocolLib never tries to link its classes -- referencing it normally would
+     * throw {@link NoClassDefFoundError} at class-verification time and take the whole kit with it.
+     */
+    private MirageProvider resolveProvider(String requested) {
+        if ("ARMOR_STAND".equalsIgnoreCase(requested)) {
+            return armorStandProvider;
+        }
+        if (Bukkit.getPluginManager().getPlugin("ProtocolLib") == null) {
+            plugin.getLogger().warning("Mirage is set to '" + requested
+                    + "' but ProtocolLib is not installed; using armour stands instead.");
+            return armorStandProvider;
+        }
+        try {
+            Class<?> type = Class.forName("com.powersmp.mirage.ProtocolLibMirageProvider");
+            MirageProvider provider =
+                    (MirageProvider) type.getConstructor(Plugin.class).newInstance(plugin);
+            plugin.getLogger().info("Mirage is using ProtocolLib: clones will be real player "
+                    + "entities with MonkeyMan4167's skin.");
+            return provider;
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Could not start the ProtocolLib Mirage backend; "
+                    + "falling back to armour stands.", ex);
+            return armorStandProvider;
+        }
+    }
+
+    /** True once the ProtocolLib backend has reported itself broken at runtime. */
+    private boolean protocolProviderDied() {
+        if (mirageProvider == armorStandProvider) {
+            return false;
+        }
+        try {
+            return !(boolean) mirageProvider.getClass().getMethod("isHealthy").invoke(mirageProvider);
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     // ---- passives -------------------------------------------------------
@@ -199,6 +238,11 @@ public class MonkeyManKit implements PowerKit, Listener {
             return false;
         }
         int spawned = mirageProvider.spawn(owner, mirageCount, mirageRadius, mirageDuration * 20);
+        if (spawned == 0 && protocolProviderDied()) {
+            // The packet backend gave up mid-cast; retry on stands so the ability still fires.
+            mirageProvider = armorStandProvider;
+            spawned = mirageProvider.spawn(owner, mirageCount, mirageRadius, mirageDuration * 20);
+        }
 
         int ticks = mirageDuration * 20;
         Effects.apply(owner, PotionEffectType.SPEED, ticks, mirageSpeed);
@@ -241,6 +285,14 @@ public class MonkeyManKit implements PowerKit, Listener {
     @Override
     public void onDisable() {
         mirageProvider.despawnAll();
+        // The ProtocolLib backend also holds a packet listener that must be handed back.
+        try {
+            mirageProvider.getClass().getMethod("shutdown").invoke(mirageProvider);
+        } catch (NoSuchMethodException expected) {
+            // The armour-stand backend has nothing extra to release.
+        } catch (Throwable ex) {
+            plugin.getLogger().log(Level.WARNING, "Mirage backend did not shut down cleanly.", ex);
+        }
     }
 
     public MirageProvider provider() {

@@ -5,6 +5,8 @@ from a common ability pool.
 
 - **Target:** Paper 1.21.1+, Java 21, Maven
 - **Build:** `mvn package` → `target/powersmp-0.1.0.jar`
+- **Optional dependency:** ProtocolLib, for Mirage's real clones. Without it Mirage falls back to
+  armour stands automatically; everything else is unaffected.
 - **Configure:** `plugins/PowerSMP/kits.yml` (every tuning number lives there), `/powersmp reload`
 
 > **This has not been compiled.** The build environment could only reach Maven Central, and
@@ -79,9 +81,9 @@ real workaround, and the workaround is what ships.
 1. **Per-entity tick rate.** `/tick rate` is one global server clock. There is no API, NMS path or
    packet that gives one entity a different tick rate. Made In Heaven delivers the *effect* by other
    means; the mechanism is off the table.
-2. **A fake `Player` entity in pure Bukkit.** Spawning something that carries a real player skin,
-   walks, and can be attacked requires packet-level entity spoofing — ProtocolLib, an NPC library, or
-   version-locked NMS. The Bukkit API has no entry point for it at all.
+2. ~~**A fake `Player` entity in pure Bukkit.**~~ **Solved** — ProtocolLib is approved and the real
+   clone backend is built. Still true that *pure* Bukkit cannot do it; the armour-stand fallback
+   remains for servers without ProtocolLib.
 3. **Perfectly smooth player freezing.** The client predicts its own movement and is corrected
    afterwards. Every correction is visible. This is much smaller now (see below) but cannot reach
    zero.
@@ -120,17 +122,25 @@ instead of dropping, and primed TNT has its fuse held so it cannot detonate duri
 > slight stutter. Zeroing walk speed removes most of what the spec warned about, but client-side
 > prediction cannot be fully eliminated.
 
-**Mirage** — the one place where the impossible part really does bite. Real clones need packet-level
-entity spoofing, so the built version is the armour-stand fallback, pushed as far as it goes:
-invisible stands wearing the owner's **player head plus a copy of their actual armour and held
-item**, with their nametag above. An invisible stand in visible armour renders as a floating armour
-set under a player head — a genuine player silhouette, not a bare head on nothing — so at range and
-in a fight they read convincingly. Equipment drop chances are forced to zero, or breaking a clone
-would duplicate the owner's gear.
+**Mirage** — now has two backends, chosen by `monkeyman.mirage.provider`.
 
-What the fallback still cannot do: they don't walk properly (only drift), don't fight, don't have
-the owner's skin on the body, and are obvious up close. `MirageProvider` is an interface — when a
-dependency is approved, add a `ProtocolLibMirageProvider` and change one config line.
+`PROTOCOLLIB` *(default)* — real clones. Packet-level player entities carrying MonkeyMan4167's
+actual signed skin texture, which walk around and pop when swung at. Because they exist only on the
+client, "attackable" is implemented by intercepting the attacker's `USE_ENTITY` packet and popping
+the clone whose entity id was hit — so a decoy genuinely costs an attacker a swing. Requires the
+ProtocolLib plugin; `softdepend` means the plugin still loads without it.
+
+`ARMOR_STAND` — the zero-dependency fallback: invisible stands wearing a copy of the owner's armour
+and held item under their player head, which renders as a player silhouette. They drift rather than
+walk and are obvious up close. Equipment drop chances are forced to zero, or breaking a clone would
+duplicate the owner's gear.
+
+> **The ProtocolLib backend is the least verified code here.** Packet layouts are the least stable
+> surface in the game — `PLAYER_INFO` changed shape in 1.19.3 and again in 1.20.2, entity teleport
+> changed in 1.21.2 — and this was written against ProtocolLib 5.3.0 on 1.21.1 without being
+> compiled or run. Every packet operation is wrapped: the first failure logs the offending field
+> once, disables the backend for that session, and falls back to armour stands mid-cast rather than
+> leaving invisible ghosts or spamming the console. Test Mirage in game before relying on it.
 
 **Mushroom Hunger** — the spec's caveat about retroactively tagging every item in the world is
 solved rather than mitigated. **Nutrition is applied to the eater, not the item.** Vanilla resolves
@@ -232,8 +242,8 @@ Still genuinely blocked on a human:
 
 1. **Unlock gating** — what actually unlocks each tier for KornFlakis and MonkeyMan4167? Kills,
    playtime, admin grant? Kill-count scaffolding is built and inert.
-2. **Mirage backend** — accept the armour-stand fallback, or add ProtocolLib for real clones? This is
-   the only remaining genuine capability gap; the interface is ready either way.
+2. ~~**Mirage backend**~~ — resolved: ProtocolLib approved, real clones built. Needs an in-game test
+   to confirm the packet layouts, since it could not be compiled here.
 3. **Draconic Evolution** — needs a design before it can be more than a stub.
 4. **Requiem** — needs marb's yes, then flip `arhiahn.requiem.enabled`.
 5. **The `# ASSUMED` numbers** — all guesses until the four players confirm them.
