@@ -67,6 +67,26 @@ public final class Effects {
         }
     }
 
+    /**
+     * Removes an effect only if it looks like one of ours.
+     *
+     * <p>Kits that revoke a buff on some condition (Overdrive dropping Speed when its owner takes a
+     * hit) must not also destroy a potion the player drank themselves. Refreshed effects always have
+     * at most {@link #REFRESH_TICKS} left; a real potion has far more, so anything longer is left
+     * alone.
+     */
+    public static void removeIfTransient(LivingEntity entity, PotionEffectType type) {
+        if (type == null) {
+            return;
+        }
+        PotionEffect existing = entity.getPotionEffect(type);
+        if (existing != null
+                && existing.getDuration() != PotionEffect.INFINITE_DURATION
+                && existing.getDuration() <= REFRESH_TICKS) {
+            entity.removePotionEffect(type);
+        }
+    }
+
     public static boolean isHarmful(PotionEffectType type) {
         try {
             return type.getEffectCategory() == PotionEffectTypeCategory.HARMFUL;

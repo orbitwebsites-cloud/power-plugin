@@ -199,9 +199,11 @@ public class KornFlakisKit implements PowerKit, Listener {
             return;
         }
         resetStreak(player.getUniqueId());
-        Effects.remove(player, PotionEffectType.SPEED);
+        // Transient-only: taking a hit drops Overdrive's own Speed, but must not destroy a speed
+        // potion KornFlakis drank himself.
+        Effects.removeIfTransient(player, PotionEffectType.SPEED);
         if (damageStripsTier2) {
-            Effects.remove(player, PotionEffectType.STRENGTH);
+            Effects.removeIfTransient(player, PotionEffectType.STRENGTH);
         }
     }
 
