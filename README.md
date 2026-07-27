@@ -9,6 +9,8 @@ from a common ability pool.
 - **Optional dependency:** ProtocolLib, for Mirage's real clones. Without it Mirage falls back to
   armour stands automatically; everything else is unaffected.
 - **Configure:** `plugins/PowerSMP/kits.yml` (every tuning number lives there), `/powersmp reload`
+- **Other server plugins:** see [COMPATIBILITY.md](COMPATIBILITY.md) — NoCheatPlus and the lag
+  clearers both need configuration before this works properly
 
 > **This has not been compiled against the real API.** The build environment could only reach Maven
 > Central; `paper-api` and ProtocolLib live on repositories the network policy blocked. What *was*

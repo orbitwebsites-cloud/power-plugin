@@ -5,7 +5,12 @@ api-version: '1.21'
 authors: [PowerSMP]
 description: Bespoke per-player power kits.
 folia-supported: false
-softdepend: [ProtocolLib]
+# ProtocolLib: real Mirage clones (falls back to armour stands without it).
+# LuckPerms:   must load first so powersmp.use / powersmp.admin resolve.
+# The rest are plugins known to be on this server whose behaviour overlaps
+# PowerSMP's; listing them only fixes load order, not the conflicts. See
+# COMPATIBILITY.md -- NoCheatPlus and the lag clearers need real config work.
+softdepend: [ProtocolLib, LuckPerms, NoCheatPlus, ClearLag, LaggRemover, LaggRemoverPlus]
 
 commands:
   stance:
