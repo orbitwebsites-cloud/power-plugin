@@ -64,6 +64,7 @@ public class DataStore {
             data.stanceConsolidated(section.getBoolean("stance-consolidated", false));
             data.omeletGranted(section.getBoolean("omelet-granted", false));
             data.lastKnownName(section.getString("name", ""));
+            data.realmReturn(section.getString("realm-return", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
 
             // Items are stored as Base64 of ItemStack#serializeAsBytes rather than through YAML's
@@ -109,6 +110,9 @@ public class DataStore {
             yaml.set(path + ".stance-consolidated", data.stanceConsolidated());
             yaml.set(path + ".omelet-granted", data.omeletGranted());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
+            if (!data.realmReturn().isBlank()) {
+                yaml.set(path + ".realm-return", data.realmReturn());
+            }
 
             List<String> loadout = new ArrayList<>();
             for (ItemStack item : data.restockLoadout()) {

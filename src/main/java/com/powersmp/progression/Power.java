@@ -78,6 +78,14 @@ public enum Power {
     FREEZE_BREATH("freeze_breath", "Freeze Breath", "llamachas", Gate.ALWAYS),
     SUPER_STRENGTH("super_strength", "Super Strength", "llamachas", Gate.ALWAYS),
 
+    // --- Voidwalker -------------------------------------------------------
+    // No tiers were given, so all three are simply part of the kit -- same call
+    // as LlamaChas. The escalating cooldowns (30s / 90s / 300s) already do the
+    // pacing that a kill gate would otherwise be doing.
+    SHADOW_STEP("shadow_step", "Shadow Step", "voidwalker", Gate.ALWAYS),
+    GRASP_OF_EYLIS("grasp_of_eylis", "Grasp of Eylis", "voidwalker", Gate.ALWAYS),
+    ILLUSORY_REALM("illusory_realm", "Illusory Realm", "voidwalker", Gate.ALWAYS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.

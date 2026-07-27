@@ -27,6 +27,12 @@ public class PlayerData {
     /** The omelet has been handed out once; it is not re-issued after being eaten. */
     private boolean omeletGranted;
     private String lastKnownName = "";
+    /**
+     * Serialised location to send someone home to if the Illusory Realm loses track of them --
+     * a crash or a forced shutdown mid-domain must not strand anyone in the arena world. Cleared
+     * the moment they are released normally.
+     */
+    private String realmReturn = "";
     /** ability id -> epoch millis, for cooldowns long enough that a restart must not clear them. */
     private final Map<String, Long> cooldowns = new HashMap<>();
     /** Player-chosen Restock kit. Empty means fall back to the server default in kits.yml. */
@@ -127,5 +133,13 @@ public class PlayerData {
 
     public void lastKnownName(String lastKnownName) {
         this.lastKnownName = lastKnownName == null ? "" : lastKnownName;
+    }
+
+    public String realmReturn() {
+        return realmReturn;
+    }
+
+    public void realmReturn(String realmReturn) {
+        this.realmReturn = realmReturn == null ? "" : realmReturn;
     }
 }

@@ -43,6 +43,10 @@ assignments:
   JJlionjxi: jjlionjxi
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
+  # Voidwalker's kit is fully built (Shadow Step / Grasp of Eylis / Illusory Realm) but nobody's
+  # IGN was given for it, so it is unassigned. Uncomment and fill in the real name to turn it on --
+  # no rebuild needed.
+  # <IGN HERE>: voidwalker
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -630,3 +634,91 @@ techknight:
     # No cooldown, as specified.
     fill-inventory: true
     max-stacks: 36
+
+# =====================================================================
+# Voidwalker -- Shadow Step / Grasp of Eylis / Illusory Realm
+# IGN not given yet; see the commented assignment above.
+# =====================================================================
+voidwalker:
+  shadow-step:
+    # "Once within 6 seconds" -- landing a hit arms this window; a deliberate re-activation (not
+    # every automatic swing) spends it to blink behind the same target.
+    window-seconds: 6.0
+    behind-distance: 1.2             # ASSUMED -- how far behind the target you land
+    blindness-ticks: 40              # 2 seconds, as specified
+    slowness-ticks: 40               # 2 seconds, as specified
+    slowness-amplifier: 3            # Slowness IV, as specified
+    # 0 = no timer beyond the on-hit window itself. Set above 0 to also rate-limit reuse.
+    reuse-cooldown-seconds: 0        # ASSUMED
+
+  grasp-of-eylis:
+    radius: 10.0
+    duration-ticks: 200              # 10 seconds, as specified
+    slowness-amplifier: 2            # Slowness III
+    mining-fatigue-amplifier: 2      # Mining Fatigue III
+    self-speed-amplifier: 2          # Speed III
+    self-haste-amplifier: 1          # Haste II
+    self-buff-ticks: 100             # 5 seconds, as specified
+    cooldown-seconds: 90
+
+  illusory-realm:
+    # "300s cd (only starts counting when the domain ends)" -- see illusory-realm: below for the
+    # arena's own duration and rules; this is only when the cooldown itself begins ticking.
+    cooldown-seconds: 300
+
+# =====================================================================
+# Illusory Realm -- the arena world and the rules that apply inside it.
+# Shared infrastructure, not owned by any one kit, in case a future kit
+# also wants to open a domain.
+# =====================================================================
+illusory-realm:
+  # World the arena lives in. Created on first use (or shortly after startup if
+  # pre-generate is true) with every generation stage turned off -- pure void
+  # until the arena box is stamped in.
+  world-name: powersmp_illusory_realm
+  pre-generate: true
+
+  duration-seconds: 60               # "60 seconds or until only 1 player is left alive"
+  # "A slight delay (players affected gain blindness for 1s)" before the teleport.
+  entry-delay-ticks: 20
+  entry-blindness-ticks: 20
+  # "Teleport you and players within 20 blocks each direction" -- gathered at activation time.
+  gather-radius: 20.0
+  # Below this many participants, "last one standing" cannot trigger (there is nobody to be last
+  # against), so the domain just runs its full duration.
+  min-participants: 2
+  # "For each player (not including the user) caught, the user gains 2 max hearts for the duration."
+  bonus-hearts-per-victim: 2.0
+
+  arena:
+    # "A black box 20x20 with a little bit of terrain, with a roof 10 blocks high."
+    size: 20
+    height: 10
+    floor-y: 64
+    # How far apart concurrent domains sit in the shared void world, so two fights never overlap.
+    slot-spacing: 256
+    shell-block: BLACK_CONCRETE
+    interior-light: true             # hidden light sources so the sealed box is not unplayable
+    terrain-clusters: 10             # ASSUMED -- "a little bit of terrain"
+    floating-platforms: 3            # ASSUMED
+    terrain-blocks: [BLACKSTONE, DEEPSLATE, BASALT, OBSIDIAN]
+
+  rules:
+    disable-powers: true             # "All powers are disabled"
+    disable-totems: true             # "Totems do not work"
+    disable-enderpearls: true        # "Enderpearls do not work"
+    disable-enderchests: true        # "Enderchests cannot be placed"
+    disable-chorus-fruit: true       # "Chorus fruit are disabled"
+    unbreakable-box: true            # "The box cannot be broken"
+    # If true, any potion effect not in granted-effects below is blocked outright rather than just
+    # capped. Off by default -- harmless effects (Night Vision, etc.) are left alone; only the four
+    # effects below are capped to the domain's own amplifier.
+    block-all-other-effects: false
+
+  # "They are given speed 1, fire res, strength 1, and weaving all for 60 seconds. They are unable
+  # to get effects higher than this for the domain." Amplifiers are 0-indexed (0 = level I).
+  granted-effects:
+    speed: 0
+    fire_resistance: 0
+    strength: 0
+    weaving: 0

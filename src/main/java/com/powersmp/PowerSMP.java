@@ -6,6 +6,7 @@ import com.powersmp.command.KillCommand;
 import com.powersmp.command.PowerSMPCommand;
 import com.powersmp.cooldown.CooldownManager;
 import com.powersmp.data.DataStore;
+import com.powersmp.domain.IllusoryRealm;
 import com.powersmp.food.MushroomHungerService;
 import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
@@ -22,6 +23,7 @@ import com.powersmp.kit.impl.MonkeyManKit;
 import com.powersmp.kit.impl.NightScarKit;
 import com.powersmp.kit.impl.SparkKit;
 import com.powersmp.kit.impl.TechKnightKit;
+import com.powersmp.kit.impl.VoidwalkerKit;
 import com.powersmp.kit.impl.XCriticKit;
 import com.powersmp.progression.UnlockManager;
 import com.powersmp.stance.StanceCommand;
@@ -66,6 +68,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private UnlockManager unlocks;
     private StanceManager stances;
     private MushroomHungerService food;
+    private IllusoryRealm realm;
 
     private MavriccKit mavricc;
     private NorthOfNowhereKit northOfNowhere;
@@ -80,6 +83,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private LlamaChasKit llamachas;
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
+    private VoidwalkerKit voidwalker;
 
     private int tickInterval = 20;
 
@@ -101,6 +105,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         unlocks = new UnlockManager(this);
         stances = new StanceManager(this);
         food = new MushroomHungerService(this);
+        realm = new IllusoryRealm(this);
 
         mavricc = new MavriccKit(this);
         northOfNowhere = new NorthOfNowhereKit(this);
@@ -115,6 +120,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         llamachas = new LlamaChasKit(this);
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
+        voidwalker = new VoidwalkerKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -128,6 +134,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(llamachas);
         kits.register(monkeyman);
         kits.register(techknight);
+        kits.register(voidwalker);
 
         cooldowns.attachStore(data);
 
@@ -138,6 +145,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(unlocks, this);
         Bukkit.getPluginManager().registerEvents(stances, this);
         Bukkit.getPluginManager().registerEvents(food, this);
+        Bukkit.getPluginManager().registerEvents(realm, this);
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(northOfNowhere, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
@@ -152,6 +160,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
+        Bukkit.getPluginManager().registerEvents(voidwalker, this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
@@ -160,6 +169,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         bind("kill", new KillCommand(this));
 
         freeze.start();
+        realm.start();
         cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
         startKitTick();
         startAutosave();
@@ -182,6 +192,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         }
         if (freeze != null) {
             freeze.shutdown();
+        }
+        if (realm != null) {
+            realm.shutdown();
         }
         if (cooldowns != null) {
             cooldowns.shutdown();
@@ -213,6 +226,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         unlocks.reload(kitsConfig.getConfigurationSection("progression"));
         stances.reload(kitsConfig.getConfigurationSection("mavricc"));
         food.reload(kitsConfig.getConfigurationSection("mavricc"));
+        realm.reload(kitsConfig.getConfigurationSection("illusory-realm"));
         mavricc.reload(kitsConfig.getConfigurationSection("mavricc"));
         northOfNowhere.reload(kitsConfig.getConfigurationSection("northofnowhere"));
         xcritic.reload(kitsConfig.getConfigurationSection("xcr1t1cx"));
@@ -226,6 +240,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         llamachas.reload(kitsConfig.getConfigurationSection("llamachas"));
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
+        voidwalker.reload(kitsConfig.getConfigurationSection("voidwalker"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */
@@ -354,5 +369,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     public KornFlakisKit kornflakis() {
         return kornflakis;
+    }
+
+    public IllusoryRealm realm() {
+        return realm;
     }
 }

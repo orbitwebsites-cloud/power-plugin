@@ -25,6 +25,7 @@ public final class Keys {
     public static NamespacedKey MIH_ATTACK_SPEED;
     public static NamespacedKey TIDAL_ATTACK_SPEED;
     public static NamespacedKey SCAR_BONUS_HEALTH;
+    public static NamespacedKey REALM_BONUS_HEALTH;
 
     // PersistentDataContainer keys.
     public static NamespacedKey FOOD_STAMP;
@@ -51,6 +52,7 @@ public final class Keys {
         MIH_ATTACK_SPEED = new NamespacedKey(plugin, "mih_attack_speed");
         TIDAL_ATTACK_SPEED = new NamespacedKey(plugin, "tidal_attack_speed");
         SCAR_BONUS_HEALTH = new NamespacedKey(plugin, "scar_bonus_health");
+        REALM_BONUS_HEALTH = new NamespacedKey(plugin, "realm_bonus_health");
 
         FOOD_STAMP = new NamespacedKey(plugin, "food_stamp");
         SPEAR_TIER = new NamespacedKey(plugin, "spear_tier");
