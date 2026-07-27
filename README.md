@@ -10,10 +10,12 @@ from a common ability pool.
   armour stands automatically; everything else is unaffected.
 - **Configure:** `plugins/PowerSMP/kits.yml` (every tuning number lives there), `/powersmp reload`
 
-> **This has not been compiled.** The build environment could only reach Maven Central, and
-> `paper-api` is published on `repo.papermc.io`, which the network policy blocked. The sources were
-> verified to be syntactically clean and the YAML configs parse, but the Bukkit-facing calls have
-> not been checked against the real API. Run `mvn package` locally before deploying.
+> **This has not been compiled against the real API.** The build environment could only reach Maven
+> Central; `paper-api` and ProtocolLib live on repositories the network policy blocked. What *was*
+> done: the sources were compiled against a hand-written stub of the entire external API surface
+> (119 types), which passes with zero errors and zero lint warnings. That verifies all internal
+> wiring — names, signatures, generics, imports, control flow — but not that Bukkit's real
+> signatures match the stubs. Run `mvn package` locally before deploying.
 
 ---
 
