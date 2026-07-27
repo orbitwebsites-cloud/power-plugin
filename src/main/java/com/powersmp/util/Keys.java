@@ -24,6 +24,7 @@ public final class Keys {
     public static NamespacedKey ADAPTATION_HEALTH;
     public static NamespacedKey MIH_ATTACK_SPEED;
     public static NamespacedKey TIDAL_ATTACK_SPEED;
+    public static NamespacedKey SCAR_BONUS_HEALTH;
 
     // PersistentDataContainer keys.
     public static NamespacedKey FOOD_STAMP;
@@ -35,6 +36,8 @@ public final class Keys {
     public static NamespacedKey MACE_KILLS;
     public static NamespacedKey DRAGON_OMELET;
     public static NamespacedKey DRACONIC_MACE;
+    public static NamespacedKey WEB_SHOOTER;
+    public static NamespacedKey SCAR_MACE;
 
     public static void init(Plugin plugin) {
         STANCE_ARMOR = new NamespacedKey(plugin, "stance_armor");
@@ -46,6 +49,7 @@ public final class Keys {
         ADAPTATION_HEALTH = new NamespacedKey(plugin, "adaptation_health");
         MIH_ATTACK_SPEED = new NamespacedKey(plugin, "mih_attack_speed");
         TIDAL_ATTACK_SPEED = new NamespacedKey(plugin, "tidal_attack_speed");
+        SCAR_BONUS_HEALTH = new NamespacedKey(plugin, "scar_bonus_health");
 
         FOOD_STAMP = new NamespacedKey(plugin, "food_stamp");
         SPEAR_TIER = new NamespacedKey(plugin, "spear_tier");
@@ -56,5 +60,7 @@ public final class Keys {
         MACE_KILLS = new NamespacedKey(plugin, "mace_kills");
         DRAGON_OMELET = new NamespacedKey(plugin, "dragon_omelet");
         DRACONIC_MACE = new NamespacedKey(plugin, "draconic_mace");
+        WEB_SHOOTER = new NamespacedKey(plugin, "web_shooter");
+        SCAR_MACE = new NamespacedKey(plugin, "scar_mace");
     }
 }

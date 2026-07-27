@@ -66,6 +66,7 @@ public class XCriticKit implements PowerKit, Listener {
     private int tier2Strength = 1;
     private int tier2Duration = 120;
     private boolean damageStripsTier2;
+    private boolean infiniteSaturation = true;
 
     private final Map<Integer, double[]> spearTiers = new HashMap<>();
     private final Map<Integer, Integer> spearUpgradeKills = new HashMap<>();
@@ -107,6 +108,7 @@ public class XCriticKit implements PowerKit, Listener {
             tier2Strength = over.getInt("tier2-strength-amplifier", tier2Strength);
             tier2Duration = over.getInt("tier2-duration-seconds", tier2Duration);
             damageStripsTier2 = over.getBoolean("damage-strips-tier2", false);
+            infiniteSaturation = over.getBoolean("infinite-saturation", true);
         }
         ConfigurationSection spear = section.getConfigurationSection("spear-master");
         spearTiers.clear();
@@ -159,6 +161,14 @@ public class XCriticKit implements PowerKit, Listener {
             return;
         }
         UUID id = owner.getUniqueId();
+
+        // "and I have infinite saturation" -- a standing property of the Overdrive tier, not
+        // something that only holds while sprinting, so it is pinned before the sprint check.
+        if (infiniteSaturation) {
+            owner.setFoodLevel(20);
+            owner.setSaturation(20.0f);
+        }
+
         if (!owner.isSprinting()) {
             resetStreak(id);
             return;

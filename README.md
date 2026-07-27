@@ -26,6 +26,9 @@ from a common ability pool.
 | xCR1T1Cx | Momentum | Ka-Chow, Overdrive, Spear Master |
 | KornFlakis | Execution | `/kill`, 7-day cooldown |
 | ItzMeTentx | Tidebound | Infinite Breathing & Dolphin's Grace, Faster Attack Speed, Trident God |
+| domanthegamer | Spider | Spider Passive (low), Web Strike (mid), Web Shooter (high) |
+| Sparkkkkkkkk | The Atom | Creeper Harvest (low), Explosion (mid), Atom Bomb (high) |
+| Night_Scar3 | Mace Master | Permanent Strength (low), Dash (mid), Density Mace (high) |
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
 | TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles |

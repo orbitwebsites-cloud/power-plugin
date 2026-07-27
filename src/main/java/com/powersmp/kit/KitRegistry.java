@@ -26,15 +26,18 @@ import org.bukkit.plugin.Plugin;
 public class KitRegistry {
 
     /** The bespoke designs, per the build spec. */
-    private static final Map<String, String> HARDCODED_ASSIGNMENTS = Map.of(
-            "mavricc", "mavricc",
-            "arhiahn", "arhiahn",
-            "xcr1t1cx", "xcr1t1cx",
-            "kornflakis", "kornflakis",
-            "itzmetentx", "itzmetentx",
-            "jjlionjxi", "jjlionjxi",
-            "monkeyman4167", "monkeyman",
-            "techknightgaming", "techknight");
+    private static final Map<String, String> HARDCODED_ASSIGNMENTS = Map.ofEntries(
+            Map.entry("mavricc", "mavricc"),
+            Map.entry("arhiahn", "arhiahn"),
+            Map.entry("xcr1t1cx", "xcr1t1cx"),
+            Map.entry("kornflakis", "kornflakis"),
+            Map.entry("itzmetentx", "itzmetentx"),
+            Map.entry("jjlionjxi", "jjlionjxi"),
+            Map.entry("domanthegamer", "domanthegamer"),
+            Map.entry("sparkkkkkkkk", "sparkkkkkkkk"),
+            Map.entry("night_scar3", "night_scar3"),
+            Map.entry("monkeyman4167", "monkeyman"),
+            Map.entry("techknightgaming", "techknight"));
 
     private final Plugin plugin;
     private final Map<String, PowerKit> kitsById = new LinkedHashMap<>();

@@ -11,11 +11,14 @@ import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.ArhiahnKit;
+import com.powersmp.kit.impl.DomanKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
 import com.powersmp.kit.impl.JJLionKit;
 import com.powersmp.kit.impl.KornFlakisKit;
 import com.powersmp.kit.impl.MavriccKit;
 import com.powersmp.kit.impl.MonkeyManKit;
+import com.powersmp.kit.impl.NightScarKit;
+import com.powersmp.kit.impl.SparkKit;
 import com.powersmp.kit.impl.TechKnightKit;
 import com.powersmp.kit.impl.XCriticKit;
 import com.powersmp.progression.UnlockManager;
@@ -68,6 +71,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private KornFlakisKit kornflakis;
     private ItzMeTentxKit itzmetentx;
     private JJLionKit jjlion;
+    private DomanKit doman;
+    private SparkKit spark;
+    private NightScarKit nightscar;
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
 
@@ -98,6 +104,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kornflakis = new KornFlakisKit(this);
         itzmetentx = new ItzMeTentxKit(this);
         jjlion = new JJLionKit(this);
+        doman = new DomanKit(this);
+        spark = new SparkKit(this);
+        nightscar = new NightScarKit(this);
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         kits.register(mavricc);
@@ -106,6 +115,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(kornflakis);
         kits.register(itzmetentx);
         kits.register(jjlion);
+        kits.register(doman);
+        kits.register(spark);
+        kits.register(nightscar);
         kits.register(monkeyman);
         kits.register(techknight);
 
@@ -124,6 +136,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(kornflakis, this);
         Bukkit.getPluginManager().registerEvents(itzmetentx, this);
         Bukkit.getPluginManager().registerEvents(jjlion, this);
+        Bukkit.getPluginManager().registerEvents(doman, this);
+        Bukkit.getPluginManager().registerEvents(spark, this);
+        Bukkit.getPluginManager().registerEvents(nightscar, this);
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
@@ -194,6 +209,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kornflakis.reload(kitsConfig.getConfigurationSection("kornflakis"));
         itzmetentx.reload(kitsConfig.getConfigurationSection("itzmetentx"));
         jjlion.reload(kitsConfig.getConfigurationSection("jjlionjxi"));
+        doman.reload(kitsConfig.getConfigurationSection("domanthegamer"));
+        spark.reload(kitsConfig.getConfigurationSection("sparkkkkkkkk"));
+        nightscar.reload(kitsConfig.getConfigurationSection("night_scar3"));
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
     }

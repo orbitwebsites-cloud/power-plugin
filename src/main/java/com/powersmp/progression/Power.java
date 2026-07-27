@@ -50,6 +50,21 @@ public enum Power {
     FAT_TANK("fat_tank", "Fat Tank", "jjlionjxi", Gate.KILLS),
     GREEDY_HEAL("greedy_heal", "Greedy Heal", "jjlionjxi", Gate.KILLS),
 
+    // --- domanthegamer ---------------------------------------------------
+    SPIDER_PASSIVE("spider_passive", "Spider Passive", "domanthegamer", Gate.KILLS),
+    WEB_STRIKE("web_strike", "Web Strike", "domanthegamer", Gate.KILLS),
+    WEB_SHOOTER("web_shooter", "Web Shooter", "domanthegamer", Gate.KILLS),
+
+    // --- Sparkkkkkkkk ----------------------------------------------------
+    GUNPOWDER("gunpowder", "Creeper Harvest", "sparkkkkkkkk", Gate.KILLS),
+    EXPLOSION("explosion", "Explosion", "sparkkkkkkkk", Gate.KILLS),
+    ATOM_BOMB("atom_bomb", "Atom Bomb", "sparkkkkkkkk", Gate.KILLS),
+
+    // --- Night_Scar3 -----------------------------------------------------
+    PERMANENT_STRENGTH("permanent_strength", "Permanent Strength", "night_scar3", Gate.KILLS),
+    DASH("dash", "Dash", "night_scar3", Gate.KILLS),
+    DENSITY_MACE("density_mace", "Mace Master", "night_scar3", Gate.KILLS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.
