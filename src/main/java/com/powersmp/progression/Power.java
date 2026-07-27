@@ -21,10 +21,10 @@ public enum Power {
     SPORIC_OF_THE_SEA("sporic_of_the_sea", "Sporic of the Sea", "mavricc", Gate.TRIGGER),
     DRACONIC_EVOLUTION("draconic_evolution", "Draconic Evolution", "mavricc", Gate.TRIGGER),
 
-    // --- arhiahn ---------------------------------------------------------
-    THE_WORLD("the_world", "The World", "arhiahn", Gate.KILLS),
-    MADE_IN_HEAVEN("made_in_heaven", "Made In Heaven", "arhiahn", Gate.KILLS),
-    REQUIEM("requiem", "Requiem", "arhiahn", Gate.KILLS),
+    // --- NorthOfNowhere ---------------------------------------------------------
+    THE_WORLD("the_world", "The World", "northofnowhere", Gate.KILLS),
+    MADE_IN_HEAVEN("made_in_heaven", "Made In Heaven", "northofnowhere", Gate.KILLS),
+    REQUIEM("requiem", "Requiem", "northofnowhere", Gate.KILLS),
 
     // --- KornFlakis ------------------------------------------------------
     KILL_COMMAND("kill_command", "Execution", "kornflakis", Gate.ALWAYS),

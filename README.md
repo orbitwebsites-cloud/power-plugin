@@ -24,7 +24,7 @@ from a common ability pool.
 | IGN | Kit | Powers |
 |---|---|---|
 | Mavricc | Mycelial | Stance Change, Mushroom Affinity, Mushroom Hunger, Sporeic Wither Wings, Dimensional Adaptation, Sporic Mind Control, Sporic of the Sea, Draconic Evolution |
-| arhiahn | Stand User | The World, Made In Heaven, Requiem |
+| NorthOfNowhere | Stand User | The World, Made In Heaven, Requiem |
 | xCR1T1Cx | Momentum | Ka-Chow, Overdrive, Spear Master |
 | KornFlakis | Execution | `/kill`, 7-day cooldown |
 | ItzMeTentx | Tidebound | Infinite Breathing & Dolphin's Grace, Faster Attack Speed, Trident God |
@@ -82,7 +82,7 @@ If a local build fails, these are the places to look first, in likelihood order:
 com.powersmp
 ├── PowerSMP.java          main class; owns the single shared 1/sec kit tick
 ├── kit/                   PowerKit interface, Ability, KitRegistry, impl/ (one class per player)
-│                          MavriccKit, ArhiahnKit, XCriticKit, MonkeyManKit, TechKnightKit
+│                          one kit class per player (12), e.g. MavriccKit, NorthOfNowhereKit
 ├── stance/                Stance, StanceManager (stances + Mushroom Affinity), StanceCommand
 ├── food/                  MushroomHungerService, FoodProfile
 ├── cooldown/              CooldownManager (+ action-bar readout)
@@ -138,7 +138,7 @@ Everything below is a workaround that was found and built.
 **Made In Heaven** — the relative speed difference is what's actually felt, so that is what gets
 built. Caster: **Speed III**, Haste II, bonus attack speed, fall-damage immunity. Other **players**
 in range (mobs are left alone by default — `others-players-only`): Slowness II + Mining Fatigue II,
-*plus* a per-tick velocity damper on anything non-living, excluding arhiahn's own projectiles.
+*plus* a per-tick velocity damper on anything non-living, excluding NorthOfNowhere's own projectiles.
 That damper is the piece potions can't do — arrows, fireballs, TNT, minecarts and boats all crawl
 too, which is what makes it read as the world slowing rather than as a debuff aura. The slow field
 also re-applies to anyone who walks into the radius mid-cast, instead of only catching whoever was
@@ -256,7 +256,7 @@ details matter more than the effect itself:
 - **The cooldown must persist**, and does. Seven days outlives any server uptime, so an in-memory
   timer would refund a free execution on the next restart or crash.
 
-By default the kill bypasses everything — armour, Resistance, totems, and arhiahn's Requiem —
+By default the kill bypasses everything — armour, Resistance, totems, and NorthOfNowhere's Requiem —
 because that is what vanilla `/kill` does. `bypass-protections: false` routes it through the damage
 system instead, so a totem can save the target. That is the only counterplay switch in the kit.
 
@@ -305,9 +305,9 @@ not a rebuild. Replace them once the players weigh in.
 |---|---|---|
 | Kit assignment (open Q1) | Hardcoded in `KitRegistry`, overridable via `assignments:` | `kits.yml` |
 | Unlock gating (open Q2) | `unlock-all: true` — everything on. Thresholds are present but inert until you flip it; nothing is set above 10 kills, so they stay reachable on an SMP | `progression:` |
-| The World radius / cooldown | 8 blocks, 240s | `arhiahn.the-world` |
-| Made In Heaven duration / cooldown | 20s / 240s, radius 12 | `arhiahn.made-in-heaven` |
-| Requiem | **Enabled** — marb approved it. 2s damage immunity, 10min cooldown | `arhiahn.requiem` |
+| The World radius / cooldown | 8 blocks, 240s | `northofnowhere.the-world` |
+| Made In Heaven duration / cooldown | 20s / 240s, radius 12 | `northofnowhere.made-in-heaven` |
+| Requiem | **Enabled** — marb approved it. 2s damage immunity, 10min cooldown | `northofnowhere.requiem` |
 | Ka-Chow combo window | 3s, 3 hits | `xcr1t1cx.ka-chow` |
 | Overdrive damage semantics | Getting hit resets the sprint timer but does **not** strip an already-granted Strength II (the spec's recommended reading) | `damage-strips-tier2: false` |
 | Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 5 and 10 spear kills | `xcr1t1cx.spear-master` |
@@ -318,7 +318,7 @@ not a rebuild. Replace them once the players weigh in.
 | Dimensional Adaptation scale/health | red 1.2/+6, blue 0.8/+4, green 1.4/+10 — invented, no stance loses health | `mavricc.dimensional-adaptation` |
 | Mace levelling past kill 5 | `LITERAL` — Density equals the kill count, past the vanilla cap, to the format ceiling of 255. `LADDER` (Density→Breach→Wind Burst) is the alternative | `techknight.mace.mode` |
 | "every kill" | Mobs and players both count; the mace does not need to be in hand | `techknight.mace` |
-| The World's damage rule | `block-damage-to-frozen: false` — frozen targets stay hittable, so the time-stop is an opening rather than a shield | `arhiahn.the-world` |
+| The World's damage rule | `block-damage-to-frozen: false` — frozen targets stay hittable, so the time-stop is an opening rather than a shield | `northofnowhere.the-world` |
 | Restock contents | TechKnightGaming picks them himself in a 7-slot GUI (`/power loadout`); the config list is only a fallback until he does | `techknight.restock` |
 | Greedy Heal durations / cooldown | 10s regen, 60s absorption, 90s cooldown — the amplifiers were specified, these were not | `jjlionjxi.greedy-heal` |
 
@@ -361,6 +361,6 @@ Still genuinely blocked on a human:
 
 ## Build order used
 
-Shared infrastructure → Mavricc → xCR1T1Cx → MonkeyMan4167 → arhiahn → achievement powers, as the
-spec suggested. arhiahn last on purpose: those are the only powers that take control away from other
+Shared infrastructure → Mavricc → xCR1T1Cx → MonkeyMan4167 → NorthOfNowhere → achievement powers, as the
+spec suggested. NorthOfNowhere last on purpose: those are the only powers that take control away from other
 players, so they sit on freeze and cooldown infrastructure already exercised by lower-stakes kits.

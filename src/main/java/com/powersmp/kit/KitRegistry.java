@@ -28,7 +28,7 @@ public class KitRegistry {
     /** The bespoke designs, per the build spec. */
     private static final Map<String, String> HARDCODED_ASSIGNMENTS = Map.ofEntries(
             Map.entry("mavricc", "mavricc"),
-            Map.entry("arhiahn", "arhiahn"),
+            Map.entry("northofnowhere", "northofnowhere"),
             Map.entry("xcr1t1cx", "xcr1t1cx"),
             Map.entry("kornflakis", "kornflakis"),
             Map.entry("itzmetentx", "itzmetentx"),

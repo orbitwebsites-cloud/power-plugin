@@ -28,7 +28,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
  * <p>Two things this leans on hard. The cooldown is registered as persistent: seven days comfortably
  * outlives any server uptime, so an in-memory timer would hand back a free execution on the next
  * restart or crash. And by default the kill bypasses everything -- armour, Resistance, totems, and
- * arhiahn's Requiem -- because that is what vanilla {@code /kill} does. Setting
+ * NorthOfNowhere's Requiem -- because that is what vanilla {@code /kill} does. Setting
  * {@code bypass-protections: false} routes it through the damage system instead, which gives the
  * target a totem's worth of counterplay.
  */

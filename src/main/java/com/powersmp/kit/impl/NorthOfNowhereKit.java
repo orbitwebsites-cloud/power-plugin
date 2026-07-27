@@ -30,15 +30,15 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.potion.PotionEffectType;
 
 /**
- * arhiahn: three long-cooldown ults with a wide blast radius.
+ * NorthOfNowhere: three long-cooldown ults with a wide blast radius.
  *
  * <p>Built last on purpose -- these are the only powers that reach out and take control away from
  * other players, so they sit on top of freeze and cooldown infrastructure already proven by the
  * lower-stakes kits.
  */
-public class ArhiahnKit implements PowerKit, Listener {
+public class NorthOfNowhereKit implements PowerKit, Listener {
 
-    public static final String ID = "arhiahn";
+    public static final String ID = "northofnowhere";
 
     private static final String ABILITY_THE_WORLD = "the_world";
     private static final String ABILITY_MADE_IN_HEAVEN = "made_in_heaven";
@@ -76,7 +76,7 @@ public class ArhiahnKit implements PowerKit, Listener {
     private int requiemDuration = 2;
     private double requiemCooldown = 600.0d;
 
-    public ArhiahnKit(PowerSMP plugin) {
+    public NorthOfNowhereKit(PowerSMP plugin) {
         this.plugin = plugin;
     }
 
@@ -293,7 +293,7 @@ public class ArhiahnKit implements PowerKit, Listener {
                     }
                     continue;
                 }
-                // Do not slow arhiahn's own arrows -- he is the one who sped up.
+                // Do not slow NorthOfNowhere's own arrows -- he is the one who sped up.
                 if (entity instanceof Projectile projectile && owner.equals(projectile.getShooter())) {
                     continue;
                 }
@@ -305,7 +305,7 @@ public class ArhiahnKit implements PowerKit, Listener {
     private boolean requiem(Player owner) {
         if (!requiemEnabled) {
             Text.msg(owner, "<red>Requiem is disabled. It is gated behind marb's approval -- "
-                    + "set <white>arhiahn.requiem.enabled</white> to true in kits.yml to turn it on.");
+                    + "set <white>NorthOfNowhere.requiem.enabled</white> to true in kits.yml to turn it on.");
             return false;
         }
         if (!plugin.unlocks().isUnlocked(owner, Power.REQUIEM)) {

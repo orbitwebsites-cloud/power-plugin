@@ -31,7 +31,7 @@ general:
 # ---------------------------------------------------------------------
 assignments:
   Mavricc: mavricc
-  arhiahn: arhiahn
+  NorthOfNowhere: northofnowhere
   xCR1T1Cx: xcr1t1cx
   KornFlakis: kornflakis
   ItzMeTentx: itzmetentx
@@ -214,9 +214,9 @@ mavricc:
     mace-reissue-if-lost: true
 
 # =====================================================================
-# arhiahn -- JoJo-flavoured heavy-cooldown ults
+# NorthOfNowhere -- JoJo-flavoured heavy-cooldown ults
 # =====================================================================
-arhiahn:
+northofnowhere:
   the-world:
     radius: 8.0                    # ASSUMED (spec suggests ~8)
     duration-seconds: 9            # exact, per spec
@@ -245,7 +245,7 @@ arhiahn:
     others-mining-fatigue-amplifier: 1
     # Potions cannot slow arrows, fireballs, TNT or minecarts. Everything
     # non-living in range has its velocity scaled by this every tick instead
-    # -- except anything arhiahn fired himself. 1.0 disables it.
+    # -- except anything NorthOfNowhere fired himself. 1.0 disables it.
     others-velocity-multiplier: 0.35
 
   requiem:
@@ -263,7 +263,7 @@ kornflakis:
     # otherwise hand back a free execution.
     cooldown-seconds: 604800
     # true  -> what vanilla /kill does: straight through armour, Resistance,
-    #          totems, and arhiahn's Requiem. Nothing saves the target.
+    #          totems, and NorthOfNowhere's Requiem. Nothing saves the target.
     # false -> routed through the damage system instead, so a totem of
     #          undying (and Requiem) can save them. Gives it counterplay.
     bypass-protections: true
