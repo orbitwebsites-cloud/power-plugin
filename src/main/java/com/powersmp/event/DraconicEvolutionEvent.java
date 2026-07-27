@@ -9,9 +9,9 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Fired when a player picks up a dragon egg.
  *
- * <p>Draconic Evolution has no design yet ("it's unknown what this power does"), so this is the stub
- * the spec asks for: the trigger is wired and observable, and the power itself is a no-op. When
- * someone decides what it does, listen for this event -- the detection side is done.
+ * <p>The kit handles this itself -- the egg becomes a Dragon Omelet, and eating that consolidates
+ * the stances and grants the Draconic Mace. The event is kept as a public hook so other plugins (or
+ * later additions to this one) can react to the egg changing hands without editing the kit.
  */
 public class DraconicEvolutionEvent extends PlayerEvent {
 

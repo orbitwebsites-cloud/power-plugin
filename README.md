@@ -173,8 +173,25 @@ unbreakable elytra (re-issued if it goes missing) plus a launch on cooldown.
 **Ka-Chow** — a real `strikeLightning` plus `PotionEffectType.WITHER`, exactly as the spec notes.
 `cosmetic-lightning-only: true` switches to a damage-free visual strike.
 
-**Draconic Evolution** — stub. Picking up the dragon egg fires `DraconicEvolutionEvent` and logs it.
-No power, because there is no design yet.
+**Draconic Evolution** — no longer a stub. Picking up the dragon egg turns it into a single **Dragon
+Omelet**; eating that is a one-way door with two effects.
+
+*Stance Consolidation* — red, blue and green all run at once from then on. "The perks of all of
+them" is read as the upsides only, so Strength II, Speed II, Haste II, Resistance II, both reach
+bonuses and knockback immunity all apply, while red's armour penalty, blue's Weakness and green's
+Slowness are dropped. `consolidation-includes-drawbacks: true` carries the costs over too.
+
+Consolidation isn't just potion effects — every stance-gated power now reads "is this stance active"
+rather than "is this stance selected", so all three branches of Sporic of the Sea fire together
+(lightning crits, riptide, and permanent Conduit Power), and Dimensional Adaptation gets its own
+`consolidated` size and health entry since no single stance applies any more.
+
+*Weapon Modification* — a **Draconic Mace** that keeps Breach IV and loses the slam. Vanilla bakes
+the fall-distance bonus into the mace's attack with no flag to disable it, so the exact vanilla slam
+curve (+4/block for 3 blocks, +2 for the next 5, +1 after) is subtracted back out on hit. Subtracting
+rather than capping matters: a cap would eat Strength and Breach along with the slam.
+
+The omelet is handed out once and never re-issued; the mace is re-issued if lost, like the elytra.
 
 **Execution (`/kill`)** — KornFlakis kills a named player outright, once every seven days. Two
 details matter more than the effect itself:
@@ -274,7 +291,8 @@ Still genuinely blocked on a human:
    playtime, admin grant? Kill-count scaffolding is built and inert.
 2. ~~**Mirage backend**~~ — resolved: ProtocolLib approved, real clones built. Needs an in-game test
    to confirm the packet layouts, since it could not be compiled here.
-3. **Draconic Evolution** — needs a design before it can be more than a stub.
+3. ~~**Draconic Evolution**~~ — resolved: Stance Consolidation via the Dragon Omelet, plus the
+   slam-less Draconic Mace.
 4. ~~**Requiem**~~ — resolved: marb approved it, and it is live.
 5. **The `# ASSUMED` numbers** — all guesses until the players confirm them.
 6. ~~**KornFlakis has no kit**~~ — resolved: Ka-Chow, Overdrive and Spear Master belong to

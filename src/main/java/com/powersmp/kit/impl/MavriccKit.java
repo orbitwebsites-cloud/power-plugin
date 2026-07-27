@@ -1,7 +1,9 @@
 package com.powersmp.kit.impl;
 
 import com.powersmp.PowerSMP;
+import com.powersmp.data.PlayerData;
 import com.powersmp.event.DraconicEvolutionEvent;
+import com.powersmp.item.DraconicItems;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
@@ -32,6 +34,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -70,6 +73,10 @@ public class MavriccKit implements PowerKit, Listener {
     private double riptideCooldown = 6.0d;
     private double riptidePower = 2.2d;
     private boolean draconicEnabled = true;
+    private Material omeletMaterial = Material.PUMPKIN_PIE;
+    private int draconicMaceBreach = 4;
+    private boolean draconicMaceUnbreakable = true;
+    private boolean reissueDraconicMace = true;
 
     public MavriccKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -117,6 +124,10 @@ public class MavriccKit implements PowerKit, Listener {
                         adapt.getDouble(key + ".scale", 1.0d),
                         adapt.getDouble(key + ".health-bonus", 0.0d)});
             }
+            // Consolidation collapses the three stances, so it needs its own size and health.
+            adaptation.put("consolidated", new double[]{
+                    adapt.getDouble("consolidated.scale", 1.4d),
+                    adapt.getDouble("consolidated.health-bonus", 10.0d)});
         }
 
         ConfigurationSection mind = mavricc.getConfigurationSection("sporic-mind-control");
@@ -131,6 +142,20 @@ public class MavriccKit implements PowerKit, Listener {
             riptidePower = sea.getDouble("blue-riptide-power", riptidePower);
         }
         draconicEnabled = mavricc.getBoolean("draconic-evolution.enabled", true);
+        ConfigurationSection draconic = mavricc.getConfigurationSection("draconic-evolution");
+        if (draconic != null) {
+            Material parsed = Material.matchMaterial(
+                    draconic.getString("omelet-material", "PUMPKIN_PIE"));
+            if (parsed != null && parsed.isEdible()) {
+                omeletMaterial = parsed;
+            } else if (parsed != null) {
+                plugin.getLogger().warning("omelet-material '" + parsed
+                        + "' is not edible; keeping " + omeletMaterial);
+            }
+            draconicMaceBreach = draconic.getInt("mace-breach-level", draconicMaceBreach);
+            draconicMaceUnbreakable = draconic.getBoolean("mace-unbreakable", true);
+            reissueDraconicMace = draconic.getBoolean("mace-reissue-if-lost", true);
+        }
 
         plugin.cooldowns().registerLabel(ABILITY_LAUNCH, "Wither Wings");
         plugin.cooldowns().registerLabel(ABILITY_RIPTIDE, "Riptide");
@@ -146,6 +171,9 @@ public class MavriccKit implements PowerKit, Listener {
         plugin.food().scanPlayer(owner);
         if (plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
             ensureElytra(owner);
+        }
+        if (reissueDraconicMace && plugin.data().get(owner.getUniqueId()).stanceConsolidated()) {
+            grantDraconicMace(owner);
         }
     }
 
@@ -187,7 +215,8 @@ public class MavriccKit implements PowerKit, Listener {
             Effects.applyInfinite(owner, org.bukkit.potion.PotionEffectType.HERO_OF_THE_VILLAGE,
                     affinity ? heroAmplifierAffinity : heroAmplifier);
         }
-        if (plugin.unlocks().isUnlocked(owner, Power.SPORIC_OF_THE_SEA) && stance == Stance.GREEN) {
+        if (plugin.unlocks().isUnlocked(owner, Power.SPORIC_OF_THE_SEA)
+                && plugin.stances().isActive(owner, Stance.GREEN)) {
             Effects.refresh(owner, org.bukkit.potion.PotionEffectType.CONDUIT_POWER, 0);
         }
         if (grantElytra && plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
@@ -198,7 +227,9 @@ public class MavriccKit implements PowerKit, Listener {
     // ---- Dimensional Adaptation -----------------------------------------
 
     private void applyAdaptation(Player owner, Stance stance) {
-        double[] values = adaptation.get(stance.configKey());
+        double[] values = plugin.stances().isConsolidated(owner)
+                ? adaptation.get("consolidated")
+                : adaptation.get(stance.configKey());
         if (values == null) {
             return;
         }
@@ -320,7 +351,7 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(player, Power.SPORIC_OF_THE_SEA)) {
             return;
         }
-        if (plugin.stances().stanceOf(player) != Stance.RED) {
+        if (!plugin.stances().isActive(player, Stance.RED)) {
             return;
         }
         Material weapon = player.getInventory().getItemInMainHand().getType();
@@ -354,11 +385,84 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.kits().isOwner(player, ID)) {
             return;
         }
-        plugin.getLogger().info("[DraconicEvolution] " + player.getName()
-                + " picked up the dragon egg. Power is a stub -- no design yet.");
         org.bukkit.Bukkit.getPluginManager()
                 .callEvent(new DraconicEvolutionEvent(player, event.getItem().getItemStack()));
-        Text.msg(player, "<dark_purple>Something stirs in the egg... but nothing happens yet.</dark_purple>");
+        plugin.unlocks().unlock(player, Power.DRACONIC_EVOLUTION);
+        grantOmelet(player);
+    }
+
+    /** The egg becomes one omelet, once. Eating it is what actually consolidates the stances. */
+    private void grantOmelet(Player owner) {
+        PlayerData data = plugin.data().get(owner.getUniqueId());
+        if (data.omeletGranted() || data.stanceConsolidated()) {
+            return;
+        }
+        data.omeletGranted(true);
+        plugin.data().markDirty();
+
+        ItemStack omelet = DraconicItems.omelet(omeletMaterial);
+        if (!owner.getInventory().addItem(omelet).isEmpty()) {
+            owner.getWorld().dropItemNaturally(owner.getLocation(), omelet);
+        }
+        Text.msg(owner, "<dark_purple>The egg cracks into a <light_purple>Dragon Omelet</light_purple>. "
+                + "Eat it to fuse your stances.</dark_purple>");
+        owner.playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.7f, 1.2f);
+    }
+
+    /** Eating the omelet is the one-way door: all three stances from here on, plus the mace. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onOmeletEaten(PlayerItemConsumeEvent event) {
+        Player player = event.getPlayer();
+        if (!draconicEnabled || !plugin.kits().isOwner(player, ID)
+                || !DraconicItems.isOmelet(event.getItem())) {
+            return;
+        }
+        PlayerData data = plugin.data().get(player.getUniqueId());
+        if (data.stanceConsolidated()) {
+            return;
+        }
+        data.stanceConsolidated(true);
+        plugin.data().markDirty();
+
+        grantDraconicMace(player);
+
+        Text.msg(player, "<gradient:#c77dff:#7b2cbf><bold>DRACONIC EVOLUTION</bold></gradient> "
+                + "<gray>-- red, blue and green are one. Every perk, all at once.</gray>");
+        player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 0.6f, 1.6f);
+        player.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH,
+                player.getLocation().add(0, 1, 0), 80, 0.6d, 1.0d, 0.6d, 0.05d);
+    }
+
+    /** Re-issued if lost, matching how the bound elytra behaves. */
+    private void grantDraconicMace(Player owner) {
+        for (ItemStack item : owner.getInventory().getContents()) {
+            if (DraconicItems.isDraconicMace(item)) {
+                return;
+            }
+        }
+        ItemStack mace = DraconicItems.mace(draconicMaceBreach, draconicMaceUnbreakable);
+        if (!owner.getInventory().addItem(mace).isEmpty()) {
+            owner.getWorld().dropItemNaturally(owner.getLocation(), mace);
+        }
+    }
+
+    /**
+     * Strips the slam. Vanilla bakes the fall-distance bonus into the mace's attack, so it is
+     * subtracted back out here rather than capping the total -- capping would eat Strength and
+     * Breach along with it.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onDraconicMaceHit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player)) {
+            return;
+        }
+        if (!DraconicItems.isDraconicMace(player.getInventory().getItemInMainHand())) {
+            return;
+        }
+        double bonus = DraconicItems.slamBonus(player.getFallDistance());
+        if (bonus > 0.0d) {
+            event.setDamage(Math.max(1.0d, event.getDamage() - bonus));
+        }
     }
 
     // ---- abilities ------------------------------------------------------
@@ -409,7 +513,7 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(owner, Power.SPORIC_OF_THE_SEA)) {
             return plugin.unlocks().denyLocked(owner, Power.SPORIC_OF_THE_SEA);
         }
-        if (plugin.stances().stanceOf(owner) != Stance.BLUE) {
+        if (!plugin.stances().isActive(owner, Stance.BLUE)) {
             Text.msg(owner, "<red>Sporic Riptide only works in <aqua>blue</aqua> stance.");
             return false;
         }

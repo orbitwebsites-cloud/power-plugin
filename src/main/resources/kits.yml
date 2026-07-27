@@ -157,6 +157,8 @@ mavricc:
     blue:  { scale: 0.8, health-bonus: 4.0 }
     green: { scale: 1.4, health-bonus: 10.0 }
     none:  { scale: 1.0, health-bonus: 0.0 }
+    # Used once the stances are consolidated, since no single stance applies.
+    consolidated: { scale: 1.4, health-bonus: 10.0 }
 
   sporic-mind-control:
     hero-amplifier: 1              # Hero of the Village II
@@ -168,8 +170,22 @@ mavricc:
     blue-riptide-power: 2.2        # ASSUMED
 
   draconic-evolution:
-    # Stub only -- fires DraconicEvolutionEvent and logs. No power yet.
     enabled: true
+    # Picking up the dragon egg turns it into one Dragon Omelet. Eating that
+    # is the one-way door: from then on all three stances run at once.
+    # Any edible material works -- identity lives in the item's PDC tag, so
+    # changing this does not break omelets already in circulation.
+    omelet-material: PUMPKIN_PIE
+    # "the perks of all of them" -- so consolidation grants the upsides only.
+    # Set true to carry red's armour penalty, blue's Weakness and green's
+    # Slowness across as well.
+    consolidation-includes-drawbacks: false
+    # The weakened mace: keeps Breach, loses the slam. The fall-distance
+    # damage bonus is subtracted back out on hit, since vanilla bakes it
+    # into the mace's attack and there is no flag to turn it off.
+    mace-breach-level: 4
+    mace-unbreakable: true
+    mace-reissue-if-lost: true
 
 # =====================================================================
 # arhiahn -- JoJo-flavoured heavy-cooldown ults

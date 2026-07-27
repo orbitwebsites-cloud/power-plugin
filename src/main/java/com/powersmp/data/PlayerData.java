@@ -22,6 +22,10 @@ public class PlayerData {
     private int spearKills;
     private int spearTier = 3;
     private int maceKills;
+    /** Draconic Evolution: the omelet has been eaten, so all three stances run at once. */
+    private boolean stanceConsolidated;
+    /** The omelet has been handed out once; it is not re-issued after being eaten. */
+    private boolean omeletGranted;
     private String lastKnownName = "";
     /** ability id -> epoch millis, for cooldowns long enough that a restart must not clear them. */
     private final Map<String, Long> cooldowns = new HashMap<>();
@@ -99,6 +103,22 @@ public class PlayerData {
 
     public List<ItemStack> restockLoadout() {
         return restockLoadout;
+    }
+
+    public boolean stanceConsolidated() {
+        return stanceConsolidated;
+    }
+
+    public void stanceConsolidated(boolean stanceConsolidated) {
+        this.stanceConsolidated = stanceConsolidated;
+    }
+
+    public boolean omeletGranted() {
+        return omeletGranted;
+    }
+
+    public void omeletGranted(boolean omeletGranted) {
+        this.omeletGranted = omeletGranted;
     }
 
     public String lastKnownName() {

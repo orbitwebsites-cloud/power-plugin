@@ -65,6 +65,8 @@ public class StanceManager implements Listener {
     private double affinityHungerMultiplier = 0.5d;
     private double affinityExtraEntityReach = 1.0d;
     private boolean affinityDebuffImmunity = true;
+    /** Whether consolidation also carries the three stances' costs, not just their perks. */
+    private boolean consolidationDrawbacks;
 
     public StanceManager(PowerSMP plugin) {
         this.plugin = plugin;
@@ -103,6 +105,8 @@ public class StanceManager implements Listener {
                     affinity.getDouble("blue-extra-entity-reach", affinityExtraEntityReach);
             affinityDebuffImmunity = affinity.getBoolean("green-debuff-immunity", affinityDebuffImmunity);
         }
+        consolidationDrawbacks =
+                mavricc.getBoolean("draconic-evolution.consolidation-includes-drawbacks", false);
     }
 
     private List<Material> parseMaterials(List<String> names) {
@@ -163,36 +167,40 @@ public class StanceManager implements Listener {
         double entityReach = 0.0d;
         double attackSpeed = 0.0d;
 
-        switch (stance) {
-            case RED -> {
-                Effects.refresh(player, PotionEffectType.STRENGTH, redStrength + bump);
-                applied.add(PotionEffectType.STRENGTH);
-                // Affinity deepens the armour penalty; it is a cost, not a bonus.
+        boolean consolidated = isConsolidated(player);
+
+        if (consolidated || stance == Stance.RED) {
+            Effects.refresh(player, PotionEffectType.STRENGTH, redStrength + bump);
+            applied.add(PotionEffectType.STRENGTH);
+            // Consolidation grants the *perks* of all three, so the armour penalty is dropped
+            // unless the server explicitly asks for the drawbacks too.
+            if (!consolidated || consolidationDrawbacks) {
                 armor = redArmor + (affinity ? affinityExtraArmor : 0.0d);
-                if (affinity) {
-                    attackSpeed = affinityAttackSpeed;
-                }
             }
-            case BLUE -> {
-                Effects.refresh(player, PotionEffectType.SPEED, blueSpeed + bump);
+            if (affinity) {
+                attackSpeed = affinityAttackSpeed;
+            }
+        }
+        if (consolidated || stance == Stance.BLUE) {
+            Effects.refresh(player, PotionEffectType.SPEED, blueSpeed + bump);
+            Effects.refresh(player, PotionEffectType.HASTE, blueHaste + bump);
+            applied.add(PotionEffectType.SPEED);
+            applied.add(PotionEffectType.HASTE);
+            if (!consolidated || consolidationDrawbacks) {
                 Effects.refresh(player, PotionEffectType.WEAKNESS, blueWeakness + bump);
-                Effects.refresh(player, PotionEffectType.HASTE, blueHaste + bump);
-                applied.add(PotionEffectType.SPEED);
                 applied.add(PotionEffectType.WEAKNESS);
-                applied.add(PotionEffectType.HASTE);
-                blockReach = blueBlockReach;
-                entityReach = blueEntityReach + (affinity ? affinityExtraEntityReach : 0.0d);
             }
-            case GREEN -> {
-                Effects.refresh(player, PotionEffectType.RESISTANCE, greenResistance + bump);
+            blockReach = blueBlockReach;
+            entityReach = blueEntityReach + (affinity ? affinityExtraEntityReach : 0.0d);
+        }
+        if (consolidated || stance == Stance.GREEN) {
+            Effects.refresh(player, PotionEffectType.RESISTANCE, greenResistance + bump);
+            applied.add(PotionEffectType.RESISTANCE);
+            if (!consolidated || consolidationDrawbacks) {
                 Effects.refresh(player, PotionEffectType.SLOWNESS, greenSlowness + bump);
-                applied.add(PotionEffectType.RESISTANCE);
                 applied.add(PotionEffectType.SLOWNESS);
-                knockback = greenKnockback;
             }
-            case NONE -> {
-                // Nothing applied; the attribute writes below zero everything out.
-            }
+            knockback = greenKnockback;
         }
 
         ourEffects.put(id, applied);
@@ -203,9 +211,23 @@ public class StanceManager implements Listener {
         setAttribute(player, Attributes.ENTITY_INTERACTION_RANGE, Keys.STANCE_ENTITY_REACH, entityReach);
         setAttribute(player, Attributes.ATTACK_SPEED, Keys.STANCE_ATTACK_SPEED, attackSpeed);
 
-        if (stance == Stance.GREEN && affinity && affinityDebuffImmunity) {
+        if (isActive(player, Stance.GREEN) && affinity && affinityDebuffImmunity) {
             stripForeignDebuffs(player, applied);
         }
+    }
+
+    /** True once the Dragon Omelet has been eaten -- all three stances run at once from then on. */
+    public boolean isConsolidated(Player player) {
+        return plugin.data().get(player.getUniqueId()).stanceConsolidated();
+    }
+
+    /**
+     * Whether a stance's effects are live for this player, which is the question every stance-gated
+     * power actually wants. After consolidation all three are active at once, so Sporic of the Sea's
+     * red, blue and green branches all work together rather than only the selected one.
+     */
+    public boolean isActive(Player player, Stance stance) {
+        return isConsolidated(player) || stanceOf(player) == stance;
     }
 
     private boolean detectAffinity(Player player) {
@@ -293,7 +315,7 @@ public class StanceManager implements Listener {
         if (!plugin.kits().isOwner(player, "mavricc")) {
             return;
         }
-        if (stanceOf(player) != Stance.BLUE || !hasAffinity(player)) {
+        if (!isActive(player, Stance.BLUE) || !hasAffinity(player)) {
             return;
         }
         int current = player.getFoodLevel();

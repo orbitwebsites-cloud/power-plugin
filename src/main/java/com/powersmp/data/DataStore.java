@@ -60,6 +60,8 @@ public class DataStore {
             data.spearKills(section.getInt("spear-kills", 0));
             data.spearTier(section.getInt("spear-tier", 3));
             data.maceKills(section.getInt("mace-kills", 0));
+            data.stanceConsolidated(section.getBoolean("stance-consolidated", false));
+            data.omeletGranted(section.getBoolean("omelet-granted", false));
             data.lastKnownName(section.getString("name", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
 
@@ -103,6 +105,8 @@ public class DataStore {
             yaml.set(path + ".spear-kills", data.spearKills());
             yaml.set(path + ".spear-tier", data.spearTier());
             yaml.set(path + ".mace-kills", data.maceKills());
+            yaml.set(path + ".stance-consolidated", data.stanceConsolidated());
+            yaml.set(path + ".omelet-granted", data.omeletGranted());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
 
             List<String> loadout = new ArrayList<>();
