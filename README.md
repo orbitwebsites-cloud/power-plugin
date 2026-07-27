@@ -293,6 +293,11 @@ not a rebuild. Replace them once the players weigh in.
 | "every kill" | Mobs and players both count; the mace does not need to be in hand | `techknight.mace` |
 | The World's damage rule | `block-damage-to-frozen: false` — frozen targets stay hittable, so the time-stop is an opening rather than a shield | `arhiahn.the-world` |
 | Restock contents | TechKnightGaming picks them himself in a 7-slot GUI (`/power loadout`); the config list is only a fallback until he does | `techknight.restock` |
+| Greedy Heal durations / cooldown | 10s regen, 60s absorption, 90s cooldown — the amplifiers were specified, these were not | `jjlionjxi.greedy-heal` |
+
+**These values are signed off.** They were guesses when written and have since been accepted as-is,
+so they are the intended numbers rather than placeholders — but they all still live in `kits.yml`
+and change with a `/powersmp reload`, no rebuild.
 
 **No invented nerfs.** Where a value was ambiguous, the stronger reading wins: Strength II over I,
 Density past the vanilla cap, no internal cooldown on the spear's stun or Flash's blind, no stance
@@ -321,7 +326,7 @@ Still genuinely blocked on a human:
 3. ~~**Draconic Evolution**~~ — resolved: Stance Consolidation via the Dragon Omelet, plus the
    slam-less Draconic Mace.
 4. ~~**Requiem**~~ — resolved: marb approved it, and it is live.
-5. **The `# ASSUMED` numbers** — all guesses until the players confirm them.
+5. ~~**The `# ASSUMED` numbers**~~ — accepted as-is. Still tunable in `kits.yml` at any time.
 6. ~~**KornFlakis has no kit**~~ — resolved: Ka-Chow, Overdrive and Spear Master belong to
    **xCR1T1Cx**; KornFlakis has Execution (`/kill`, 7-day cooldown).
 
