@@ -39,6 +39,11 @@ public enum Power {
     POWER_OF_THE_SUN("power_of_the_sun", "Power of the Sun", "monkeyman", Gate.KILLS),
     MIRAGE("mirage", "Mirage", "monkeyman", Gate.KILLS),
 
+    // --- ItzMeTentx ------------------------------------------------------
+    AQUATIC_GRACE("aquatic_grace", "Infinite Breathing & Dolphin's Grace", "itzmetentx", Gate.ALWAYS),
+    TIDAL_SPEED("tidal_speed", "Faster Attack Speed", "itzmetentx", Gate.ALWAYS),
+    TRIDENT_GOD("trident_god", "Trident God", "itzmetentx", Gate.ALWAYS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.

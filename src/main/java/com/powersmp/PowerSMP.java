@@ -11,6 +11,7 @@ import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.ArhiahnKit;
+import com.powersmp.kit.impl.ItzMeTentxKit;
 import com.powersmp.kit.impl.KornFlakisKit;
 import com.powersmp.kit.impl.MavriccKit;
 import com.powersmp.kit.impl.MonkeyManKit;
@@ -64,6 +65,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private ArhiahnKit arhiahn;
     private XCriticKit xcritic;
     private KornFlakisKit kornflakis;
+    private ItzMeTentxKit itzmetentx;
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
 
@@ -92,12 +94,14 @@ public class PowerSMP extends JavaPlugin implements Listener {
         arhiahn = new ArhiahnKit(this);
         xcritic = new XCriticKit(this);
         kornflakis = new KornFlakisKit(this);
+        itzmetentx = new ItzMeTentxKit(this);
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         kits.register(mavricc);
         kits.register(arhiahn);
         kits.register(xcritic);
         kits.register(kornflakis);
+        kits.register(itzmetentx);
         kits.register(monkeyman);
         kits.register(techknight);
 
@@ -114,6 +118,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(arhiahn, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
         Bukkit.getPluginManager().registerEvents(kornflakis, this);
+        Bukkit.getPluginManager().registerEvents(itzmetentx, this);
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
@@ -182,6 +187,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         arhiahn.reload(kitsConfig.getConfigurationSection("arhiahn"));
         xcritic.reload(kitsConfig.getConfigurationSection("xcr1t1cx"));
         kornflakis.reload(kitsConfig.getConfigurationSection("kornflakis"));
+        itzmetentx.reload(kitsConfig.getConfigurationSection("itzmetentx"));
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
     }

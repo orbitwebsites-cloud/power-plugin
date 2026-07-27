@@ -23,6 +23,7 @@ public final class Keys {
     public static NamespacedKey ADAPTATION_SCALE;
     public static NamespacedKey ADAPTATION_HEALTH;
     public static NamespacedKey MIH_ATTACK_SPEED;
+    public static NamespacedKey TIDAL_ATTACK_SPEED;
 
     // PersistentDataContainer keys.
     public static NamespacedKey FOOD_STAMP;
@@ -44,6 +45,7 @@ public final class Keys {
         ADAPTATION_SCALE = new NamespacedKey(plugin, "adaptation_scale");
         ADAPTATION_HEALTH = new NamespacedKey(plugin, "adaptation_health");
         MIH_ATTACK_SPEED = new NamespacedKey(plugin, "mih_attack_speed");
+        TIDAL_ATTACK_SPEED = new NamespacedKey(plugin, "tidal_attack_speed");
 
         FOOD_STAMP = new NamespacedKey(plugin, "food_stamp");
         SPEAR_TIER = new NamespacedKey(plugin, "spear_tier");

@@ -34,6 +34,7 @@ assignments:
   arhiahn: arhiahn
   xCR1T1Cx: xcr1t1cx
   KornFlakis: kornflakis
+  ItzMeTentx: itzmetentx
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
 
@@ -286,6 +287,37 @@ xcr1t1cx:
     hit-cooldown-seconds: 0
     # Trident's own throwing is disabled so it stays a melee spear.
     disable-throw: true
+
+# =====================================================================
+# ItzMeTentx -- water kit
+# =====================================================================
+itzmetentx:
+  aquatic-grace:
+    # Both are permanent. Water Breathing stops the air bar draining at all,
+    # so it already means "never drown"; Dolphin's Grace does nothing out of
+    # water, so leaving it on avoids flickering it at the waterline.
+    water-breathing-amplifier: 0
+    dolphins-grace-amplifier: 0
+    # Belt and braces for "not drown", in case the effect is ever stripped.
+    cancel-drowning-damage: true
+
+  tidal-speed:
+    # Added to the base attack speed of 4.0 while wet.
+    attack-speed-bonus: 2.0        # ASSUMED
+    # Standing in rain counts as being in water, per the spec.
+    rain-counts: true
+
+  trident-god:
+    # Vanilla will not riptide out of water or rain, and will not let a
+    # Riptide trident be thrown either -- so nothing happens on release and
+    # there is no event to cancel. The dry launch is re-implemented instead,
+    # using vanilla's own curve: base + per-level * riptide level.
+    dry-riptide-power-base: 3.0
+    dry-riptide-power-per-level: 1.5
+    # Anything caught by the spin attack is stunned. It stays hittable, so
+    # this is an opening to attack rather than a shield around the target.
+    hit-stun-seconds: 3
+    stun-players-only: false
 
 # =====================================================================
 # MonkeyMan4167 -- "Light" progression kit

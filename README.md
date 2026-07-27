@@ -193,6 +193,20 @@ rather than capping matters: a cap would eat Strength and Breach along with the 
 
 The omelet is handed out once and never re-issued; the mace is re-issued if lost, like the elytra.
 
+**Trident God** — the only part of ItzMeTentx's kit that fights vanilla. Riptide is hard-gated on
+being in water or rain: when dry, releasing a Riptide trident does nothing at all, *and* a Riptide
+trident cannot be thrown either. So there is no vanilla behaviour to intercept or cancel — the dry
+launch is re-implemented. Paper's `PlayerStopUsingItemEvent` reports how long the trident was
+charged; held past vanilla's 10-tick charge while dry, the player is thrown along their look vector
+on vanilla's own power curve.
+
+The spin-attack stun stays hittable (`stunSeconds`, not `freezeSeconds`), so it is an opening rather
+than a shield around whoever got hit. Because a manual dry riptide never sets vanilla's
+`isRiptiding()` flag, the kit tracks its own 1.5s window and checks either.
+
+Caveat: the dry launch reproduces the movement and the sound, not the spin *animation* — there is no
+API to start a spin attack on 1.21.1.
+
 **Execution (`/kill`)** — KornFlakis kills a named player outright, once every seven days. Two
 details matter more than the effect itself:
 

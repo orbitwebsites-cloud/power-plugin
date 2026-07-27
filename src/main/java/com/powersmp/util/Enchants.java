@@ -18,6 +18,7 @@ public final class Enchants {
     public static final Enchantment DENSITY = resolve("density");
     public static final Enchantment BREACH = resolve("breach");
     public static final Enchantment WIND_BURST = resolve("wind_burst");
+    public static final Enchantment RIPTIDE = resolve("riptide");
 
     private Enchants() {
     }
