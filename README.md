@@ -5,20 +5,20 @@ from a common ability pool.
 
 - **Target:** Paper 1.21.11, Java 21, Maven — set `paper.api.version` in `pom.xml` to match the
   server exactly. `api-version` in `plugin.yml` is `'1.21'`, so the jar loads on any 1.21.x.
-- **Build & install:** see [INSTALL.md](INSTALL.md). GitHub Actions builds the jar on every push —
-  grab it from the **Actions** tab, no local toolchain needed. Or `mvn package` locally.
+- **Build & install:** see [INSTALL.md](INSTALL.md). CI builds the jar on every push — grab it from
+  **Releases → Latest dev build**, no local toolchain needed. Or `mvn package` locally.
 - **Optional dependency:** ProtocolLib, for Mirage's real clones. Without it Mirage falls back to
   armour stands automatically; everything else is unaffected.
 - **Configure:** `plugins/PowerSMP/kits.yml` (every tuning number lives there), `/powersmp reload`
 - **Other server plugins:** see [COMPATIBILITY.md](COMPATIBILITY.md) — NoCheatPlus and the lag
   clearers both need configuration before this works properly
 
-> **This has not been compiled against the real API.** The build environment could only reach Maven
-> Central; `paper-api` and ProtocolLib live on repositories the network policy blocked. What *was*
-> done: the sources were compiled against a hand-written stub of the entire external API surface
-> (119 types), which passes with zero errors and zero lint warnings. That verifies all internal
-> wiring — names, signatures, generics, imports, control flow — but not that Bukkit's real
-> signatures match the stubs. Run `mvn package` locally before deploying.
+> **Compiles against Paper 1.21.11.** Verified by CI, which is where it first met the real Paper and
+> ProtocolLib APIs — the environment it was written in could reach neither repository, so it was
+> developed against a hand-written 119-type stub of the external API. That stub caught every
+> internal wiring problem; the real compiler then caught exactly one thing the stub structurally
+> could not, since the stub encoded the same wrong assumption. It is still untested *in game* —
+> behaviour, balance and the ProtocolLib packet layouts all need a live server.
 
 ---
 

@@ -11,19 +11,26 @@ The repo is source only — there is no jar yet. Two ways to get one.
 
 ### Option A: let GitHub build it (no setup)
 
-A workflow at `.github/workflows/build.yml` builds the jar on every push. To get it:
+`.github/workflows/build.yml` builds the jar on every push and publishes it to a rolling
+prerelease.
 
-1. Open the repo on GitHub → **Actions** tab
-2. Click the most recent **Build** run
-3. Scroll to **Artifacts** → download **powersmp-jar**
-4. Unzip it — `powersmp-0.1.0.jar` is inside
+**Go to the repo's Releases page → "Latest dev build" → download `powersmp-0.1.0.jar`.**
 
-You can also trigger a build by hand: **Actions → Build → Run workflow**.
+No unzipping, and it always points at the newest successful build. You can force a rebuild with
+**Actions → Build → Run workflow**.
 
-A green tick means it compiled. A red X means the build failed — open the run, expand the **Build**
-step, and send the compiler output. **This is the first time the code is compiled against the real
-Paper API**, because the environment it was written in could not reach the Paper repository, so a
-red run is real information rather than a broken pipeline.
+The same jar is also attached to each Actions run under **Artifacts**, but that upload is
+best-effort: Actions artifact storage is a hard account-wide quota, and once it fills the upload
+fails even though the build succeeded. The release is the dependable route, which is why the
+workflow marks the artifact step `continue-on-error`.
+
+> If artifact storage is full and you want it back: **repo → Actions → any old run → delete**, or
+> the account's billing/storage settings. Usage is only recalculated every 6–12 hours, so deletions
+> do not free space immediately. The release route avoids the whole problem.
+
+A green tick means it compiled. A red X on the **Build** step means a genuine compile error — send
+the output. Note that a red X on the *artifact* step is just the quota and can be ignored; the jar
+still made it to the release.
 
 ### Option B: build locally
 

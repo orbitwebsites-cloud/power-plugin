@@ -1,11 +1,13 @@
 name: Build
 
-# Builds the plugin jar on every push and attaches it to the run, so the jar can
-# be downloaded without a local Java or Maven install.
+# Builds the plugin jar on every push and publishes it two ways:
+#   1. a "dev" prerelease, which does NOT count against the Actions artifact
+#      storage quota -- this is the reliable download link
+#   2. a run artifact, which is convenient but is the first thing to break when
+#      the account's artifact storage fills up, so it is best-effort only
 #
-# This is also the first place the code is compiled against the *real* Paper and
-# ProtocolLib APIs -- the environment it was written in could not reach either
-# repository, so a red run here is genuine signal, not a CI misconfiguration.
+# This is also where the code meets the real Paper and ProtocolLib APIs; the
+# environment it was written in could reach neither repository.
 
 on:
   push:
@@ -17,6 +19,8 @@ jobs:
   build:
     name: Build jar
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout
@@ -32,10 +36,37 @@ jobs:
       - name: Build
         run: mvn -B -ntp clean package
 
-      - name: Upload jar
+      - name: Show the jar
+        run: ls -lh target/*.jar
+
+      # Best-effort. Artifact storage is a hard account-wide quota, and hitting
+      # it must not fail a build that actually compiled.
+      - name: Upload jar as run artifact
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: powersmp-jar
           path: target/*.jar
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 7
+
+      # The dependable route: release assets are stored separately from Actions
+      # artifacts, so this keeps working when the artifact quota is full.
+      - name: Publish to the rolling dev release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          NOTES="Automatic build of \`${GITHUB_SHA:0:7}\` on \`${GITHUB_REF_NAME}\`.
+          Download \`powersmp-0.1.0.jar\` below and drop it in your server's \`plugins/\` folder.
+          See INSTALL.md for the rest of the setup."
+          if gh release view dev >/dev/null 2>&1; then
+            gh release upload dev target/*.jar --clobber
+            gh release edit dev --notes "$NOTES"
+          else
+            gh release create dev target/*.jar \
+              --title "Latest dev build" \
+              --notes "$NOTES" \
+              --prerelease
+          fi
