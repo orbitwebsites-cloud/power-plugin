@@ -15,6 +15,7 @@ import com.powersmp.kit.impl.DomanKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
 import com.powersmp.kit.impl.JJLionKit;
 import com.powersmp.kit.impl.KornFlakisKit;
+import com.powersmp.kit.impl.LlamaChasKit;
 import com.powersmp.kit.impl.MarbKit;
 import com.powersmp.kit.impl.MavriccKit;
 import com.powersmp.kit.impl.MonkeyManKit;
@@ -76,6 +77,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private SparkKit spark;
     private NightScarKit nightscar;
     private MarbKit marb;
+    private LlamaChasKit llamachas;
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
 
@@ -110,6 +112,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         spark = new SparkKit(this);
         nightscar = new NightScarKit(this);
         marb = new MarbKit(this);
+        llamachas = new LlamaChasKit(this);
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         kits.register(mavricc);
@@ -122,6 +125,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(spark);
         kits.register(nightscar);
         kits.register(marb);
+        kits.register(llamachas);
         kits.register(monkeyman);
         kits.register(techknight);
 
@@ -144,6 +148,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(spark, this);
         Bukkit.getPluginManager().registerEvents(nightscar, this);
         Bukkit.getPluginManager().registerEvents(marb, this);
+        Bukkit.getPluginManager().registerEvents(llamachas, this);
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
@@ -218,6 +223,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         spark.reload(kitsConfig.getConfigurationSection("sparkkkkkkkk"));
         nightscar.reload(kitsConfig.getConfigurationSection("night_scar3"));
         marb.reload(kitsConfig.getConfigurationSection("marb13"));
+        llamachas.reload(kitsConfig.getConfigurationSection("llamachas"));
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
     }

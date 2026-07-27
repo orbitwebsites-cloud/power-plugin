@@ -39,6 +39,7 @@ assignments:
   Sparkkkkkkkk: sparkkkkkkkk
   Night_Scar3: night_scar3
   Marb13_: marb13
+  LlamaChas: llamachas
   JJlionjxi: jjlionjxi
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
@@ -490,6 +491,51 @@ marb13:
     # copy of whatever he is holding, which dissolves when the timer ends.
     shadow-item-seconds: 120
     shadow-cooldown-seconds: 60
+
+# =====================================================================
+# LlamaChas -- flight / heat vision / x-ray / freeze breath / strength
+# =====================================================================
+# No tiers were given, so all five are on from the start.
+llamachas:
+  flight:
+    # Creative-style flight. This is the single most anticheat-triggering
+    # thing in the plugin -- NoCheatPlus WILL kick him without the exemptions
+    # in server-setup/luckperms-commands.txt.
+    speed: 0.1                     # 0.1 is vanilla creative flight speed
+
+  heat-vision:
+    range: 24.0                    # ASSUMED
+    damage: 6.0                    # ASSUMED -- 3 hearts
+    fire-ticks: 80                 # 4 seconds alight
+    # Off by default: setting the world on fire on an 8s cooldown is a
+    # griefing tool as much as a weapon.
+    ignite-blocks: false
+    cooldown-seconds: 8            # ASSUMED
+
+  xray:
+    # Real x-ray is impossible -- the client decides what it renders. This
+    # instead sends fake air blocks to LlamaChas alone, so ores stand out.
+    # The world itself is never changed and nobody else sees anything.
+    #
+    # Radius is cubed, so it grows fast: 8 is ~4,900 blocks, 12 is ~15,600.
+    # Raising it much past 8 means a noticeable packet burst on each use.
+    radius: 8
+    duration-seconds: 12           # ASSUMED
+    cooldown-seconds: 60           # ASSUMED
+    # Only natural filler is hidden, so this can never blank out a build.
+    hide-blocks: [STONE, DEEPSLATE, DIRT, GRAVEL, ANDESITE, DIORITE, GRANITE, TUFF, NETHERRACK]
+
+  freeze-breath:
+    range: 10.0                    # ASSUMED
+    cone-degrees: 40.0             # ASSUMED -- half-angle of the cone
+    freeze-ticks: 200              # powder-snow freezing, 10 seconds
+    slowness-amplifier: 2          # Slowness III
+    cooldown-seconds: 20           # ASSUMED
+
+  super-strength:
+    amplifier: 1                   # Strength II
+    # Things he hits travel further. 0 disables.
+    bonus-knockback: 0.6           # ASSUMED
 
 # =====================================================================
 # MonkeyMan4167 -- "Light" progression kit

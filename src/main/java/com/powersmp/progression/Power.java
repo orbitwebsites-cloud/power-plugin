@@ -70,6 +70,14 @@ public enum Power {
     ENDER_MAGIC("ender_magic", "Ender Magic", "marb13", Gate.KILLS),
     SHADOW_MASTER("shadow_master", "Portal and Shadow Master", "marb13", Gate.KILLS),
 
+    // --- LlamaChas -------------------------------------------------------
+    // No tiers were given, so all five are simply part of the kit.
+    FLIGHT("flight", "Flight", "llamachas", Gate.ALWAYS),
+    HEAT_VISION("heat_vision", "Heat Vision", "llamachas", Gate.ALWAYS),
+    XRAY("xray", "X-Ray Vision", "llamachas", Gate.ALWAYS),
+    FREEZE_BREATH("freeze_breath", "Freeze Breath", "llamachas", Gate.ALWAYS),
+    SUPER_STRENGTH("super_strength", "Super Strength", "llamachas", Gate.ALWAYS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.

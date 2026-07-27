@@ -35,6 +35,7 @@ from a common ability pool.
 | Sparkkkkkkkk | The Atom | Creeper Harvest (low), Explosion (mid), Atom Bomb (high) |
 | Night_Scar3 | Mace Master | Permanent Strength (low), Dash (mid), Density Mace (high) |
 | Marb13_ | Portal and Shadow Master | Miner's Haven (low), Ender Magic (mid), Portal & Shadow (high) |
+| LlamaChas | Kryptonian | Flight, Heat Vision, X-Ray, Freeze Breath, Super Strength |
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
 | TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles |
@@ -85,7 +86,7 @@ If a local build fails, these are the places to look first, in likelihood order:
 com.powersmp
 ├── PowerSMP.java          main class; owns the single shared 1/sec kit tick
 ├── kit/                   PowerKit interface, Ability, KitRegistry, impl/ (one class per player)
-│                          one kit class per player (12), e.g. MavriccKit, NorthOfNowhereKit
+│                          one kit class per player (13), e.g. MavriccKit, LlamaChasKit
 ├── stance/                Stance, StanceManager (stances + Mushroom Affinity), StanceCommand
 ├── food/                  MushroomHungerService, FoodProfile
 ├── cooldown/              CooldownManager (+ action-bar readout)
@@ -215,6 +216,18 @@ unbreakable elytra (re-issued if it goes missing) plus a launch on cooldown.
 
 **Ka-Chow** — a real `strikeLightning` plus `PotionEffectType.WITHER`, exactly as the spec notes.
 `cosmetic-lightning-only: true` switches to a damage-free visual strike.
+
+**X-ray** — genuinely impossible as asked: the client decides what it renders and no server-side API
+reaches into that. Worked around by lying to one client. Every common stone-type block in radius is
+sent to LlamaChas alone as air, leaving ores hanging in the open; the real world is never modified
+and nobody else sees anything. The true blocks are re-sent when it expires, on quit, and on plugin
+disable, so a disconnect cannot strand someone with a permanently wrong view. The hide list is
+restricted to natural filler (stone, deepslate, dirt, gravel, the granites) so it can never blank out
+a build. Radius is cubed, so 8 is ~4,900 blocks and 12 is ~15,600 — worth knowing before raising it.
+
+**Flight** is ordinary creative flight, and is the single most anticheat-triggering thing in the
+plugin. It is also handed back on quit and on disable: `allowFlight` persists in player data, so
+skipping that would leave him flying in survival forever. Creative and spectator are left alone.
 
 **Draconic Evolution** — no longer a stub. Picking up the dragon egg turns it into a single **Dragon
 Omelet**; eating that is a one-way door with two effects.
