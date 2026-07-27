@@ -38,6 +38,7 @@ assignments:
   domanthegamer: domanthegamer
   Sparkkkkkkkk: sparkkkkkkkk
   Night_Scar3: night_scar3
+  Marb13_: marb13
   JJlionjxi: jjlionjxi
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
@@ -83,6 +84,10 @@ progression:
     permanent_strength: 0
     dash: 4
     density_mace: 8
+    # Marb13_'s low / mid / high tiers.
+    miners_haven: 0
+    ender_magic: 4
+    shadow_master: 8
   # Announce unlocks in chat to the whole server.
   broadcast-unlocks: true
 
@@ -452,6 +457,39 @@ night_scar3:
     health-per-kill-after-max: 2.0
     max-bonus-health: 40.0         # ASSUMED cap, 20 extra hearts
     unbreakable: true
+
+# =====================================================================
+# Marb13_ -- Miner's Haven / Ender Magic / Portal and Shadow Master
+# =====================================================================
+marb13:
+  # LOW TIER
+  miners-haven:
+    haste-amplifier: 1             # Haste II everywhere
+    deepslate-haste-amplifier: 4   # Haste V on deepslate
+    # Matched against the block name, so every deepslate variant and
+    # deepslate ore counts without listing them all.
+    deepslate-name-contains: DEEPSLATE
+    # How far ahead to look for the block being mined.
+    look-range: 6
+
+  # MID TIER
+  ender-magic:
+    # Ender chest anywhere. 0 = no cooldown, as specified.
+    enderchest-cooldown-seconds: 0
+    # "inf pearls" -- the stack is topped back up rather than made
+    # unconsumable, since vanilla always consumes a thrown pearl.
+    pearl-stack-size: 16
+
+  # HIGH TIER
+  portal-and-shadow:
+    portal-cooldown-seconds: 120   # ASSUMED -- none was given
+    # Off by default: a portal that overwrites solid blocks is a demolition
+    # tool, not a movement power. Air and replaceables only unless enabled.
+    portal-replaces-solid-blocks: false
+    # ASSUMED reading of "can make shadow items": a temporary, fully usable
+    # copy of whatever he is holding, which dissolves when the timer ends.
+    shadow-item-seconds: 120
+    shadow-cooldown-seconds: 60
 
 # =====================================================================
 # MonkeyMan4167 -- "Light" progression kit

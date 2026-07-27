@@ -65,6 +65,11 @@ public enum Power {
     DASH("dash", "Dash", "night_scar3", Gate.KILLS),
     DENSITY_MACE("density_mace", "Mace Master", "night_scar3", Gate.KILLS),
 
+    // --- Marb13_ ---------------------------------------------------------
+    MINERS_HAVEN("miners_haven", "Miner's Haven", "marb13", Gate.KILLS),
+    ENDER_MAGIC("ender_magic", "Ender Magic", "marb13", Gate.KILLS),
+    SHADOW_MASTER("shadow_master", "Portal and Shadow Master", "marb13", Gate.KILLS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.

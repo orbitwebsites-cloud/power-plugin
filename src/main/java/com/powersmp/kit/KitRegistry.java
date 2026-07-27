@@ -36,6 +36,7 @@ public class KitRegistry {
             Map.entry("domanthegamer", "domanthegamer"),
             Map.entry("sparkkkkkkkk", "sparkkkkkkkk"),
             Map.entry("night_scar3", "night_scar3"),
+            Map.entry("marb13_", "marb13"),
             Map.entry("monkeyman4167", "monkeyman"),
             Map.entry("techknightgaming", "techknight"));
 
