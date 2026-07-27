@@ -5,6 +5,7 @@ import com.powersmp.data.PlayerData;
 import com.powersmp.item.MaceItem;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
+import com.powersmp.menu.RestockMenu;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
@@ -50,9 +51,11 @@ public class TechKnightKit implements PowerKit, Listener {
     public static final String ID = "techknight";
 
     private static final String ABILITY_RESTOCK = "restock";
+    private static final String ABILITY_LOADOUT = "loadout";
     private static final String ABILITY_XP = "xp";
 
     private final PowerSMP plugin;
+    private final RestockMenu menu;
     /** Maces pulled out of death drops, held until the owner respawns. */
     private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
 
@@ -72,6 +75,12 @@ public class TechKnightKit implements PowerKit, Listener {
 
     public TechKnightKit(PowerSMP plugin) {
         this.plugin = plugin;
+        this.menu = new RestockMenu(plugin);
+    }
+
+    /** Registered as a listener by the plugin's main class. */
+    public RestockMenu menu() {
+        return menu;
     }
 
     @Override
@@ -102,7 +111,8 @@ public class TechKnightKit implements PowerKit, Listener {
         restockItems.clear();
         if (restock != null) {
             restockCooldown = restock.getDouble("cooldown-seconds", restockCooldown);
-            for (String entry : restock.getStringList("items")) {
+            menu.slots(restock.getInt("slots", 7));
+            for (String entry : restock.getStringList("default-items")) {
                 ItemStack parsed = parseItem(entry);
                 if (parsed != null) {
                     restockItems.add(parsed);
@@ -317,7 +327,9 @@ public class TechKnightKit implements PowerKit, Listener {
     public List<Ability> abilities() {
         return List.of(
                 new Ability(ABILITY_RESTOCK, "Restock",
-                        "Refill your utility kit. " + (int) (restockCooldown / 3600) + "h cooldown."),
+                        "Refill your kit. " + (int) (restockCooldown / 3600) + "h cooldown."),
+                new Ability(ABILITY_LOADOUT, "Restock Loadout",
+                        "Choose what Restock gives you -- " + menu.slots() + " slots, anything you like."),
                 new Ability(ABILITY_XP, "XP Bottles",
                         "Fill your inventory with experience bottles. No cooldown."));
     }
@@ -331,18 +343,31 @@ public class TechKnightKit implements PowerKit, Listener {
     public boolean activate(Player owner, String abilityId) {
         return switch (abilityId.toLowerCase(Locale.ROOT)) {
             case ABILITY_RESTOCK -> restock(owner);
+            case ABILITY_LOADOUT -> openLoadout(owner);
             case ABILITY_XP -> xpBottles(owner);
             default -> false;
         };
+    }
+
+    private boolean openLoadout(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.RESTOCK)) {
+            return plugin.unlocks().denyLocked(owner, Power.RESTOCK);
+        }
+        menu.open(owner);
+        return true;
     }
 
     private boolean restock(Player owner) {
         if (!plugin.unlocks().isUnlocked(owner, Power.RESTOCK)) {
             return plugin.unlocks().denyLocked(owner, Power.RESTOCK);
         }
-        if (restockItems.isEmpty()) {
-            Text.msg(owner, "<red>No restock kit is configured. "
-                    + "Set <white>techknight.restock.items</white> in kits.yml.");
+        // A loadout the player set themselves always wins over the server default.
+        List<ItemStack> kit = plugin.data().get(owner.getUniqueId()).restockLoadout();
+        if (kit.isEmpty()) {
+            kit = restockItems;
+        }
+        if (kit.isEmpty()) {
+            Text.msg(owner, "<red>Your restock kit is empty. Set it with <white>/power loadout</white>.");
             return false;
         }
         if (!plugin.cooldowns().tryUse(owner, ABILITY_RESTOCK, restockCooldown)) {
@@ -350,7 +375,7 @@ public class TechKnightKit implements PowerKit, Listener {
         }
         int delivered = 0;
         int dropped = 0;
-        for (ItemStack template : restockItems) {
+        for (ItemStack template : kit) {
             Map<Integer, ItemStack> leftover = owner.getInventory().addItem(template.clone());
             delivered++;
             for (ItemStack overflow : leftover.values()) {

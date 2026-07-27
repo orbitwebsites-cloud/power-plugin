@@ -1,10 +1,13 @@
 package com.powersmp.data;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.bukkit.inventory.ItemStack;
 
 /**
  * Everything about a player that has to survive a restart: current stance, which powers they have
@@ -22,6 +25,8 @@ public class PlayerData {
     private String lastKnownName = "";
     /** ability id -> epoch millis, for cooldowns long enough that a restart must not clear them. */
     private final Map<String, Long> cooldowns = new HashMap<>();
+    /** Player-chosen Restock kit. Empty means fall back to the server default in kits.yml. */
+    private final List<ItemStack> restockLoadout = new ArrayList<>();
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -90,6 +95,10 @@ public class PlayerData {
 
     public Map<String, Long> cooldowns() {
         return cooldowns;
+    }
+
+    public List<ItemStack> restockLoadout() {
+        return restockLoadout;
     }
 
     public String lastKnownName() {

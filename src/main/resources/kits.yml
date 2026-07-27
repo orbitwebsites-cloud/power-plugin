@@ -326,10 +326,12 @@ techknight:
   restock:
     # 5 hours. Persisted to data.yml, so a restart does not refund it.
     cooldown-seconds: 18000
-    # "any utils I need" cannot be built literally -- this is a placeholder
-    # list. ASSUMED: replace it with what TechKnightGaming actually wants.
-    # Format: MATERIAL:amount
-    items:
+    # How many things the restock kit holds. TechKnightGaming picks what goes
+    # in them himself with /power loadout; his choice is saved per-player and
+    # always wins over the defaults below. Max 27.
+    slots: 7
+    # Only used until he sets his own loadout. Format: MATERIAL:amount
+    default-items:
       - ENDER_PEARL:16
       - GOLDEN_APPLE:8
       - COOKED_BEEF:32

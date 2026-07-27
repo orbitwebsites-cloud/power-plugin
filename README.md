@@ -174,6 +174,20 @@ unbreakable elytra (re-issued if it goes missing) plus a launch on cooldown.
 **Draconic Evolution** — stub. Picking up the dragon egg fires `DraconicEvolutionEvent` and logs it.
 No power, because there is no design yet.
 
+**Restock loadout GUI** — `/power loadout` opens a 7-slot menu (`slots`, up to 27) where
+TechKnightGaming chooses what Restock hands him. The choice is saved per player, survives restarts,
+and overrides the server default.
+
+The menu never moves a real item. Every click is cancelled and handled by hand: clicking a stack in
+your own inventory copies it in, clicking a filled slot clears it. That is deliberate — genuine
+drag-and-drop would have to either keep the items, quietly charging him one of everything he
+configures, or return them on close, which would duplicate whatever was pre-filled from the saved
+loadout. Copying avoids both, so the menu can safely open showing the current kit. The amount you
+click is the amount you get, so a stack of 16 pearls configures 16 pearls.
+
+Loadouts are stored as Base64 of `ItemStack#serializeAsBytes`, not YAML's `ConfigurationSerializable`
+path, which loses newer data components — so enchanted and custom-named gear round-trips intact.
+
 **Mace Massacre** — all vanilla-possible. The mace is soulbound via PDC: pulled out of death drops
 and returned on respawn, undroppable, and blocked from any container inventory. If it is ever lost
 anyway (void, lava, `/clear`), it is re-issued on join at the correct level, because the kill count
@@ -219,7 +233,7 @@ not a rebuild. Replace them once the players weigh in.
 | Mace levelling past kill 5 | `LITERAL` — Density equals the kill count, past the vanilla cap, to the format ceiling of 255. `LADDER` (Density→Breach→Wind Burst) is the alternative | `techknight.mace.mode` |
 | "every kill" | Mobs and players both count; the mace does not need to be in hand | `techknight.mace` |
 | The World's damage rule | `block-damage-to-frozen: false` — frozen targets stay hittable, so the time-stop is an opening rather than a shield | `arhiahn.the-world` |
-| Restock contents | Placeholder list — "any utils I need" can't be built literally | `techknight.restock.items` |
+| Restock contents | TechKnightGaming picks them himself in a 7-slot GUI (`/power loadout`); the config list is only a fallback until he does | `techknight.restock` |
 
 **No invented nerfs.** Where a value was ambiguous, the stronger reading wins: Strength II over I,
 Density past the vanilla cap, no internal cooldown on the spear's stun or Flash's blind, no stance

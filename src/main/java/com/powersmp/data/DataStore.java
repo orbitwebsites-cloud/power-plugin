@@ -3,6 +3,7 @@ package com.powersmp.data;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,17 @@ public class DataStore {
             data.lastKnownName(section.getString("name", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
 
+            // Items are stored as Base64 of ItemStack#serializeAsBytes rather than through YAML's
+            // ConfigurationSerializable path, which loses newer data components.
+            for (String encoded : section.getStringList("restock-loadout")) {
+                try {
+                    data.restockLoadout().add(
+                            ItemStack.deserializeBytes(Base64.getDecoder().decode(encoded)));
+                } catch (Throwable ex) {
+                    plugin.getLogger().warning("Dropping an unreadable restock item for " + rawUuid);
+                }
+            }
+
             ConfigurationSection cooldowns = section.getConfigurationSection("cooldowns");
             if (cooldowns != null) {
                 long now = System.currentTimeMillis();
@@ -92,6 +104,15 @@ public class DataStore {
             yaml.set(path + ".spear-tier", data.spearTier());
             yaml.set(path + ".mace-kills", data.maceKills());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
+
+            List<String> loadout = new ArrayList<>();
+            for (ItemStack item : data.restockLoadout()) {
+                if (item != null && !item.getType().isAir()) {
+                    loadout.add(Base64.getEncoder().encodeToString(item.serializeAsBytes()));
+                }
+            }
+            yaml.set(path + ".restock-loadout", loadout);
+
             long now = System.currentTimeMillis();
             for (Map.Entry<String, Long> entry : data.cooldowns().entrySet()) {
                 if (entry.getValue() > now) {

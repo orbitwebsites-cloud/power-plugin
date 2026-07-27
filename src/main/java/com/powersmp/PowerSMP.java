@@ -110,6 +110,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(kornflakis, this);
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
+        Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
