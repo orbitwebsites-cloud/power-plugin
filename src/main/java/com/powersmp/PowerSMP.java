@@ -2,6 +2,7 @@ package com.powersmp;
 
 import com.powersmp.combat.FreezeUtil;
 import com.powersmp.command.PowerCommand;
+import com.powersmp.command.KillCommand;
 import com.powersmp.command.PowerSMPCommand;
 import com.powersmp.cooldown.CooldownManager;
 import com.powersmp.data.DataStore;
@@ -10,6 +11,7 @@ import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.ArhiahnKit;
+import com.powersmp.kit.impl.KornFlakisKit;
 import com.powersmp.kit.impl.MavriccKit;
 import com.powersmp.kit.impl.MonkeyManKit;
 import com.powersmp.kit.impl.TechKnightKit;
@@ -61,6 +63,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private MavriccKit mavricc;
     private ArhiahnKit arhiahn;
     private XCriticKit xcritic;
+    private KornFlakisKit kornflakis;
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
 
@@ -88,11 +91,13 @@ public class PowerSMP extends JavaPlugin implements Listener {
         mavricc = new MavriccKit(this);
         arhiahn = new ArhiahnKit(this);
         xcritic = new XCriticKit(this);
+        kornflakis = new KornFlakisKit(this);
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         kits.register(mavricc);
         kits.register(arhiahn);
         kits.register(xcritic);
+        kits.register(kornflakis);
         kits.register(monkeyman);
         kits.register(techknight);
 
@@ -108,6 +113,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(arhiahn, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
+        Bukkit.getPluginManager().registerEvents(kornflakis, this);
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
@@ -116,6 +122,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         bind("power", new PowerCommand(this));
         bind("powersmp", new PowerSMPCommand(this));
         bind("xp", new XpCommand(this));
+        bind("kill", new KillCommand(this));
 
         freeze.start();
         cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
@@ -166,6 +173,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     /** Pushes the current kits.yml into every service. Safe to call repeatedly. */
     private void applyConfig() {
         tickInterval = Math.max(1, kitsConfig.getInt("general.tick-interval-ticks", 20));
+        cooldowns.actionBarMaxSeconds(kitsConfig.getLong("general.cooldown-action-bar-max-seconds", 600L));
         kits.loadAssignments(kitsConfig.getConfigurationSection("assignments"));
         unlocks.reload(kitsConfig.getConfigurationSection("progression"));
         stances.reload(kitsConfig.getConfigurationSection("mavricc"));
@@ -173,6 +181,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         mavricc.reload(kitsConfig.getConfigurationSection("mavricc"));
         arhiahn.reload(kitsConfig.getConfigurationSection("arhiahn"));
         xcritic.reload(kitsConfig.getConfigurationSection("xcr1t1cx"));
+        kornflakis.reload(kitsConfig.getConfigurationSection("kornflakis"));
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
     }
@@ -299,5 +308,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     public TechKnightKit techknight() {
         return techknight;
+    }
+
+    public KornFlakisKit kornflakis() {
+        return kornflakis;
     }
 }

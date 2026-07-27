@@ -30,6 +30,7 @@ public class KitRegistry {
             "mavricc", "mavricc",
             "arhiahn", "arhiahn",
             "xcr1t1cx", "xcr1t1cx",
+            "kornflakis", "kornflakis",
             "monkeyman4167", "monkeyman",
             "techknightgaming", "techknight");
 

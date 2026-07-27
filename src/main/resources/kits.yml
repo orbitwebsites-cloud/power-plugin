@@ -16,6 +16,10 @@ general:
   # Sneak + right-click air with an empty main hand fires your kit's
   # primary ability, as a shortcut for /power use <primary>.
   sneak-right-click-primary: true
+  # Cooldowns longer than this are left off the action bar and only reported
+  # when you try to use them -- otherwise KornFlakis's 7-day execute would
+  # pin a message to his screen for a week.
+  cooldown-action-bar-max-seconds: 600
   # Auto-save interval for data.yml, in seconds.
   autosave-seconds: 300
 
@@ -29,9 +33,9 @@ assignments:
   Mavricc: mavricc
   arhiahn: arhiahn
   xCR1T1Cx: xcr1t1cx
+  KornFlakis: kornflakis
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
-  # KornFlakis has no kit yet -- his powers are still to be specified.
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -207,6 +211,21 @@ arhiahn:
     enabled: true
     duration-seconds: 2            # per spec
     cooldown-seconds: 600          # ASSUMED (must exceed the other two)
+
+# =====================================================================
+# KornFlakis -- one execution a week
+# =====================================================================
+kornflakis:
+  kill:
+    # 7 days. Persisted to data.yml -- at this length a restart would
+    # otherwise hand back a free execution.
+    cooldown-seconds: 604800
+    # true  -> what vanilla /kill does: straight through armour, Resistance,
+    #          totems, and arhiahn's Requiem. Nothing saves the target.
+    # false -> routed through the damage system instead, so a totem of
+    #          undying (and Requiem) can save them. Gives it counterplay.
+    bypass-protections: true
+    broadcast: true
 
 # =====================================================================
 # xCR1T1Cx -- combo / momentum fighter

@@ -26,6 +26,9 @@ public enum Power {
     MADE_IN_HEAVEN("made_in_heaven", "Made In Heaven", "arhiahn", Gate.KILLS),
     REQUIEM("requiem", "Requiem", "arhiahn", Gate.KILLS),
 
+    // --- KornFlakis ------------------------------------------------------
+    KILL_COMMAND("kill_command", "Execution", "kornflakis", Gate.ALWAYS),
+
     // --- xCR1T1Cx --------------------------------------------------------
     KA_CHOW("ka_chow", "Ka-Chow", "xcr1t1cx", Gate.KILLS),
     OVERDRIVE("overdrive", "Overdrive", "xcr1t1cx", Gate.KILLS),

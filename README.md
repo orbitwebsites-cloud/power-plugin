@@ -29,6 +29,7 @@ from a common ability pool.
 | `/powersmp kills <player> [n]` | admin | Read or set the kill counter |
 | `/powersmp spear [player]` | admin | Issue a spear |
 | `/xp` (alias `/xpbottles`) | TechKnightGaming | Fill inventory with XP bottles |
+| `/kill <player>` | KornFlakis | Execute a player, 7-day cooldown |
 
 Sneak + right-click with an empty hand fires your kit's primary ability
 (`general.sneak-right-click-primary`).
@@ -175,6 +176,19 @@ unbreakable elytra (re-issued if it goes missing) plus a launch on cooldown.
 **Draconic Evolution** — stub. Picking up the dragon egg fires `DraconicEvolutionEvent` and logs it.
 No power, because there is no design yet.
 
+**Execution (`/kill`)** — KornFlakis kills a named player outright, once every seven days. Two
+details matter more than the effect itself:
+
+- **`/kill` is a vanilla command admins use.** Claiming the name would take it from them, so anyone
+  who is not KornFlakis is forwarded verbatim to `minecraft:kill` under their own permissions — ops
+  keep the real command and its selectors. `/minecraft:kill` always works directly too.
+- **The cooldown must persist**, and does. Seven days outlives any server uptime, so an in-memory
+  timer would refund a free execution on the next restart or crash.
+
+By default the kill bypasses everything — armour, Resistance, totems, and arhiahn's Requiem —
+because that is what vanilla `/kill` does. `bypass-protections: false` routes it through the damage
+system instead, so a totem can save the target. That is the only counterplay switch in the kit.
+
 **Restock loadout GUI** — `/power loadout` opens a 7-slot menu (`slots`, up to 27) where
 TechKnightGaming chooses what Restock hands him. The choice is saved per player, survives restarts,
 and overrides the server default.
@@ -263,9 +277,8 @@ Still genuinely blocked on a human:
 3. **Draconic Evolution** — needs a design before it can be more than a stub.
 4. ~~**Requiem**~~ — resolved: marb approved it, and it is live.
 5. **The `# ASSUMED` numbers** — all guesses until the players confirm them.
-6. **KornFlakis has no kit.** Ka-Chow, Overdrive and Spear Master belong to **xCR1T1Cx**, not to
-   KornFlakis as the original spec had it. He is deliberately unassigned until his real powers are
-   specified — `/power` tells him he has no kit rather than guessing one for him.
+6. ~~**KornFlakis has no kit**~~ — resolved: Ka-Chow, Overdrive and Spear Master belong to
+   **xCR1T1Cx**; KornFlakis has Execution (`/kill`, 7-day cooldown).
 
 ---
 

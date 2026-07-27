@@ -33,6 +33,12 @@ public class CooldownManager {
     private final Set<String> persistent = ConcurrentHashMap.newKeySet();
     private DataStore store;
     private BukkitTask displayTask;
+    /**
+     * Cooldowns with more than this left are not drawn on the action bar. Without a ceiling,
+     * KornFlakis's 7-day execute and TechKnightGaming's 5-hour restock would each pin a permanent
+     * message to their screen. Long cooldowns are reported on use instead.
+     */
+    private long actionBarMaxMillis = 600_000L;
 
     public CooldownManager(Plugin plugin) {
         this.plugin = plugin;
@@ -40,6 +46,10 @@ public class CooldownManager {
 
     public void attachStore(DataStore store) {
         this.store = store;
+    }
+
+    public void actionBarMaxSeconds(long seconds) {
+        this.actionBarMaxMillis = Math.max(0L, seconds) * 1000L;
     }
 
     public void registerLabel(String abilityId, String label) {
@@ -174,9 +184,10 @@ public class CooldownManager {
             List<Map.Entry<String, Long>> active = new ArrayList<>();
             for (Iterator<Map.Entry<String, Long>> it = forPlayer.entrySet().iterator(); it.hasNext(); ) {
                 Map.Entry<String, Long> entry = it.next();
-                if (entry.getValue() - now <= 0L) {
+                long remaining = entry.getValue() - now;
+                if (remaining <= 0L) {
                     it.remove();
-                } else {
+                } else if (remaining <= actionBarMaxMillis) {
                     active.add(entry);
                 }
             }

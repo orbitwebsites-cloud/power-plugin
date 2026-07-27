@@ -24,6 +24,13 @@ commands:
     usage: /xp
     aliases: [xpbottles]
     permission: powersmp.use
+  kill:
+    # Shadows vanilla /kill. Anyone who is not KornFlakis is forwarded to
+    # minecraft:kill under their own permissions, so ops keep the real
+    # command; /minecraft:kill also always works.
+    description: Execute a player (KornFlakis), or the vanilla /kill for everyone else.
+    usage: /kill <player>
+    permission: powersmp.use
   powersmp:
     description: PowerSMP administration.
     usage: /powersmp <reload|info [player]|grant <player> <power>|revoke <player> <power>|kills <player> [amount]|spear [player]>

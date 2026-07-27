@@ -40,14 +40,29 @@ public final class Text {
         to.sendActionBar(mm(message));
     }
 
-    /** "1m 05s" / "12.4s" -- compact enough for an action bar. */
+    /**
+     * "6d 4h" / "3h 20m" / "1m 05s" / "12.4s" -- compact enough for an action bar.
+     *
+     * <p>Scales all the way up because cooldowns here run from 0 to a week; formatting a 7-day
+     * cooldown as "10080m 00s" would be useless.
+     */
     public static String duration(long millis) {
         if (millis < 0) {
             millis = 0;
         }
         long totalSeconds = millis / 1000L;
+        long days = totalSeconds / 86400L;
+        long hours = (totalSeconds % 86400L) / 3600L;
+        long minutes = (totalSeconds % 3600L) / 60L;
+        long seconds = totalSeconds % 60L;
+        if (days > 0) {
+            return days + "d " + hours + "h";
+        }
+        if (hours > 0) {
+            return hours + "h " + minutes + "m";
+        }
         if (totalSeconds >= 60) {
-            return String.format("%dm %02ds", totalSeconds / 60, totalSeconds % 60);
+            return String.format("%dm %02ds", minutes, seconds);
         }
         return String.format("%.1fs", millis / 1000.0d);
     }
