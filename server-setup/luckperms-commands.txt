@@ -1,0 +1,44 @@
+# PowerSMP -- LuckPerms setup
+# Paste these into console in order. Generated from kits.yml assignments.
+#
+# Creates a 'powersmp' group carrying the kit permission plus the NoCheatPlus
+# exemptions the kits need, then puts all 12 players in it.
+
+lp creategroup powersmp
+
+# The kit itself.
+lp group powersmp permission set powersmp.use true
+
+# NoCheatPlus. Every kit moves players by setting velocity directly, which is
+# exactly what NCP blocks. Without these, abilities get cancelled and players
+# get flagged and kicked mid-fight.
+lp group powersmp permission set nocheatplus.checks.moving true
+lp group powersmp permission set nocheatplus.checks.moving.survivalfly true
+lp group powersmp permission set nocheatplus.checks.moving.creativefly true
+lp group powersmp permission set nocheatplus.checks.moving.morepackets true
+lp group powersmp permission set nocheatplus.checks.moving.nofall true
+lp group powersmp permission set nocheatplus.checks.moving.passable true
+# Reach: Mavricc's blue stance and consolidation extend reach through
+# attributes, which NCP does not read, so it reads as reach hacking.
+lp group powersmp permission set nocheatplus.checks.fight.reach true
+# Attack speed: ItzMeTentx in water, Mavricc red+affinity, Made In Heaven.
+lp group powersmp permission set nocheatplus.checks.fight.speed true
+# Fast block breaking: Marb13_'s Haste V and Mavricc's blue stance.
+lp group powersmp permission set nocheatplus.checks.blockbreak.fastbreak true
+
+# The roster.
+lp user Mavricc parent add powersmp
+lp user NorthOfNowhere parent add powersmp
+lp user xCR1T1Cx parent add powersmp
+lp user KornFlakis parent add powersmp
+lp user ItzMeTentx parent add powersmp
+lp user domanthegamer parent add powersmp
+lp user Sparkkkkkkkk parent add powersmp
+lp user Night_Scar3 parent add powersmp
+lp user Marb13_ parent add powersmp
+lp user JJlionjxi parent add powersmp
+lp user MonkeyMan4167 parent add powersmp
+lp user TechKnightGaming parent add powersmp
+
+# Admins -- replace with whoever should run /powersmp.
+# lp user <you> permission set powersmp.admin true

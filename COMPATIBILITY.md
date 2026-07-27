@@ -1,114 +1,116 @@
-# Server plugin compatibility
+# Server plugin setup
 
-The other plugins on this server, and where they collide with PowerSMP.
+The plugin set for this server, and what each one needs configuring before PowerSMP works properly.
 
-`softdepend` in `plugin.yml` only fixes **load order** — it makes PowerSMP load after these so
-permissions and packet hooks are ready. It does not resolve any behavioural conflict below. Two of
-these need real configuration work before the SMP goes live.
+`softdepend` in `plugin.yml` fixes **load order** only — PowerSMP loads after ProtocolLib,
+LuckPerms, NoCheatPlus and LaggRemoverPlus. It does not resolve any behavioural conflict below.
+
+## Final plugin set
+
+**Install these 9:**
+
+| Jar | Role |
+|---|---|
+| `LuckPerms-Bukkit-5.5.53.jar` | permissions — also carries the NCP exemptions |
+| `NoCheatPlus.jar` | anticheat — **needs exemptions, see below** |
+| `LaggRemoverPlus.jar` | the chosen lag clearer — **needs exclusions, see below** |
+| `InstaRestock-1.1.1.jar` | the newer of the two versions |
+| `EZGaps-1.0.0.jar` | keep |
+| `EzCobwebs.jar` | keep |
+| `OnePlayerSleep.jar` | keep |
+| `LimitedSpawns.jar` | keep — no conflict |
+| `villagerinfinitetrading-1.0.jar` | keep — no conflict |
+| `ProtocolLib.jar` | required for Mirage's real clones |
+
+**Do not install these 3:**
+
+| Jar | Why |
+|---|---|
+| `Clearlag.jar` | superseded by LaggRemoverPlus; three clearers is redundant and unpredictable |
+| `LaggRemover-2.0.6.jar` | same — and it is the older sibling of LaggRemoverPlus |
+| `InstaRestock-1.1.0.jar` | duplicate plugin; two copies fail to load or double-register listeners |
 
 ---
 
-## 🔴 NoCheatPlus — will break a lot of the plugin
+## 1. NoCheatPlus — do this first
 
-This is the big one. PowerSMP moves players by setting velocity directly, and NCP is built to stop
-exactly that. Expect these to be blocked, rubber-banded, or to get the player flagged and kicked:
+Every kit moves players by setting velocity directly, which is exactly what NCP exists to stop.
+Without exemptions, abilities get cancelled and players get flagged and kicked mid-fight.
+
+Run **`server-setup/luckperms-commands.txt`** — it creates a `powersmp` group with the exemptions and
+adds all 12 players. Paste it into console.
+
+What breaks without it:
 
 | Kit | Ability | What NCP sees |
 |---|---|---|
-| domanthegamer | Web Shooter grapple | large sudden velocity, mid-air |
-| domanthegamer | Web pull | *other* players yanked without input |
-| domanthegamer | Wall climbing | vertical movement with no ladder |
-| Night_Scar3 | Dash | burst velocity in any direction |
-| ItzMeTentx | Dry riptide | launch with no water, which is impossible in vanilla |
-| Mavricc | Wither Wings launch | upward velocity + gliding start |
-| Mavricc | Sporic Riptide | in-water launch |
-| JJlionjxi | Wind God | wind-charge knockback, repeatedly |
+| domanthegamer | grapple, web pull, wall climb | velocity with no input, vertical movement with no ladder |
+| Night_Scar3 | dash | burst velocity in any direction |
+| ItzMeTentx | dry riptide | a launch with no water — impossible in vanilla |
+| Mavricc | Wither Wings launch, riptide | upward velocity, gliding start |
+| Mavricc | blue stance / consolidation | extended reach via attributes NCP does not read |
+| JJlionjxi | wind charges | repeated knockback |
 | NorthOfNowhere | Made In Heaven | Speed III plus a velocity damper on nearby entities |
-| NorthOfNowhere / xCR1T1Cx | The World / spear stun | movement cancelled server-side, which reads as a client desync |
-| MonkeyMan4167 | Mirage | ProtocolLib packet entities NCP does not know about |
+| NorthOfNowhere, xCR1T1Cx | The World, spear stun | cancelled movement, which reads as desync |
+| Marb13_ | Haste V on deepslate | fast block breaking |
+| MonkeyMan4167 | Mirage | packet entities NCP has no record of |
 
-**What to do:** give every kit owner an NCP exemption for the movement checks — at minimum
-`nocheatplus.checks.moving.survivalfly`, `.creativefly`, `.morepackets`, and
-`nocheatplus.checks.fight.reach` (Mavricc's blue stance and consolidation both extend reach via
-attributes, which NCP does not read).
+## 2. LaggRemoverPlus — exclude PowerSMP's entities and items
 
-Cleanest route with LuckPerms:
+It removes ground items and non-player entities on a timer. Configure it to skip:
 
-```
-/lp creategroup powersmp
-/lp group powersmp permission set nocheatplus.checks.moving true
-/lp group powersmp permission set nocheatplus.checks.fight.reach true
-/lp group powersmp permission set powersmp.use true
-/lp user <each IGN> parent add powersmp
-```
+- **Named entities.** Mirage's armour-stand clones carry the owner's name — most clearers skip named
+  entities by default, but confirm it. If clones vanish before their 12 seconds are up, this is why.
+  *(The ProtocolLib backend is immune — those clones are packets, not entities, so no clearer sees
+  them.)*
+- **Named items on the ground.** Every bound item here has a custom name: the bound elytra, Spear of
+  Momentum, Web Shooter, both soulbound maces, the Draconic Mace and the Dragon Omelet. They land on
+  the floor whenever an inventory is full.
 
-Worth testing one ability per player before opening the server. A false kick during a fight is worse
-than the ability simply not existing.
+> **The one that cannot be undone:** most bound items are re-issued on join if lost. **The Dragon
+> Omelet is not** — it is granted exactly once, from the dragon egg. If a clearer sweeps it up,
+> Mavricc loses Draconic Evolution permanently. If LaggRemoverPlus cannot exclude items by name, tell
+> Mavricc to eat it immediately rather than carry it around.
 
-## 🔴 ClearLag / LaggRemover / LaggRemoverPlus — will delete PowerSMP entities
+## 3. InstaRestock — overlaps TechKnightGaming
 
-Three lag clearers is already redundant; running all three makes the behaviour hard to predict. They
-remove ground items and non-player entities on a timer, which hits:
+Not a technical conflict, but it overlaps his Restock (`/power restock`: 7 configurable slots,
+5-hour cooldown). If InstaRestock gives everyone restocking, his signature power stops being his.
+Worth restricting InstaRestock to specific items, or accepting the overlap deliberately.
 
-- **Mirage armour-stand clones.** They carry a custom name, which most clearers skip by default —
-  verify that. If clones vanish early, this is why. (The ProtocolLib backend is immune: those clones
-  are packets, not entities, so no clearer can see them.)
-- **Dropped kit items.** The bound elytra, Spear of Momentum, Web Shooter, soulbound maces and the
-  Dragon Omelet all drop to the floor when an inventory is full. A clearer sweeping ground items can
-  destroy them. Most are re-issued automatically on join — **the Dragon Omelet is not.** It is
-  granted exactly once, so if a clearer eats it, Mavricc loses Draconic Evolution permanently.
-- **Shadow items** dropped on the floor, though those are meant to expire anyway.
-
-**What to do:** pick one lag clearer and remove the other two. Exclude armour stands and named
-entities. If possible, exclude items with custom names, which covers every bound item here.
-
-## 🟡 InstaRestock — two versions, and it overlaps TechKnightGaming
-
-`InstaRestock-1.1.0.jar` and `InstaRestock-1.1.1.jar` are both in the list. **Only load one** —
-two copies of the same plugin will either fail to load or double-register listeners.
-
-It also overlaps TechKnightGaming's Restock (`/power restock`, 7 slots, 5-hour cooldown). Not a
-technical conflict, but if InstaRestock gives everyone restocking, his signature power stops being
-his.
-
-## 🟡 EzCobwebs — overlaps Web Strike
+## 4. EzCobwebs — overlaps Web Strike
 
 domanthegamer's Web Strike places cobwebs and restores the original blocks after 60s. If EzCobwebs
-also manages cobweb placement or breaking, the two may fight over the same blocks. PowerSMP only
-reverts blocks that are *still* cobweb when the timer ends, so anything EzCobwebs changed first is
-left alone — no block duplication, but webs may disappear early.
+also manages cobweb placement or breaking they may fight over the same blocks. PowerSMP only reverts
+blocks that are *still* cobweb when the timer ends, so nothing duplicates — but webs may disappear
+early.
 
-## 🟡 EZGaps — interacts with Mushroom Hunger
+## 5. EZGaps — check for custom items
 
-Mavricc's food rework exempts `GOLDEN_APPLE` and `ENCHANTED_GOLDEN_APPLE`, so custom gap crafting is
-unaffected. But if EZGaps adds *new* gap-like items under different material ids, those fall into the
+Mavricc's food rework exempts `GOLDEN_APPLE` and `ENCHANTED_GOLDEN_APPLE`, so normal gap crafting is
+unaffected. If EZGaps adds *new* gap-like items under different material ids, those fall into the
 "all other food" bucket and get bread-tier nutrition for Mavricc. Add them to
 `mavricc.mushroom-hunger.other-food.exempt` if so.
 
-## 🟡 OnePlayerSleep — interacts with Power of the Sun
+## 6. OnePlayerSleep — a quiet buff to MonkeyMan4167
 
-MonkeyMan4167's Power of the Sun keys off `world.isDayTime()`. With one-player sleep, nights end far
-more often, so the power is effectively active much more of the time. Not a bug — worth knowing it
-is a straight buff to him.
+Power of the Sun keys off `world.isDayTime()`. With one-player sleep, nights end far more often, so
+the power is active much more of the time. Not a bug, just worth knowing.
 
-## 🟢 LuckPerms — no conflict, and needed
+## No conflict
 
-Manages `powersmp.use` (default true) and `powersmp.admin` (default op). PowerSMP `softdepend`s on it
-so it loads first. This is also the cleanest way to hand out the NCP exemptions above.
-
-## 🟢 LimitedSpawns — no conflict
-
-Caps mob spawns. PowerSMP spawns armour stands (Mirage) and lightning (Ka-Chow), neither of which is
-a natural mob spawn.
-
-## 🟢 villagerinfinitetrading — no conflict
-
-Mavricc's Sporic Mind Control unlocks from the `trade_at_world_height` advancement, which fires on
-the trade itself regardless of stock limits.
+**LimitedSpawns** caps natural mob spawns; PowerSMP spawns armour stands and lightning, neither of
+which is a natural spawn. **villagerinfinitetrading** does not affect the `trade_at_world_height`
+advancement that unlocks Sporic Mind Control — that fires on the trade itself.
 
 ---
 
-## Load order
+## Order to do this in
 
-`softdepend` in `plugin.yml` lists ProtocolLib, LuckPerms, NoCheatPlus and the three lag clearers, so
-PowerSMP loads after all of them. Soft, so any that are absent are simply skipped.
+1. Drop the 3 jars listed above; install the other 9 plus ProtocolLib.
+2. Paste `server-setup/luckperms-commands.txt` into console.
+3. Configure LaggRemoverPlus exclusions.
+4. Start the server and check the log for `PowerSMP enabled with 12 kit(s).`
+5. `/powersmp info <player>` for each of the 12 to confirm assignment and unlock state.
+6. Test one movement ability per player — a dash, a grapple, a riptide — to confirm NCP is not
+   blocking them.
