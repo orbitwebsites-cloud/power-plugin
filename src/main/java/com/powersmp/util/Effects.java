@@ -3,7 +3,6 @@ package com.powersmp.util;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.potion.PotionEffectTypeCategory;
 
 /**
  * Potion effect helpers.
@@ -87,9 +86,22 @@ public final class Effects {
         }
     }
 
+    /**
+     * Whether an effect counts as a debuff, used by green stance's affinity immunity.
+     *
+     * <p>Matched by enum name rather than against a constant, deliberately. Paper carries two
+     * competing category enums -- the standalone {@code PotionEffectTypeCategory} and the nested
+     * {@code PotionEffectType.Category} -- and which one {@code getEffectCategory()} returns has
+     * moved across the 1.21 line. Comparing against either by name compiles and behaves correctly
+     * on both, in the same spirit as the registry lookups in {@code Attributes} and {@code Enchants}.
+     */
     public static boolean isHarmful(PotionEffectType type) {
+        if (type == null) {
+            return false;
+        }
         try {
-            return type.getEffectCategory() == PotionEffectTypeCategory.HARMFUL;
+            Object category = type.getEffectCategory();
+            return category instanceof Enum<?> value && "HARMFUL".equals(value.name());
         } catch (Throwable ignored) {
             return false;
         }
