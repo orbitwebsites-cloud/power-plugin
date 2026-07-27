@@ -16,6 +16,19 @@ from a common ability pool.
 
 ---
 
+## Roster
+
+| IGN | Kit | Powers |
+|---|---|---|
+| Mavricc | Mycelial | Stance Change, Mushroom Affinity, Mushroom Hunger, Sporeic Wither Wings, Dimensional Adaptation, Sporic Mind Control, Sporic of the Sea, Draconic Evolution |
+| arhiahn | Stand User | The World, Made In Heaven, Requiem |
+| xCR1T1Cx | Momentum | Ka-Chow, Overdrive, Spear Master |
+| KornFlakis | Execution | `/kill`, 7-day cooldown |
+| ItzMeTentx | Tidebound | Infinite Breathing & Dolphin's Grace, Faster Attack Speed, Trident God |
+| JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
+| MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
+| TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles |
+
 ## Commands
 
 | Command | Who | What |

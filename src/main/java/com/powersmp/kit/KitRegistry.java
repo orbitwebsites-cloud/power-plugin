@@ -32,6 +32,7 @@ public class KitRegistry {
             "xcr1t1cx", "xcr1t1cx",
             "kornflakis", "kornflakis",
             "itzmetentx", "itzmetentx",
+            "jjlionjxi", "jjlionjxi",
             "monkeyman4167", "monkeyman",
             "techknightgaming", "techknight");
 

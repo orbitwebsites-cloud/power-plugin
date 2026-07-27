@@ -35,6 +35,7 @@ assignments:
   xCR1T1Cx: xcr1t1cx
   KornFlakis: kornflakis
   ItzMeTentx: itzmetentx
+  JJlionjxi: jjlionjxi
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
 
@@ -63,6 +64,10 @@ progression:
     the_world: 0
     made_in_heaven: 5
     requiem: 10
+    # JJlionjxi's low / mid / high tiers.
+    wind_god: 0
+    fat_tank: 4
+    greedy_heal: 8
   # Announce unlocks in chat to the whole server.
   broadcast-unlocks: true
 
@@ -318,6 +323,32 @@ itzmetentx:
     # this is an opening to attack rather than a shield around the target.
     hit-stun-seconds: 3
     stun-players-only: false
+
+# =====================================================================
+# JJlionjxi -- low / mid / high tier kit
+# =====================================================================
+jjlionjxi:
+  # LOW TIER
+  wind-god:
+    # "Infinite" wind charges. Vanilla consumes the item on throw and there
+    # is no unbreakable flag for a projectile item, so the stack is topped
+    # back up on the tick after each throw instead.
+    stack-size: 16
+
+  # MID TIER
+  fat-tank:
+    resistance-amplifier: 1        # Resistance II
+    duration-seconds: 15
+    cooldown-seconds: 60
+
+  # HIGH TIER
+  greedy-heal:
+    instant-health-amplifier: 1    # Instant Health II
+    regeneration-amplifier: 0      # Regeneration I
+    regeneration-seconds: 10       # ASSUMED -- no duration was given
+    absorption-amplifier: 1        # Absorption II
+    absorption-seconds: 60         # ASSUMED -- no duration was given
+    cooldown-seconds: 90           # ASSUMED -- no cooldown was given
 
 # =====================================================================
 # MonkeyMan4167 -- "Light" progression kit

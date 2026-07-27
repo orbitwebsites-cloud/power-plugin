@@ -44,6 +44,12 @@ public enum Power {
     TIDAL_SPEED("tidal_speed", "Faster Attack Speed", "itzmetentx", Gate.ALWAYS),
     TRIDENT_GOD("trident_god", "Trident God", "itzmetentx", Gate.ALWAYS),
 
+    // --- JJlionjxi -------------------------------------------------------
+    // Low / mid / high tier, so these ride the existing kill-gated thresholds.
+    WIND_GOD("wind_god", "Wind God", "jjlionjxi", Gate.KILLS),
+    FAT_TANK("fat_tank", "Fat Tank", "jjlionjxi", Gate.KILLS),
+    GREEDY_HEAL("greedy_heal", "Greedy Heal", "jjlionjxi", Gate.KILLS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.
