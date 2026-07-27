@@ -3,7 +3,8 @@
 Bespoke per-player power kits for a Paper SMP. Every player has their own kit; nothing is shared
 from a common ability pool.
 
-- **Target:** Paper 1.21.1+, Java 21, Maven
+- **Target:** Paper 1.21.11, Java 21, Maven — set `paper.api.version` in `pom.xml` to match the
+  server exactly. `api-version` in `plugin.yml` is `'1.21'`, so the jar loads on any 1.21.x.
 - **Build:** `mvn package` → `target/powersmp-0.1.0.jar`
 - **Optional dependency:** ProtocolLib, for Mirage's real clones. Without it Mirage falls back to
   armour stands automatically; everything else is unaffected.
@@ -48,6 +49,26 @@ Sneak + right-click with an empty hand fires your kit's primary ability
 (`general.sneak-right-click-primary`).
 
 ---
+
+## Version targeting
+
+The 1.21 line moved a lot of API between 1.21.1 and 1.21.11, so this was written to survive it:
+
+- **Attributes and enchantments go through the registry, not constants.** `Attribute` stopped being
+  an enum in 1.21.2 and the keys lost their `generic.` prefix, so `Attributes` and `Enchants` try
+  both spellings and degrade to a logged warning if one is genuinely missing. Referencing the
+  constants directly would have been a link error on any later version.
+- **Nutrition is applied to the eater, not baked into items.** `food` and `consumable` split apart in
+  1.21.2; only the stack-size stamp still touches an item component.
+- **Biomes are matched by key substring**, since `Biome` also stopped being an enum.
+
+If a local build fails, these are the places to look first, in likelihood order:
+
+| Symptom | Where | Fix |
+|---|---|---|
+| Mirage silently uses armour stands | `ProtocolLibMirageProvider` | Packet layouts moved — `ENTITY_TELEPORT` changed in 1.21.2 and `PLAYER_INFO` twice before that. The log names the exact field. Fails safe by design. |
+| `PotionEffectType.X` / `Sound.X` unresolved | anywhere | Both became registry-backed later in the line; if the constants are gone, mirror the `Enchants` pattern. |
+| `FoodComponent` method missing | `MushroomHungerService` | Only used in the non-default `ITEM_COMPONENT` mode; the default `CONSUME_TIME` path does not touch it. |
 
 ## Architecture
 

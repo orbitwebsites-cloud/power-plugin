@@ -12,7 +12,7 @@ import org.bukkit.persistence.PersistentDataType;
 /**
  * xCR1T1Cx's spear.
  *
- * <p>1.21.1 has no vanilla spear -- the Trial Chambers weapon is the Mace, and there is no Lunge
+ * <p>1.21 has no vanilla spear -- the Trial Chambers weapon is the Mace, and there is no Lunge
  * enchantment at all -- so this is a Trident carrying a tier in its
  * {@code PersistentDataContainer}. The tier is stored on the item rather than only on the player so
  * the weapon keeps its upgrades if it is dropped and picked back up, which is what "the spear

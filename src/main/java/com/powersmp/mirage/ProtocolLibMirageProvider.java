@@ -42,7 +42,7 @@ import org.bukkit.scheduler.BukkitTask;
  *
  * <p><b>Fragility, stated plainly.</b> Packet layouts are the least stable surface in the game --
  * {@code PLAYER_INFO} changed shape in 1.19.3 and again in 1.20.2, and entity teleport changed in
- * 1.21.2. This class was written against ProtocolLib 5.3.0 on 1.21.1 but could not be compiled or
+ * 1.21.2. This class was written against ProtocolLib 5.3.0 but could not be compiled or
  * run in the environment that produced it. Every packet operation is therefore wrapped: the first
  * failure logs the cause once and permanently marks this provider unhealthy, and
  * {@link com.powersmp.kit.impl.MonkeyManKit} falls back to armour stands rather than spamming the

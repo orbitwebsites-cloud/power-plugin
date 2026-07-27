@@ -15,7 +15,12 @@
   <properties>
     <java.version>21</java.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <paper.api.version>1.21.1-R0.1-SNAPSHOT</paper.api.version>
+    <!--
+      Set this to the exact Paper version the server runs. The code resolves attributes and
+      enchantments through the registry rather than as constants, so one jar is intended to work
+      across the whole 1.21 line; this only decides what it compiles against.
+    -->
+    <paper.api.version>1.21.11-R0.1-SNAPSHOT</paper.api.version>
     <protocollib.version>5.3.0</protocollib.version>
   </properties>
 
