@@ -1,0 +1,41 @@
+name: Build
+
+# Builds the plugin jar on every push and attaches it to the run, so the jar can
+# be downloaded without a local Java or Maven install.
+#
+# This is also the first place the code is compiled against the *real* Paper and
+# ProtocolLib APIs -- the environment it was written in could not reach either
+# repository, so a red run here is genuine signal, not a CI misconfiguration.
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build jar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Build
+        run: mvn -B -ntp clean package
+
+      - name: Upload jar
+        uses: actions/upload-artifact@v4
+        with:
+          name: powersmp-jar
+          path: target/*.jar
+          if-no-files-found: error
+          retention-days: 90

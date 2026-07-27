@@ -7,7 +7,27 @@ plugins** (download and drop in).
 
 ## 1. Build PowerSMP
 
-You need **JDK 21** and **Maven**. Check with `java -version` and `mvn -version`.
+The repo is source only — there is no jar yet. Two ways to get one.
+
+### Option A: let GitHub build it (no setup)
+
+A workflow at `.github/workflows/build.yml` builds the jar on every push. To get it:
+
+1. Open the repo on GitHub → **Actions** tab
+2. Click the most recent **Build** run
+3. Scroll to **Artifacts** → download **powersmp-jar**
+4. Unzip it — `powersmp-0.1.0.jar` is inside
+
+You can also trigger a build by hand: **Actions → Build → Run workflow**.
+
+A green tick means it compiled. A red X means the build failed — open the run, expand the **Build**
+step, and send the compiler output. **This is the first time the code is compiled against the real
+Paper API**, because the environment it was written in could not reach the Paper repository, so a
+red run is real information rather than a broken pipeline.
+
+### Option B: build locally
+
+Needs **JDK 21** and **Maven** (`java -version`, `mvn -version`):
 
 ```bash
 git clone <this repo>
@@ -17,9 +37,8 @@ mvn package
 
 The jar lands at `target/powersmp-0.1.0.jar`.
 
-If the build fails, it will be a Bukkit API mismatch — the sources were written without access to
-the real Paper API. See the *Version targeting* table in [README.md](README.md), which lists the
-likely spots in order. Send the compiler output and it can be fixed properly.
+If it fails, it will be a Bukkit API mismatch. The *Version targeting* table in
+[README.md](README.md) lists the likely spots in order.
 
 ---
 
@@ -122,5 +141,6 @@ Then in game:
 
 ## Updating PowerSMP later
 
-`mvn package`, stop the server, replace the jar, start. `plugins/PowerSMP/kits.yml` and `data.yml`
-are left alone — your tuning and everyone's unlocks survive.
+Push a change, download the new jar from Actions (or run `mvn package`), stop the server, replace
+the jar, start. `plugins/PowerSMP/kits.yml` and `data.yml` are left alone — your tuning and
+everyone's unlocks survive.
