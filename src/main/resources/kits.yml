@@ -28,9 +28,10 @@ general:
 assignments:
   Mavricc: mavricc
   arhiahn: arhiahn
-  KornFlakis: kornflakis
+  xCR1T1Cx: xcr1t1cx
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
+  # KornFlakis has no kit yet -- his powers are still to be specified.
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -208,9 +209,9 @@ arhiahn:
     cooldown-seconds: 600          # ASSUMED (must exceed the other two)
 
 # =====================================================================
-# KornFlakis -- combo / momentum fighter
+# xCR1T1Cx -- combo / momentum fighter
 # =====================================================================
-kornflakis:
+xcr1t1cx:
   ka-chow:
     combo-window-seconds: 3.0      # ASSUMED (spec suggests 3s)
     hits-required: 3

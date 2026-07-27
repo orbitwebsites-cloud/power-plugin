@@ -32,15 +32,15 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
 /**
- * KornFlakis: combo and momentum fighter.
+ * xCR1T1Cx: combo and momentum fighter.
  *
  * <p>All three powers key off sustained aggression: Ka-Chow rewards landing hits quickly on one
  * target, Overdrive rewards not getting hit at all, and the spear rewards kills with permanent
  * upgrades.
  */
-public class KornFlakisKit implements PowerKit, Listener {
+public class XCriticKit implements PowerKit, Listener {
 
-    public static final String ID = "kornflakis";
+    public static final String ID = "xcr1t1cx";
 
     private static final String ABILITY_SPEAR = "spear";
     private static final String COOLDOWN_KA_CHOW = "ka_chow";
@@ -72,7 +72,7 @@ public class KornFlakisKit implements PowerKit, Listener {
     private double spearHitCooldown = 8.0d;
     private boolean disableThrow = true;
 
-    public KornFlakisKit(PowerSMP plugin) {
+    public XCriticKit(PowerSMP plugin) {
         this.plugin = plugin;
     }
 
@@ -200,7 +200,7 @@ public class KornFlakisKit implements PowerKit, Listener {
         }
         resetStreak(player.getUniqueId());
         // Transient-only: taking a hit drops Overdrive's own Speed, but must not destroy a speed
-        // potion KornFlakis drank himself.
+        // potion xCR1T1Cx drank himself.
         Effects.removeIfTransient(player, PotionEffectType.SPEED);
         if (damageStripsTier2) {
             Effects.removeIfTransient(player, PotionEffectType.STRENGTH);

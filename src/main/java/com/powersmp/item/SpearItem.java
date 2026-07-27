@@ -10,7 +10,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 /**
- * KornFlakis's spear.
+ * xCR1T1Cx's spear.
  *
  * <p>1.21.1 has no vanilla spear -- the Trial Chambers weapon is the Mace, and there is no Lunge
  * enchantment at all -- so this is a Trident carrying a tier in its

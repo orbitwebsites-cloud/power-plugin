@@ -8,12 +8,12 @@ import com.powersmp.data.DataStore;
 import com.powersmp.food.MushroomHungerService;
 import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
+import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.ArhiahnKit;
-import com.powersmp.kit.impl.KornFlakisKit;
 import com.powersmp.kit.impl.MavriccKit;
 import com.powersmp.kit.impl.MonkeyManKit;
 import com.powersmp.kit.impl.TechKnightKit;
-import com.powersmp.command.XpCommand;
+import com.powersmp.kit.impl.XCriticKit;
 import com.powersmp.progression.UnlockManager;
 import com.powersmp.stance.StanceCommand;
 import com.powersmp.stance.StanceManager;
@@ -60,7 +60,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     private MavriccKit mavricc;
     private ArhiahnKit arhiahn;
-    private KornFlakisKit kornflakis;
+    private XCriticKit xcritic;
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
 
@@ -87,12 +87,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
         mavricc = new MavriccKit(this);
         arhiahn = new ArhiahnKit(this);
-        kornflakis = new KornFlakisKit(this);
+        xcritic = new XCriticKit(this);
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         kits.register(mavricc);
         kits.register(arhiahn);
-        kits.register(kornflakis);
+        kits.register(xcritic);
         kits.register(monkeyman);
         kits.register(techknight);
 
@@ -107,7 +107,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(food, this);
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(arhiahn, this);
-        Bukkit.getPluginManager().registerEvents(kornflakis, this);
+        Bukkit.getPluginManager().registerEvents(xcritic, this);
         Bukkit.getPluginManager().registerEvents(monkeyman, this);
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
@@ -172,7 +172,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         food.reload(kitsConfig.getConfigurationSection("mavricc"));
         mavricc.reload(kitsConfig.getConfigurationSection("mavricc"));
         arhiahn.reload(kitsConfig.getConfigurationSection("arhiahn"));
-        kornflakis.reload(kitsConfig.getConfigurationSection("kornflakis"));
+        xcritic.reload(kitsConfig.getConfigurationSection("xcr1t1cx"));
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
     }

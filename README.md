@@ -41,6 +41,7 @@ Sneak + right-click with an empty hand fires your kit's primary ability
 com.powersmp
 ├── PowerSMP.java          main class; owns the single shared 1/sec kit tick
 ├── kit/                   PowerKit interface, Ability, KitRegistry, impl/ (one class per player)
+│                          MavriccKit, ArhiahnKit, XCriticKit, MonkeyManKit, TechKnightKit
 ├── stance/                Stance, StanceManager (stances + Mushroom Affinity), StanceCommand
 ├── food/                  MushroomHungerService, FoodProfile
 ├── cooldown/              CooldownManager (+ action-bar readout)
@@ -222,9 +223,9 @@ not a rebuild. Replace them once the players weigh in.
 | The World radius / cooldown | 8 blocks, 240s | `arhiahn.the-world` |
 | Made In Heaven duration / cooldown | 20s / 240s, radius 12 | `arhiahn.made-in-heaven` |
 | Requiem | **Enabled** — marb approved it. 2s damage immunity, 10min cooldown | `arhiahn.requiem` |
-| Ka-Chow combo window | 3s, 3 hits | `kornflakis.ka-chow` |
+| Ka-Chow combo window | 3s, 3 hits | `xcr1t1cx.ka-chow` |
 | Overdrive damage semantics | Getting hit resets the sprint timer but does **not** strip an already-granted Strength II (the spec's recommended reading) | `damage-strips-tier2: false` |
-| Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 5 and 10 spear kills | `kornflakis.spear-master` |
+| Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 5 and 10 spear kills | `xcr1t1cx.spear-master` |
 | Spear hit cooldown | **0** — every hit lunges and stuns, as specced | `hit-cooldown-seconds` |
 | Flash trigger | `ON_HIT` (blinds what you hit), no internal cooldown. `ON_ACTIVATE` is also built | `monkeyman.flash.mode` |
 | Ambiguous "Strength I or II" | Strength **II** for both Power of the Sun and Mirage | `strength-amplifier` |
@@ -243,7 +244,7 @@ that loses max health. The costs that remain are the ones the original design as
 Two judgement calls worth flagging explicitly:
 
 - **`unlock-all` does not apply to trigger-gated powers.** Wither Wings and the three advancement
-  powers always require their trigger. Open question #2 is about the tiered kits (KornFlakis,
+  powers always require their trigger. Open question #2 is about the tiered kits (xCR1T1Cx,
   MonkeyMan4167); earning the achievement powers *is* the design, not a placeholder.
 - **A spear stun leaves its victim hittable.** `FreezeUtil` blocks incoming damage for a time-stop
   (The World) but not for a combat stun — otherwise the stun would protect the person it lands on,
@@ -255,18 +256,21 @@ Two judgement calls worth flagging explicitly:
 
 Still genuinely blocked on a human:
 
-1. **Unlock gating** — what actually unlocks each tier for KornFlakis and MonkeyMan4167? Kills,
+1. **Unlock gating** — what actually unlocks each tier for xCR1T1Cx and MonkeyMan4167? Kills,
    playtime, admin grant? Kill-count scaffolding is built and inert.
 2. ~~**Mirage backend**~~ — resolved: ProtocolLib approved, real clones built. Needs an in-game test
    to confirm the packet layouts, since it could not be compiled here.
 3. **Draconic Evolution** — needs a design before it can be more than a stub.
 4. ~~**Requiem**~~ — resolved: marb approved it, and it is live.
-5. **The `# ASSUMED` numbers** — all guesses until the four players confirm them.
+5. **The `# ASSUMED` numbers** — all guesses until the players confirm them.
+6. **KornFlakis has no kit.** Ka-Chow, Overdrive and Spear Master belong to **xCR1T1Cx**, not to
+   KornFlakis as the original spec had it. He is deliberately unassigned until his real powers are
+   specified — `/power` tells him he has no kit rather than guessing one for him.
 
 ---
 
 ## Build order used
 
-Shared infrastructure → Mavricc → KornFlakis → MonkeyMan4167 → arhiahn → achievement powers, as the
+Shared infrastructure → Mavricc → xCR1T1Cx → MonkeyMan4167 → arhiahn → achievement powers, as the
 spec suggested. arhiahn last on purpose: those are the only powers that take control away from other
 players, so they sit on freeze and cooldown infrastructure already exercised by lower-stakes kits.

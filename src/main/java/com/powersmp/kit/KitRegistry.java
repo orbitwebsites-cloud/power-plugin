@@ -29,7 +29,7 @@ public class KitRegistry {
     private static final Map<String, String> HARDCODED_ASSIGNMENTS = Map.of(
             "mavricc", "mavricc",
             "arhiahn", "arhiahn",
-            "kornflakis", "kornflakis",
+            "xcr1t1cx", "xcr1t1cx",
             "monkeyman4167", "monkeyman",
             "techknightgaming", "techknight");
 
