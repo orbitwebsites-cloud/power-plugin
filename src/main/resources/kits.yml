@@ -43,10 +43,7 @@ assignments:
   JJlionjxi: jjlionjxi
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
-  # Voidwalker's kit is fully built (Shadow Step / Grasp of Eylis / Illusory Realm) but nobody's
-  # IGN was given for it, so it is unassigned. Uncomment and fill in the real name to turn it on --
-  # no rebuild needed.
-  # <IGN HERE>: voidwalker
+  ahriahn: voidwalker
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
