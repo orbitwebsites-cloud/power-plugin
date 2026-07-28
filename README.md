@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.png" width="200" alt="Powers SMP"></p>
+
 # PowerSMP
 
 Bespoke per-player power kits for a Paper SMP. Every player has their own kit; nothing is shared
