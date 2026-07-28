@@ -14,10 +14,12 @@ import org.bukkit.persistence.PersistentDataType;
  * ItzMeTentx's trident: Riptide III baked in from the start, bound the same way every other
  * signature weapon in this plugin is -- unbreakable, Curse of Vanishing, re-issued if lost.
  *
- * <p>Distinguished from xCR1T1Cx's Spear of Momentum by its own PDC key rather than by material --
- * both are built on {@code Material.TRIDENT}, since that is the only vanilla item shaped like either
- * weapon, but {@link #isBoundTrident} and {@link SpearItem#isSpear} check different keys, so neither
- * kit's logic can mistake the other's item for its own.
+ * <p>Genuinely a trident ({@code Material.TRIDENT}) -- unlike xCR1T1Cx's Spear of Momentum, which
+ * used to share this same material back when Minecraft had no vanilla spear item to build it from.
+ * That stopped being true in 1.21.11 (Mounts of Mayhem added a real {@code Material.SPEAR}), so the
+ * two are now on entirely different item types; {@link #isBoundTrident} and {@link SpearItem#isSpear}
+ * still check independent PDC keys regardless, since nothing about that guarantee should depend on
+ * which materials happen to be in use.
  */
 public final class TridentItem {
 
