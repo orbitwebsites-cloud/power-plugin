@@ -359,6 +359,15 @@ public class DomanKit implements PowerKit, Listener {
 
     @Override
     public void onJoin(Player owner) {
+        // One-time cleanup for anyone who was already stuck by the wall-climb reference-count bug
+        // fixed above: a leftover allowFlight/flying=true survives a relog via the player's own NBT,
+        // and neither flag is ever legitimately true in Survival/Adventure on its own.
+        if ((owner.getGameMode() == org.bukkit.GameMode.SURVIVAL
+                || owner.getGameMode() == org.bukkit.GameMode.ADVENTURE)
+                && owner.getAllowFlight()) {
+            owner.setFlying(false);
+            owner.setAllowFlight(false);
+        }
         if (plugin.unlocks().isUnlocked(owner, Power.WEB_SHOOTER)) {
             ensureShooter(owner);
         }
