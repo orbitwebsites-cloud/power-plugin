@@ -40,7 +40,8 @@ public class KitRegistry {
             Map.entry("llamachas", "llamachas"),
             Map.entry("monkeyman4167", "monkeyman"),
             Map.entry("techknightgaming", "techknight"),
-            Map.entry("ahriahn", "voidwalker"));
+            Map.entry("ahriahn", "voidwalker"),
+            Map.entry("disasterflames", "disasterflames"));
 
     private final Plugin plugin;
     private final Map<String, PowerKit> kitsById = new LinkedHashMap<>();

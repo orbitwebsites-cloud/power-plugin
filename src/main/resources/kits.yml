@@ -44,6 +44,7 @@ assignments:
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
   ahriahn: voidwalker
+  disasterflames: disasterflames
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -641,8 +642,7 @@ techknight:
     max-stacks: 36
 
 # =====================================================================
-# Voidwalker -- Shadow Step / Grasp of Eylis / Illusory Realm
-# IGN not given yet; see the commented assignment above.
+# Voidwalker (ahriahn) -- Shadow Step / Grasp of Eylis / Illusory Realm
 # =====================================================================
 voidwalker:
   shadow-step:
@@ -727,3 +727,19 @@ illusory-realm:
     fire_resistance: 0
     strength: 0
     weaving: 0
+
+# =====================================================================
+# disasterflames -- Sugar Rush
+# =====================================================================
+disasterflames:
+  sweet-vigor:
+    regen-amplifier: 4              # Regeneration V, as specified
+    strength-amplifier: 0           # Strength I
+    speed-amplifier: 0              # Speed I
+
+  cookie-stash:
+    # Sneak + swap-hands (whatever key that is bound to client-side -- the
+    # server only ever sees the logical action, never the literal key, and
+    # swap-hands is the action most commonly rebound to C). No cooldown, same
+    # call as TechKnightGaming's infinite XP bottles.
+    stack-size: 64

@@ -86,6 +86,12 @@ public enum Power {
     GRASP_OF_EYLIS("grasp_of_eylis", "Grasp of Eylis", "voidwalker", Gate.ALWAYS),
     ILLUSORY_REALM("illusory_realm", "Illusory Realm", "voidwalker", Gate.ALWAYS),
 
+    // --- disasterflames ----------------------------------------------------
+    // No tiers were given, so both are simply part of the kit -- same call as
+    // LlamaChas and Voidwalker.
+    SWEET_VIGOR("sweet_vigor", "Sweet Vigor", "disasterflames", Gate.ALWAYS),
+    COOKIE_STASH("cookie_stash", "Cookie Stash", "disasterflames", Gate.ALWAYS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.

@@ -39,6 +39,8 @@ from a common ability pool.
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
 | TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles |
+| ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
+| disasterflames | Sugar Rush | Sweet Vigor (Regen V, Strength I, Speed I), Cookie Stash |
 
 ## Commands
 
@@ -86,7 +88,7 @@ If a local build fails, these are the places to look first, in likelihood order:
 com.powersmp
 ├── PowerSMP.java          main class; owns the single shared 1/sec kit tick
 ├── kit/                   PowerKit interface, Ability, KitRegistry, impl/ (one class per player)
-│                          one kit class per player (13), e.g. MavriccKit, LlamaChasKit
+│                          one kit class per player (15), e.g. MavriccKit, LlamaChasKit
 ├── stance/                Stance, StanceManager (stances + Mushroom Affinity), StanceCommand
 ├── food/                  MushroomHungerService, FoodProfile
 ├── cooldown/              CooldownManager (+ action-bar readout)

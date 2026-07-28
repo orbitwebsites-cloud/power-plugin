@@ -350,14 +350,25 @@ public class DomanKit implements PowerKit, Listener {
      * target-finding itself was working out to the full range. Pulling every tick toward a fixed
      * anchor, like an actual hookshot, is what makes the full range usable, and it comes with a
      * visible line for free since the anchor point is already being recomputed every tick anyway.
+     *
+     * <p>If a player is in his sights, the grapple locks onto <em>them</em> and follows them every
+     * pulse -- {@code getTargetBlockExact} only ever sees blocks, so aiming at someone standing on a
+     * hill used to grapple to the hill under their feet instead of the person. Only when nobody is
+     * in his sights does it fall back to a fixed block.
      */
     private void grapple(Player owner) {
-        Block target = owner.getTargetBlockExact((int) grappleRange);
-        if (target == null) {
-            Text.actionBar(owner, "<gray>Nothing in range to grapple to.</gray>");
-            return;
+        Player targetPlayer = nearestLookedAt(owner, grappleRange);
+        Location fixedAnchor = null;
+        if (targetPlayer == null) {
+            Block block = owner.getTargetBlockExact((int) grappleRange);
+            if (block == null) {
+                Text.actionBar(owner, "<gray>Nothing in range to grapple to.</gray>");
+                return;
+            }
+            fixedAnchor = block.getLocation().add(0.5d, 0.5d, 0.5d);
         }
-        Location anchor = target.getLocation().add(0.5d, 0.5d, 0.5d);
+        final Location anchor = fixedAnchor;
+        final Player target = targetPlayer;
 
         BukkitTask previous = activeGrapples.remove(owner.getUniqueId());
         if (previous != null) {
@@ -367,15 +378,17 @@ public class DomanKit implements PowerKit, Listener {
 
         int[] elapsed = {0};
         BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, self -> {
-            if (elapsed[0]++ >= grapplePulseTicks || !owner.isOnline()) {
+            if (elapsed[0]++ >= grapplePulseTicks || !owner.isOnline()
+                    || (target != null && (!target.isOnline() || target.isDead()))) {
                 self.cancel();
                 activeGrapples.remove(owner.getUniqueId());
                 return;
             }
+            Location currentAnchor = target != null ? target.getEyeLocation() : anchor;
             Location from = owner.getEyeLocation();
-            Vector to = anchor.toVector().subtract(from.toVector());
+            Vector to = currentAnchor.toVector().subtract(from.toVector());
             double distance = to.length();
-            drawLine(from, anchor, Particle.SMOKE);
+            drawLine(from, currentAnchor, Particle.SMOKE);
             if (distance < 1.5d) {
                 self.cancel();
                 activeGrapples.remove(owner.getUniqueId());
