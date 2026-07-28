@@ -310,7 +310,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     private void startAutosave() {
         long seconds = Math.max(30, kitsConfig.getInt("general.autosave-seconds", 300));
-        Bukkit.getScheduler().runTaskTimer(this, () -> data.save(), seconds * 20L, seconds * 20L);
+        Bukkit.getScheduler().runTaskTimer(this, () -> data.saveAsync(), seconds * 20L, seconds * 20L);
     }
 
     // ---- player lifecycle ------------------------------------------------

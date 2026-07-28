@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
+import org.bukkit.Bukkit;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.inventory.ItemStack;
@@ -95,10 +96,38 @@ public class DataStore {
         plugin.getLogger().info("Loaded PowerSMP data for " + cache.size() + " player(s).");
     }
 
+    /**
+     * Builds and writes synchronously, blocking the calling thread until the disk write completes.
+     * Used on shutdown, where the process may exit right after {@code onDisable} returns -- an async
+     * write here could simply never finish.
+     */
     public void save() {
         if (!dirty) {
             return;
         }
+        dirty = false;
+        writeToDisk(buildYaml());
+    }
+
+    /**
+     * Same data, but the actual disk write happens off the main thread. Building the
+     * {@link YamlConfiguration} still has to happen synchronously first -- it reads live
+     * {@link ItemStack} objects out of the cache, and those are not safe to touch from another
+     * thread -- but that part is pure in-memory bookkeeping and cheap. The write is the part that
+     * can stall waiting on the disk, and on a small server that stall lands on the one core running
+     * the whole game tick. Used by the periodic autosave, where a save that finishes a few
+     * milliseconds late is a total non-issue; {@link #save()} is still what shutdown calls.
+     */
+    public void saveAsync() {
+        if (!dirty) {
+            return;
+        }
+        dirty = false;
+        YamlConfiguration yaml = buildYaml();
+        Bukkit.getScheduler().runTaskAsynchronously(plugin, () -> writeToDisk(yaml));
+    }
+
+    private YamlConfiguration buildYaml() {
         YamlConfiguration yaml = new YamlConfiguration();
         for (PlayerData data : cache.values()) {
             String path = "players." + data.uuid();
@@ -131,13 +160,16 @@ public class DataStore {
                 }
             }
         }
+        return yaml;
+    }
+
+    private void writeToDisk(YamlConfiguration yaml) {
         try {
             File parent = file.getParentFile();
             if (parent != null && !parent.exists() && !parent.mkdirs()) {
                 plugin.getLogger().warning("Could not create data folder " + parent);
             }
             yaml.save(file);
-            dirty = false;
         } catch (IOException ex) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save PowerSMP data", ex);
         }
