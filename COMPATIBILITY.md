@@ -7,7 +7,7 @@ LuckPerms, NoCheatPlus and LaggRemoverPlus. It does not resolve any behavioural 
 
 ## Final plugin set
 
-**Install these 9:**
+**Install these 11:**
 
 | Jar | Role |
 |---|---|
@@ -21,6 +21,8 @@ LuckPerms, NoCheatPlus and LaggRemoverPlus. It does not resolve any behavioural 
 | `LimitedSpawns.jar` | keep — no conflict |
 | `villagerinfinitetrading-1.0.jar` | keep — no conflict |
 | `ProtocolLib.jar` | required for Mirage's real clones |
+| `hidewhileinvisv1_1.jar` | obfuscates a player's tab list/chat name while they have Invisibility — **see §7, built for Astral Form** |
+| `InvisDeaths1.0.0.jar` | obfuscates death messages naming an invisible killer or victim — **see §7, built for Astral Form** |
 
 **Do not install these 3:**
 
@@ -38,7 +40,7 @@ Every kit moves players by setting velocity directly, which is exactly what NCP 
 Without exemptions, abilities get cancelled and players get flagged and kicked mid-fight.
 
 Run **`server-setup/luckperms-commands.txt`** — it creates a `powersmp` group with the exemptions and
-adds all 12 players. Paste it into console.
+adds all 16 players. Paste it into console.
 
 What breaks without it:
 
@@ -97,6 +99,19 @@ unaffected. If EZGaps adds *new* gap-like items under different material ids, th
 Power of the Sun keys off `world.isDayTime()`. With one-player sleep, nights end far more often, so
 the power is active much more of the time. Not a bug, just worth knowing.
 
+## 7. hidewhileinvis + InvisDeaths — built to complement Astral Form
+
+Neither plugin knows PowerSMP exists. Both key off the plain vanilla `Invisibility` potion effect:
+hidewhileinvis obfuscates a player's tab-list and chat name while they have it, InvisDeaths
+obfuscates death messages that would otherwise name an invisible killer or victim. The Ghost's
+Astral Form (`_glueman`) is built to trigger both — it applies the real `Invisibility` effect
+alongside its own `hidePlayer`/`showPlayer` trick specifically so these two see it and act,
+without PowerSMP calling into either plugin directly. No configuration needed; they just work once
+installed. Astral Form removes the effect again the moment it ends, on death, or if he disconnects
+mid-form, so nothing lingers past the ability itself.
+
+No load-order requirement — order relative to PowerSMP does not matter for either.
+
 ## No conflict
 
 **LimitedSpawns** caps natural mob spawns; PowerSMP spawns armour stands and lightning, neither of
@@ -107,10 +122,12 @@ advancement that unlocks Sporic Mind Control — that fires on the trade itself.
 
 ## Order to do this in
 
-1. Drop the 3 jars listed above; install the other 9 plus ProtocolLib.
+1. Drop the 3 jars listed above; install the other 11.
 2. Paste `server-setup/luckperms-commands.txt` into console.
 3. Configure LaggRemoverPlus exclusions.
-4. Start the server and check the log for `PowerSMP enabled with 12 kit(s).`
-5. `/powersmp info <player>` for each of the 12 to confirm assignment and unlock state.
+4. Start the server and check the log for `PowerSMP enabled with 16 kit(s).`
+5. `/powersmp info <player>` for each of the 16 to confirm assignment and unlock state.
 6. Test one movement ability per player — a dash, a grapple, a riptide — to confirm NCP is not
    blocking them.
+7. Have `_glueman` toggle Astral Form near another player and check their tab-list name obfuscates,
+   confirming hidewhileinvis is picking up the effect.

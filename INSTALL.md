@@ -95,6 +95,10 @@ new Minecraft versions — if there is no 1.21-compatible build, say so and the 
 Do **not** install `Clearlag.jar`, `LaggRemover-2.0.6.jar`, or `InstaRestock-1.1.0.jar` — see
 [COMPATIBILITY.md](COMPATIBILITY.md).
 
+**Also install `hidewhileinvisv1_1.jar` and `InvisDeaths1.0.0.jar`** — small custom jars, not from
+the sources above; you already have them. Drop them in with the rest. They exist to complement The
+Ghost's Astral Form (see [COMPATIBILITY.md §7](COMPATIBILITY.md)) — no configuration needed.
+
 ---
 
 ## 4. Install

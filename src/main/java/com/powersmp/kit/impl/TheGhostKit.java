@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.EnumSet;
 import java.util.HashSet;
@@ -33,6 +34,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -63,6 +65,12 @@ import org.bukkit.util.Vector;
  * {@code showPlayer} can, since each call only affects one viewer's client, so this simply hides
  * every online player from the Ghost and the Ghost from every online player, both ways, and undoes it
  * on toggle-off, death, or a fresh join on either side.
+ *
+ * <p>The real {@code Invisibility} potion effect is applied to the Ghost too, alongside the
+ * {@code hidePlayer} trick -- purely so two small server plugins (hidewhileinvis, InvisDeaths) that
+ * key off that vanilla effect actually notice he's invisible and do their thing (obfuscate his tab
+ * list/chat name, obfuscate death messages naming him). {@code hidePlayer} alone would not trigger
+ * them; they have no idea PowerSMP exists, only that the effect is there.
  */
 public class TheGhostKit implements PowerKit, Listener {
 
@@ -388,6 +396,7 @@ public class TheGhostKit implements PowerKit, Listener {
         UUID id = owner.getUniqueId();
         if (astralActive.remove(id)) {
             setMutualVisibility(owner, true);
+            Effects.remove(owner, PotionEffectType.INVISIBILITY);
             Text.msg(owner, "<gray>You return to the material world.</gray>");
             owner.playSound(owner.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 0.9f);
             owner.getWorld().spawnParticle(Particle.END_ROD, owner.getLocation().add(0.0, 1.0, 0.0),
@@ -396,6 +405,9 @@ public class TheGhostKit implements PowerKit, Listener {
         }
         astralActive.add(id);
         setMutualVisibility(owner, false);
+        // hidePlayer already does the actual hiding; this is only so hidewhileinvis/InvisDeaths --
+        // neither of which know PowerSMP exists -- see the standard effect and act on it too.
+        Effects.applyInfinite(owner, PotionEffectType.INVISIBILITY, 0);
         Text.msg(owner, "<dark_purple>You slip into the astral plane.</dark_purple> "
                 + "<gray>No one can see you, and you can see no one.</gray>");
         owner.playSound(owner.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 0.4f);
@@ -434,12 +446,21 @@ public class TheGhostKit implements PowerKit, Listener {
         }
     }
 
-    /** Dying while astral would otherwise respawn him permanently invisible to everyone. */
+    /**
+     * Dying while astral would otherwise respawn him permanently invisible to everyone.
+     *
+     * <p>{@code MONITOR} is deliberate here, not just habit: hidewhileinvis and InvisDeaths (see the
+     * class doc) both read {@code PotionEffectType.INVISIBILITY} off this same
+     * {@link PlayerDeathEvent} at their own, earlier priority to decide whether to obfuscate the
+     * death message. Stripping the effect any sooner would erase it out from under them before they
+     * get to look.
+     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
         if (astralActive.remove(player.getUniqueId())) {
             setMutualVisibility(player, true);
+            Effects.remove(player, PotionEffectType.INVISIBILITY);
         }
     }
 
@@ -489,6 +510,7 @@ public class TheGhostKit implements PowerKit, Listener {
             }
             if (astralActive.remove(player.getUniqueId())) {
                 setMutualVisibility(player, true);
+                Effects.remove(player, PotionEffectType.INVISIBILITY);
             }
             restorePhaseBubble(player);
         }
