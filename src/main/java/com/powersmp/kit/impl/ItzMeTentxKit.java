@@ -1,16 +1,21 @@
 package com.powersmp.kit.impl;
 
 import com.powersmp.PowerSMP;
+import com.powersmp.item.TridentItem;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
+import com.powersmp.util.Text;
 import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -24,7 +29,14 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
 
 /**
@@ -33,10 +45,15 @@ import org.bukkit.potion.PotionEffectType;
  * <p>Two passives and one rule change. Breathing and Dolphin's Grace are simply permanent effects.
  * The attack-speed bonus is an attribute modifier applied whenever he is wet, rain included.
  *
- * <p>Trident God is the only part that fights vanilla. Riptide is hard-gated on the player being in
- * water or rain -- when dry, releasing a Riptide trident does nothing at all, and the trident cannot
- * be thrown either, so there is no vanilla behaviour to intercept or cancel. The launch is therefore
- * re-implemented: Paper's {@link PlayerStopUsingItemEvent} reports how long the trident was charged,
+ * <p>Trident God is the only part that fights vanilla. Nothing used to actually give him a trident --
+ * the dry-riptide rework only ever enhanced whatever one he happened to be holding -- so he now spawns
+ * bound to a {@link TridentItem}, Riptide III baked in, the same way every other signature weapon in
+ * this plugin is bound.
+ *
+ * <p>Riptide is hard-gated on the player being in water or rain -- when dry, releasing a Riptide
+ * trident does nothing at all, and the trident cannot be thrown either, so there is no vanilla
+ * behaviour to intercept or cancel. The launch is therefore re-implemented: Paper's
+ * {@link PlayerStopUsingItemEvent} reports how long the trident was charged,
  * and if it was held past vanilla's charge time while dry, the player is thrown along their look
  * vector using vanilla's own power curve.
  */
@@ -52,6 +69,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     private final Map<UUID, Long> manualRiptide = new ConcurrentHashMap<>();
     /** Last attack-speed value written, so the attribute is not rewritten every tick. */
     private final Map<UUID, Double> appliedAttackSpeed = new ConcurrentHashMap<>();
+    /** Tridents pulled out of death drops, held until the owner respawns. */
+    private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
 
     private int waterBreathingAmplifier;
     private int dolphinsGraceAmplifier;
@@ -248,6 +267,93 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         return true;
     }
 
+    // ---- the trident: bound, always present ------------------------------
+    // "On spawn he should have a trident with Riptide III already applied" -- Trident God's dry
+    // riptide only ever worked on whatever trident he happened to be holding; nothing actually gave
+    // him one. Bound the same way every other signature weapon in this plugin is now: unbreakable,
+    // Curse of Vanishing, drop-cancelled, stashed through death and handed back on respawn.
+
+    private void ensureTrident(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.TRIDENT_GOD)) {
+            return;
+        }
+        for (ItemStack item : owner.getInventory().getContents()) {
+            if (TridentItem.isBoundTrident(item)) {
+                return;
+            }
+        }
+        ItemStack trident = TridentItem.create(owner.getUniqueId());
+        Map<Integer, ItemStack> leftover = owner.getInventory().addItem(trident);
+        if (!leftover.isEmpty()) {
+            owner.getWorld().dropItemNaturally(owner.getLocation(), trident);
+            Text.msg(owner, "<yellow>Your trident was dropped at your feet -- your inventory is full.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (!plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        for (Iterator<ItemStack> it = event.getDrops().iterator(); it.hasNext(); ) {
+            ItemStack drop = it.next();
+            if (TridentItem.isBoundTrident(drop)) {
+                deathStash.put(player.getUniqueId(), drop.clone());
+                it.remove();
+                break;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        ItemStack stashed = deathStash.remove(player.getUniqueId());
+        // Curse of Vanishing means there is usually nothing to restore -- ensureTrident() is the
+        // fallback that actually hands it back in that case.
+        Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (stashed == null) {
+                ensureTrident(player);
+                return;
+            }
+            HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
+            if (!leftover.isEmpty()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+            }
+            Text.msg(player, "<gray>Your trident came back with you.</gray>");
+        });
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (TridentItem.isBoundTrident(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+            Text.actionBar(event.getPlayer(), "<red>Your trident will not leave you.</red>");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getType() == InventoryType.CRAFTING) {
+            return;
+        }
+        if (TridentItem.isBoundTrident(event.getCurrentItem()) || TridentItem.isBoundTrident(event.getCursor())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getInventory().getType() != InventoryType.CRAFTING
+                && TridentItem.isBoundTrident(event.getOldCursor())) {
+            event.setCancelled(true);
+        }
+    }
+
     // ---- cleanup --------------------------------------------------------
 
     @Override
@@ -255,6 +361,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         // Attribute modifiers survive in player NBT; clear ours before re-deriving.
         Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
         appliedAttackSpeed.remove(owner.getUniqueId());
+        ensureTrident(owner);
     }
 
     @Override
@@ -266,7 +373,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
 
     @Override
     public void onDisable() {
-        for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
             if (plugin.kits().isOwner(player, ID)) {
                 Attributes.clear(player, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
             }
