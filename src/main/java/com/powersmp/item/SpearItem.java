@@ -13,18 +13,11 @@ import org.bukkit.persistence.PersistentDataType;
 /**
  * xCR1T1Cx's spear.
  *
- * <p>Built on the real {@code Material.SPEAR} -- Minecraft's Mounts of Mayhem update added an actual
- * vanilla spear in exactly 1.21.11, the version this whole plugin targets, so the earlier "no vanilla
- * spear exists" workaround (a re-skinned Trident) is gone. The tier is still entirely our own,
- * tracked in the item's {@code PersistentDataContainer} rather than only on the player, so the weapon
- * keeps its upgrades if it is dropped and picked back up. Player data mirrors it as the source of
- * truth for re-issuing a lost spear.
- *
- * <p><b>Naming coincidence worth knowing about:</b> vanilla now has its own spear-exclusive
- * enchantment also called Lunge (max level III, launches the wielder forward on a jab attack). This
- * kit's "Lunge I-V" is unrelated flavor text predating that enchantment -- it names a custom
- * pull-the-target-in-and-stun effect, not vanilla's self-launch, and vanilla Lunge is deliberately
- * never applied to this item so the two do not show up stacked in the tooltip.
+ * <p>1.21 has no vanilla spear -- the Trial Chambers weapon is the Mace, and there is no Lunge
+ * enchantment at all -- so this is a Trident carrying a tier in its
+ * {@code PersistentDataContainer}. The tier is stored on the item rather than only on the player so
+ * the weapon keeps its upgrades if it is dropped and picked back up, which is what "the spear
+ * upgrades" implies. Player data mirrors it as the source of truth for re-issuing a lost spear.
  */
 public final class SpearItem {
 
@@ -37,7 +30,7 @@ public final class SpearItem {
     }
 
     public static ItemStack create(UUID owner, int tier) {
-        ItemStack spear = new ItemStack(Material.SPEAR);
+        ItemStack spear = new ItemStack(Material.TRIDENT);
         applyTier(spear, tier);
         ItemMeta meta = spear.getItemMeta();
         meta.setUnbreakable(true);
@@ -49,7 +42,7 @@ public final class SpearItem {
     }
 
     public static boolean isSpear(ItemStack item) {
-        if (item == null || item.getType() != Material.SPEAR) {
+        if (item == null || item.getType() != Material.TRIDENT) {
             return false;
         }
         ItemMeta meta = item.getItemMeta();
@@ -68,7 +61,7 @@ public final class SpearItem {
 
     /** Writes the tier and refreshes the name and lore to match. */
     public static void applyTier(ItemStack item, int tier) {
-        if (item == null || item.getType() != Material.SPEAR) {
+        if (item == null || item.getType() != Material.TRIDENT) {
             return;
         }
         int clamped = clamp(tier);

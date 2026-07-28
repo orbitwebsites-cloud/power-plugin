@@ -24,6 +24,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
@@ -32,6 +33,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
@@ -44,11 +46,6 @@ import org.bukkit.util.Vector;
  * <p>All three powers key off sustained aggression: Ka-Chow rewards landing hits quickly on one
  * target, Overdrive rewards not getting hit at all, and the spear rewards kills with permanent
  * upgrades.
- *
- * <p>The spear itself is built on the real {@code Material.SPEAR} -- see {@link SpearItem} for why
- * that used to be a Trident, and why the old right-click-suppression handler here (blocking a
- * Trident's own throw) was removed rather than ported: a real spear has no throw or riptide to
- * suppress in the first place.
  */
 public class XCriticKit implements PowerKit, Listener {
 
@@ -83,6 +80,7 @@ public class XCriticKit implements PowerKit, Listener {
     private final Map<Integer, double[]> spearTiers = new HashMap<>();
     private final Map<Integer, Integer> spearUpgradeKills = new HashMap<>();
     private double spearHitCooldown = 8.0d;
+    private boolean disableThrow = true;
     private boolean countPlayerKills = true;
     private boolean countMobKills = true;
     /** Spears pulled out of death drops, held until the owner respawns. */
@@ -152,6 +150,7 @@ public class XCriticKit implements PowerKit, Listener {
                 }
             }
             spearHitCooldown = spear.getDouble("hit-cooldown-seconds", spearHitCooldown);
+            disableThrow = spear.getBoolean("disable-throw", true);
             countPlayerKills = spear.getBoolean("count-player-kills", true);
             // Was always true with no way to turn it off -- mob kills were silently upgrading
             // Lunge tiers. Defaults to false now.
@@ -449,6 +448,20 @@ public class XCriticKit implements PowerKit, Listener {
         }
     }
 
+    /** Keeps the spear a melee weapon -- no trident throwing, no riptide. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onThrowAttempt(PlayerInteractEvent event) {
+        if (!disableThrow) {
+            return;
+        }
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        if (SpearItem.isSpear(event.getItem())) {
+            event.setCancelled(true);
+        }
+    }
 
     // ---- abilities ------------------------------------------------------
 
