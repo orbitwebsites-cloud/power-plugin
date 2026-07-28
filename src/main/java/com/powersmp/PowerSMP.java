@@ -14,6 +14,7 @@ import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.NorthOfNowhereKit;
 import com.powersmp.kit.impl.DisasterFlamesKit;
 import com.powersmp.kit.impl.DomanKit;
+import com.powersmp.kit.impl.TheGhostKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
 import com.powersmp.kit.impl.JJLionKit;
 import com.powersmp.kit.impl.KornFlakisKit;
@@ -88,6 +89,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private TechKnightKit techknight;
     private VoidwalkerKit voidwalker;
     private DisasterFlamesKit disasterflames;
+    private TheGhostKit theghost;
 
     private int tickInterval = 20;
 
@@ -127,6 +129,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         techknight = new TechKnightKit(this);
         voidwalker = new VoidwalkerKit(this);
         disasterflames = new DisasterFlamesKit(this);
+        theghost = new TheGhostKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -142,6 +145,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(techknight);
         kits.register(voidwalker);
         kits.register(disasterflames);
+        kits.register(theghost);
 
         cooldowns.attachStore(data);
 
@@ -170,6 +174,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
         Bukkit.getPluginManager().registerEvents(voidwalker, this);
         Bukkit.getPluginManager().registerEvents(disasterflames, this);
+        Bukkit.getPluginManager().registerEvents(theghost, this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
@@ -251,6 +256,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
         voidwalker.reload(kitsConfig.getConfigurationSection("voidwalker"));
         disasterflames.reload(kitsConfig.getConfigurationSection("disasterflames"));
+        theghost.reload(kitsConfig.getConfigurationSection("theghost"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */

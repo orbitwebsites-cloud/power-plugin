@@ -92,6 +92,13 @@ public enum Power {
     SWEET_VIGOR("sweet_vigor", "Sweet Vigor", "disasterflames", Gate.ALWAYS),
     COOKIE_STASH("cookie_stash", "Cookie Stash", "disasterflames", Gate.ALWAYS),
 
+    // --- The Ghost ---------------------------------------------------------
+    // No tiers were given, so all three are simply part of the kit -- same call as
+    // LlamaChas, Voidwalker, and disasterflames.
+    POSSESSION("possession", "Possession", "theghost", Gate.ALWAYS),
+    SPECTRAL_BODY("spectral_body", "Spectral Body", "theghost", Gate.ALWAYS),
+    ASTRAL_FORM("astral_form", "Astral Form", "theghost", Gate.ALWAYS),
+
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.
