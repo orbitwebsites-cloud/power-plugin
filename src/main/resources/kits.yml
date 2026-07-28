@@ -527,9 +527,8 @@ marb13:
     # Off by default: a portal that overwrites solid blocks is a demolition
     # tool, not a movement power. Air and replaceables only unless enabled.
     portal-replaces-solid-blocks: false
-    # ASSUMED reading of "can make shadow items": a temporary, fully usable
-    # copy of whatever he is holding, which dissolves when the timer ends.
-    shadow-item-seconds: 120
+    # Turns the held item into a permanent shadow of itself in place --
+    # not a copy, so there is nothing to duplicate and nothing to expire.
     shadow-cooldown-seconds: 60
 
 # =====================================================================

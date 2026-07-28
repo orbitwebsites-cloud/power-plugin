@@ -17,10 +17,7 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
-import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -54,7 +51,6 @@ public class MarbKit implements PowerKit, Listener {
     // Portal and Shadow Master
     private double portalCooldown = 120.0d;
     private boolean portalReplaceSolid;
-    private int shadowSeconds = 120;
     private double shadowCooldown = 60.0d;
 
     public MarbKit(PowerSMP plugin) {
@@ -90,7 +86,6 @@ public class MarbKit implements PowerKit, Listener {
             if (shadow != null) {
                 portalCooldown = shadow.getDouble("portal-cooldown-seconds", portalCooldown);
                 portalReplaceSolid = shadow.getBoolean("portal-replaces-solid-blocks", false);
-                shadowSeconds = shadow.getInt("shadow-item-seconds", shadowSeconds);
                 shadowCooldown = shadow.getDouble("shadow-cooldown-seconds", shadowCooldown);
             }
         }
@@ -109,9 +104,6 @@ public class MarbKit implements PowerKit, Listener {
         }
         if (plugin.unlocks().isUnlocked(owner, Power.ENDER_MAGIC)) {
             ensurePearls(owner);
-        }
-        if (plugin.unlocks().isUnlocked(owner, Power.SHADOW_MASTER)) {
-            expireShadowItems(owner);
         }
     }
 
@@ -201,10 +193,11 @@ public class MarbKit implements PowerKit, Listener {
     // ---- high tier: shadow items ----------------------------------------
 
     /**
-     * A shadow item is a temporary copy of whatever he is holding: fully usable, and gone when its
-     * timer runs out. Copying rather than conjuring means the power scales with what he has earned,
-     * and stamping the expiry on the item itself means a shadow cannot be laundered into a
-     * permanent duplicate by stashing it -- wherever it ends up, it still dissolves.
+     * Turns the held item into a permanent shadow of itself, in place -- no new item is created and
+     * nothing is added to the inventory, so there is nothing here to duplicate or launder. Earlier
+     * this cloned the held item into a second, separate stack that expired after a timer, precisely
+     * because a permanent free copy of anything is a duplication exploit; converting the original
+     * one-for-one instead of copying it removes that problem at the source, so the timer is gone too.
      */
     private boolean makeShadowItem(Player owner) {
         if (!plugin.unlocks().isUnlocked(owner, Power.SHADOW_MASTER)) {
@@ -212,36 +205,30 @@ public class MarbKit implements PowerKit, Listener {
         }
         ItemStack held = owner.getInventory().getItemInMainHand();
         if (held == null || held.getType().isAir()) {
-            Text.msg(owner, "<red>Hold the item you want a shadow of.");
+            Text.msg(owner, "<red>Hold the item you want to shadow.");
             return false;
         }
         if (isShadow(held)) {
-            Text.msg(owner, "<red>You cannot cast a shadow of a shadow.");
+            Text.msg(owner, "<red>That is already a shadow.");
             return false;
         }
         if (!plugin.cooldowns().tryUse(owner, ABILITY_SHADOW, shadowCooldown)) {
             return false;
         }
 
-        ItemStack shadow = held.clone();
-        ItemMeta meta = shadow.getItemMeta();
+        ItemMeta meta = held.getItemMeta();
         if (meta != null) {
             meta.displayName(Text.mm("<dark_gray><italic>Shadow "
                     + Text.plain(Text.prettify(held.getType().name().toLowerCase(Locale.ROOT)))
                     + "</italic></dark_gray>"));
-            meta.lore(List.of(
-                    Text.mm("<dark_gray>Fades in " + shadowSeconds + "s.</dark_gray>")));
-            meta.getPersistentDataContainer().set(Keys.SHADOW_EXPIRY, PersistentDataType.LONG,
-                    System.currentTimeMillis() + shadowSeconds * 1000L);
-            shadow.setItemMeta(meta);
+            meta.lore(List.of(Text.mm("<dark_gray>A permanent shadow.</dark_gray>")));
+            meta.getPersistentDataContainer().set(Keys.SHADOW_MARK, PersistentDataType.BYTE, (byte) 1);
+            held.setItemMeta(meta);
         }
-        if (!owner.getInventory().addItem(shadow).isEmpty()) {
-            owner.getWorld().dropItemNaturally(owner.getLocation(), shadow);
-        }
+        owner.getInventory().setItemInMainHand(held);
         owner.playSound(owner.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 0.6f);
         owner.getWorld().spawnParticle(Particle.SMOKE, owner.getLocation().add(0, 1, 0), 30, 0.3, 0.5, 0.3, 0.02);
-        Text.msg(owner, "<dark_gray>A shadow forms.</dark_gray> <gray>It fades in "
-                + shadowSeconds + "s.</gray>");
+        Text.msg(owner, "<dark_gray>The item takes on a shadowy form, permanently.</dark_gray>");
         return true;
     }
 
@@ -251,39 +238,7 @@ public class MarbKit implements PowerKit, Listener {
         }
         ItemMeta meta = item.getItemMeta();
         return meta != null && meta.getPersistentDataContainer()
-                .has(Keys.SHADOW_EXPIRY, PersistentDataType.LONG);
-    }
-
-    /** Sweeps expired shadows out of the inventory. Checked on the shared tick and on join. */
-    private void expireShadowItems(Player owner) {
-        ItemStack[] contents = owner.getInventory().getContents();
-        long now = System.currentTimeMillis();
-        int faded = 0;
-        for (int slot = 0; slot < contents.length; slot++) {
-            ItemStack item = contents[slot];
-            if (!isShadow(item)) {
-                continue;
-            }
-            Long expiry = item.getItemMeta().getPersistentDataContainer()
-                    .get(Keys.SHADOW_EXPIRY, PersistentDataType.LONG);
-            if (expiry != null && expiry <= now) {
-                owner.getInventory().setItem(slot, null);
-                faded++;
-            }
-        }
-        if (faded > 0) {
-            owner.playSound(owner.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_BREAK, 0.6f, 0.5f);
-            Text.actionBar(owner, "<dark_gray>" + faded + " shadow(s) faded</dark_gray>");
-        }
-    }
-
-    /** A shadow that outlived the server's uptime should not survive the restart either. */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onJoin(PlayerJoinEvent event) {
-        Player player = event.getPlayer();
-        if (plugin.kits().isOwner(player, ID)) {
-            expireShadowItems(player);
-        }
+                .has(Keys.SHADOW_MARK, PersistentDataType.BYTE);
     }
 
     // ---- abilities ------------------------------------------------------
@@ -294,7 +249,7 @@ public class MarbKit implements PowerKit, Listener {
                 new Ability(ABILITY_ENDERCHEST, "Ender Chest", "Open your ender chest anywhere."),
                 new Ability(ABILITY_PORTAL, "Portal", "Open a nether portal where you stand."),
                 new Ability(ABILITY_SHADOW, "Shadow Item",
-                        "Copy the held item as a shadow that fades after " + shadowSeconds + "s."));
+                        "Turn the held item into a permanent shadow of itself."));
     }
 
     @Override
