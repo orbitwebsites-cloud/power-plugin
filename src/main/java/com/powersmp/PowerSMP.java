@@ -1,6 +1,7 @@
 package com.powersmp;
 
 import com.powersmp.combat.FreezeUtil;
+import com.powersmp.combat.RespawnGuard;
 import com.powersmp.command.PowerCommand;
 import com.powersmp.command.KillCommand;
 import com.powersmp.command.PowerSMPCommand;
@@ -67,6 +68,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private DataStore data;
     private CooldownManager cooldowns;
     private FreezeUtil freeze;
+    private RespawnGuard respawnGuard;
     private KitRegistry kits;
     private UnlockManager unlocks;
     private StanceManager stances;
@@ -107,6 +109,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
         cooldowns = new CooldownManager(this);
         freeze = new FreezeUtil(this);
+        respawnGuard = new RespawnGuard(this);
         kits = new KitRegistry(this);
         unlocks = new UnlockManager(this);
         stances = new StanceManager(this);
@@ -153,6 +156,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
         Bukkit.getPluginManager().registerEvents(this, this);
         Bukkit.getPluginManager().registerEvents(freeze, this);
+        Bukkit.getPluginManager().registerEvents(respawnGuard, this);
         Bukkit.getPluginManager().registerEvents(unlocks, this);
         Bukkit.getPluginManager().registerEvents(stances, this);
         Bukkit.getPluginManager().registerEvents(food, this);
@@ -183,6 +187,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         bind("kill", new KillCommand(this));
 
         freeze.start();
+        respawnGuard.start();
         realm.start();
         cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
         startKitTick();
@@ -206,6 +211,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         }
         if (freeze != null) {
             freeze.shutdown();
+        }
+        if (respawnGuard != null) {
+            respawnGuard.shutdown();
         }
         if (realm != null) {
             realm.shutdown();
@@ -241,6 +249,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         stances.reload(kitsConfig.getConfigurationSection("mavricc"));
         food.reload(kitsConfig.getConfigurationSection("mavricc"));
         realm.reload(kitsConfig.getConfigurationSection("illusory-realm"));
+        respawnGuard.reload(kitsConfig.getConfigurationSection("respawn-protection"));
         mavricc.reload(kitsConfig.getConfigurationSection("mavricc"));
         northOfNowhere.reload(kitsConfig.getConfigurationSection("northofnowhere"));
         xcritic.reload(kitsConfig.getConfigurationSection("xcr1t1cx"));
@@ -267,6 +276,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getScheduler().cancelTasks(this);
         cooldowns.stopDisplay();
         freeze.start();
+        respawnGuard.start();
         cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
         startKitTick();
         startAutosave();

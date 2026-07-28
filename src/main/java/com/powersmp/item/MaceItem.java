@@ -38,6 +38,9 @@ public final class MaceItem {
             meta.setUnbreakable(unbreakable);
             meta.getPersistentDataContainer()
                     .set(Keys.SOULBOUND_MACE, PersistentDataType.STRING, owner.toString());
+            // Belt and braces against duplication: if it ever slips past the drop/death guards
+            // some other way, vanilla destroys it outright instead of leaving it lootable.
+            Enchants.applyVanishing(meta);
             mace.setItemMeta(meta);
         }
         apply(mace, kills, levels);

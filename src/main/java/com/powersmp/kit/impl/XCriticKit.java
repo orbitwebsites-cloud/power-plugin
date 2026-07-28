@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.LivingEntity;
@@ -197,6 +198,7 @@ public class XCriticKit implements PowerKit, Listener {
             if (streak == tier1Seconds) {
                 Text.actionBar(owner, "<yellow><bold>OVERDRIVE</bold></yellow> <gray>engaged</gray>");
                 owner.playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.6f);
+                owner.getWorld().spawnParticle(Particle.CLOUD, owner.getLocation(), 30, 0.3, 0.1, 0.3, 0.1);
             }
         }
         if (streak >= tier2Seconds && !tier2Granted.getOrDefault(id, false)) {
@@ -206,6 +208,7 @@ public class XCriticKit implements PowerKit, Listener {
             Text.msg(owner, "<gold><bold>OVERDRIVE II</bold></gold> <gray>-- Strength for "
                     + tier2Duration + "s.</gray>");
             owner.playSound(owner.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.7f, 1.2f);
+            owner.getWorld().spawnParticle(Particle.FLAME, owner.getLocation().add(0, 1, 0), 40, 0.4, 0.6, 0.4, 0.05);
         }
     }
 
@@ -295,6 +298,7 @@ public class XCriticKit implements PowerKit, Listener {
             target.setVelocity(pull);
         }
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 0.8f);
+        target.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0, 1, 0), 3, 0.2, 0.2, 0.2, 0.0);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (!target.isDead() && target.isValid()) {
@@ -353,6 +357,10 @@ public class XCriticKit implements PowerKit, Listener {
 
     @Override
     public void onJoin(Player owner) {
+        ensureSpear(owner);
+    }
+
+    private void ensureSpear(Player owner) {
         if (!plugin.unlocks().isUnlocked(owner, Power.SPEAR_MASTER)) {
             return;
         }
@@ -390,17 +398,21 @@ public class XCriticKit implements PowerKit, Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         ItemStack stashed = deathStash.remove(player.getUniqueId());
-        if (stashed == null) {
-            return;
-        }
+        // Curse of Vanishing means there is usually nothing to restore -- ensureSpear() is the
+        // fallback that actually hands it back in that case.
         Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
-            if (player.isOnline()) {
-                HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
-                if (!leftover.isEmpty()) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), stashed);
-                }
-                Text.msg(player, "<gray>Your spear came back with you.</gray>");
+            if (!player.isOnline()) {
+                return;
             }
+            if (stashed == null) {
+                ensureSpear(player);
+                return;
+            }
+            HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
+            if (!leftover.isEmpty()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+            }
+            Text.msg(player, "<gray>Your spear came back with you.</gray>");
         });
     }
 

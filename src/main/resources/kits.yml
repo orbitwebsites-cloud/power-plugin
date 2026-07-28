@@ -24,6 +24,17 @@ general:
   autosave-seconds: 300
 
 # ---------------------------------------------------------------------
+# Server-wide, not tied to any kit: everyone is immune to all damage for
+# a window after respawning. The window resets on each death rather than
+# stacking.
+# ---------------------------------------------------------------------
+respawn-protection:
+  enabled: true
+  duration-seconds: 180   # 3 minutes
+  # Chat message on respawn and when protection wears off.
+  message: true
+
+# ---------------------------------------------------------------------
 # Kit assignment. The spec recommends hardcoding this, and the defaults
 # below are compiled into KitRegistry. Anything listed here overrides or
 # extends the hardcoded map, so an admin can reassign without a rebuild.
@@ -393,8 +404,11 @@ domanthegamer:
   # LOW TIER (passive)
   spider-passive:
     resistance-amplifier: 0        # Resistance I
-    # WEAVING is the 1.21 effect for moving through cobwebs unhindered.
-    weaving-amplifier: 9           # "Weaving 10"
+    # WEAVING was tried here first, but it is the Bogged debuff that spawns cobwebs
+    # around whoever it hits -- the opposite of "unhindered" and actively harmful
+    # self-applied. Cobweb slow is friction with no potion/attribute counter, so this
+    # instead pushes back against it every tick a cobweb overlaps the hitbox.
+    web-immunity-velocity-multiplier: 5.0
     # His form reads "aslong as no fall dmg", which is ambiguous. Built as a
     # third passive: spiders do not take fall damage. Flip to false if he
     # meant something else. He also offered to have this "reduced if too op".
@@ -403,9 +417,9 @@ domanthegamer:
   # MID TIER
   web-strike:
     duration-seconds: 60
-    range: 20.0                    # ASSUMED -- no range was given
+    range: 32.0
     cooldown-seconds: 60           # ASSUMED -- no cooldown was given
-    climb-limit-blocks: 10
+    climb-limit-blocks: 20
     # How fast he ascends per tick while climbing, vanilla-ladder-ish. Applied every
     # tick while sneaking against a wall -- see DomanKit#onMove for why this can't
     # be a once-a-second nudge (it used to be, and it read as "climbing does nothing").
@@ -416,11 +430,11 @@ domanthegamer:
     # Left click. No cooldown, per his form. Pulls every tick toward the aimed block
     # rather than a single launch -- a one-shot impulse cannot reliably cross 20
     # blocks against gravity, which is why the range used to feel like ~3 blocks.
-    grapple-range: 20.0
+    grapple-range: 32.0
     grapple-power: 1.4             # ASSUMED
     grapple-pulse-ticks: 40        # ASSUMED -- 2s is enough to cross the full range
     # Right click.
-    pull-range: 15.0
+    pull-range: 24.0
     pull-cooldown-seconds: 10
     pull-power: 1.2                # ASSUMED
     pull-pulse-ticks: 8            # ASSUMED -- repeats the pull so ground friction can't eat it

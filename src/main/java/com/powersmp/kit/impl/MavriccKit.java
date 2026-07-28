@@ -11,6 +11,7 @@ import com.powersmp.stance.Stance;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Crits;
 import com.powersmp.util.Effects;
+import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
@@ -315,6 +316,7 @@ public class MavriccKit implements PowerKit, Listener {
         meta.displayName(Text.mm("<dark_purple>Sporeic Wither Wings</dark_purple>"));
         meta.setUnbreakable(true);
         meta.getPersistentDataContainer().set(Keys.BOUND_ELYTRA, PersistentDataType.BYTE, (byte) 1);
+        Enchants.applyVanishing(meta);
         elytra.setItemMeta(meta);
 
         if (chest == null || chest.getType().isAir()) {
@@ -366,20 +368,30 @@ public class MavriccKit implements PowerKit, Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         List<ItemStack> stashed = deathStash.remove(player.getUniqueId());
-        if (stashed == null || stashed.isEmpty()) {
-            return;
-        }
+        // Curse of Vanishing means there is usually nothing to restore from drops -- the elytra
+        // would self-heal via tick() anyway, but the draconic mace only otherwise reissues on
+        // join, so both get an immediate fallback here rather than waiting.
         org.bukkit.Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
-            if (player.isOnline()) {
-                for (ItemStack item : stashed) {
-                    HashMap<Integer, ItemStack> leftover =
-                            new HashMap<>(player.getInventory().addItem(item));
-                    if (!leftover.isEmpty()) {
-                        player.getWorld().dropItemNaturally(player.getLocation(), item);
-                    }
-                }
-                Text.msg(player, "<gray>Your bound items came back with you.</gray>");
+            if (!player.isOnline()) {
+                return;
             }
+            if (stashed == null || stashed.isEmpty()) {
+                if (plugin.unlocks().isUnlocked(player, Power.WITHER_WINGS)) {
+                    ensureElytra(player);
+                }
+                if (reissueDraconicMace && plugin.data().get(player.getUniqueId()).stanceConsolidated()) {
+                    grantDraconicMace(player);
+                }
+                return;
+            }
+            for (ItemStack item : stashed) {
+                HashMap<Integer, ItemStack> leftover =
+                        new HashMap<>(player.getInventory().addItem(item));
+                if (!leftover.isEmpty()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), item);
+                }
+            }
+            Text.msg(player, "<gray>Your bound items came back with you.</gray>");
         });
     }
 
@@ -586,6 +598,7 @@ public class MavriccKit implements PowerKit, Listener {
         owner.setVelocity(owner.getVelocity().setY(launchPower));
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.8f, 1.6f);
+        owner.getWorld().spawnParticle(org.bukkit.Particle.SOUL_FIRE_FLAME, owner.getLocation(), 30, 0.3, 0.1, 0.3, 0.05);
         // Kick off gliding a moment later, once they are clear of the ground.
         org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
             if (owner.isOnline() && !owner.isOnGround() && !owner.isInWater()) {
@@ -612,6 +625,7 @@ public class MavriccKit implements PowerKit, Listener {
         }
         owner.setVelocity(owner.getLocation().getDirection().multiply(riptidePower));
         owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_2, 1.0f, 1.0f);
+        owner.getWorld().spawnParticle(org.bukkit.Particle.BUBBLE_COLUMN_UP, owner.getLocation(), 40, 0.3, 0.3, 0.3, 0.1);
         return true;
     }
 
