@@ -527,25 +527,28 @@ public class DomanKit implements PowerKit, Listener {
         Text.actionBar(owner, "<gray>Reeling in " + Text.plain(target.getName()) + "</gray>");
 
         int[] elapsed = {0};
-        Bukkit.getScheduler().runTaskTimer(plugin, self -> {
-            if (elapsed[0]++ >= pullPulseTicks || !owner.isOnline()) {
-                self.cancel();
-                return;
+        // Single locked target, not everyone in range: reelIn() used to pull every player within
+        // pullRange indiscriminately, which is not "click on the player" at all. The scheduler only
+        // takes a plain Runnable, so a self-cancelling task has to be a BukkitRunnable subclass.
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (elapsed[0]++ >= pullPulseTicks || !owner.isOnline()
+                        || !target.isOnline() || target.isDead()) {
+                    cancel();
+                    return;
+                }
+                Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
+                if (to.lengthSquared() < 1.0d) {
+                    cancel();
+                    return;
+                }
+                drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
+                Vector pull = to.normalize().multiply(pullPower);
+                pull.setY(Math.max(0.3d, pull.getY()));
+                target.setVelocity(pull);
             }
-            if (!target.isOnline() || target.isDead()) {
-                self.cancel();
-                return;
-            }
-            Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
-            if (to.lengthSquared() < 1.0d) {
-                self.cancel();
-                return;
-            }
-            drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
-            Vector pull = to.normalize().multiply(pullPower);
-            pull.setY(Math.max(0.3d, pull.getY()));
-            target.setVelocity(pull);
-        }, 0L, 1L);
+        }.runTaskTimer(plugin, 0L, 1L);
     }
 
     /** Traces a thin line of particles between two points -- the visible "web line" on a grapple. */

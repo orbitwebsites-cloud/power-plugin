@@ -38,7 +38,7 @@ from a common ability pool.
 | LlamaChas | Kryptonian | Flight, Heat Vision, X-Ray, Freeze Breath, Super Strength |
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
-| TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles |
+| TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles, Earthbreaker |
 | ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
 | disasterflames | Sugar Rush | Sweet Vigor (Regen V, Strength I, Speed I), Cookie Stash |
 
@@ -49,6 +49,7 @@ from a common ability pool.
 | `/stance red\|blue\|green\|none` | stance kits (Mavricc) | Switch stance |
 | `/power` / `/power list` | anyone with a kit | List abilities, cooldowns, unlock state |
 | `/power <ability>` | kit owner | Fire an ability |
+| `/power gui` | anyone with a kit | Clickable ability menu -- for console/controller players |
 | `/powersmp reload` | admin | Re-read `kits.yml` |
 | `/powersmp info [player]` | admin | Kit, stance, kills, spear tier, unlock state |
 | `/powersmp grant\|revoke <player> <power>` | admin | Hand-manage unlocks |
@@ -59,6 +60,10 @@ from a common ability pool.
 
 Sneak + right-click with an empty hand fires your kit's primary ability
 (`general.sneak-right-click-primary`).
+
+**Console / controller players:** every gesture-triggered ability (sneak + right-click, sneak +
+swap-hands) also has a command fallback, and `/power gui` turns the whole kit into a clickable
+inventory menu so nobody has to type an exact ability id on an on-screen keyboard mid-fight.
 
 ---
 

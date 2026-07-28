@@ -97,7 +97,12 @@ public enum Power {
     // with no unlock condition mentioned.
     MACE_MASSACRE("mace_massacre", "Mace Massacre", "techknight", Gate.ALWAYS),
     RESTOCK("restock", "Restock", "techknight", Gate.ALWAYS),
-    INFINITE_XP("infinite_xp", "Infinite XP Bottles", "techknight", Gate.ALWAYS);
+    INFINITE_XP("infinite_xp", "Infinite XP Bottles", "techknight", Gate.ALWAYS),
+    // Added after the fact: the original three read as stat/utility gear rather than a "power" you
+    // press a button for. Earthbreaker is that button, and its damage rides the same mace-kills
+    // counter Density already does, so it grows alongside the rest of the kit instead of sitting
+    // next to it as an unrelated bolt-on.
+    EARTHBREAKER("earthbreaker", "Earthbreaker", "techknight", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

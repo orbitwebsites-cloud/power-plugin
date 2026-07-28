@@ -47,6 +47,12 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
             showList(player, kit);
             return true;
         }
+        if (args[0].equalsIgnoreCase("gui") || args[0].equalsIgnoreCase("menu")) {
+            // A clickable alternative to typing an exact ability id -- console/controller players
+            // in particular are fighting an on-screen keyboard for something a click already does.
+            plugin.powerMenu().open(player, kit);
+            return true;
+        }
 
         String abilityId = args[0].equalsIgnoreCase("use") && args.length > 1
                 ? args[1]
@@ -120,6 +126,9 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
         List<String> out = new ArrayList<>();
         if ("list".startsWith(prefix)) {
             out.add("list");
+        }
+        if ("gui".startsWith(prefix)) {
+            out.add("gui");
         }
         for (Ability ability : kit.abilities()) {
             if (ability.id().toLowerCase(Locale.ROOT).startsWith(prefix)) {
