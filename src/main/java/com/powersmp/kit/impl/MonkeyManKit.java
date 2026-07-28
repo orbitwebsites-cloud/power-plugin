@@ -202,7 +202,10 @@ public class MonkeyManKit implements PowerKit, Listener {
             return;
         }
         Effects.apply(target, PotionEffectType.BLINDNESS, flashBlindSeconds * 20, 0);
-        target.getWorld().spawnParticle(Particle.FLASH, target.getEyeLocation(), 1);
+        // Particle.FLASH throws IllegalArgumentException ("missing required data class
+        // org.bukkit.Color") on this server build -- END_ROD needs no extra data and reads as a
+        // bright flash regardless.
+        target.getWorld().spawnParticle(Particle.END_ROD, target.getEyeLocation(), 15, 0.2, 0.2, 0.2, 0.1);
     }
 
     // ---- abilities ------------------------------------------------------
@@ -282,7 +285,7 @@ public class MonkeyManKit implements PowerKit, Listener {
             }
         }
         owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_FIRECHARGE_USE, 1.0f, 1.8f);
-        owner.getWorld().spawnParticle(Particle.FLASH, owner.getLocation().add(0, 1, 0), 1);
+        owner.getWorld().spawnParticle(Particle.END_ROD, owner.getLocation().add(0, 1, 0), 30, 0.4, 0.4, 0.4, 0.15);
         Text.msg(owner, "<yellow>Flash</yellow> <gray>-- blinded " + blinded + " nearby.</gray>");
         return true;
     }
