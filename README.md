@@ -44,6 +44,7 @@ from a common ability pool.
 | ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
 | disasterflames | Return by Death | Keep Inventory, Return by Death (random checkpoint), Second Wind |
 | _glueman | The Ghost | Possession, Spectral Body, Astral Form |
+| JustSoopTBH | Phantom | Phantom Speed, Phantom Cloak, Full Vanish |
 
 ## Commands
 
@@ -96,7 +97,7 @@ If a local build fails, these are the places to look first, in likelihood order:
 com.powersmp
 ├── PowerSMP.java          main class; owns the single shared 1/sec kit tick
 ├── kit/                   PowerKit interface, Ability, KitRegistry, impl/ (one class per player)
-│                          one kit class per player (16), e.g. MavriccKit, LlamaChasKit
+│                          one kit class per player (19), e.g. MavriccKit, LlamaChasKit
 ├── stance/                Stance, StanceManager (stances + Mushroom Affinity), StanceCommand
 ├── food/                  MushroomHungerService, FoodProfile
 ├── cooldown/              CooldownManager (+ action-bar readout)

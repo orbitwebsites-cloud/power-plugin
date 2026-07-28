@@ -2,7 +2,7 @@
 # Paste these into console in order. Generated from kits.yml assignments.
 #
 # Creates a 'powersmp' group carrying the kit permission plus the NoCheatPlus
-# exemptions the kits need, then puts all 16 players in it.
+# exemptions the kits need, then puts all 17 players in it.
 
 lp creategroup powersmp
 
@@ -43,6 +43,7 @@ lp user TechKnightGaming parent add powersmp
 lp user ahriahn parent add powersmp
 lp user disasterflames parent add powersmp
 lp user _glueman parent add powersmp
+lp user JustSoopTBH parent add powersmp
 
 # Admins -- replace with whoever should run /powersmp.
 # lp user <you> permission set powersmp.admin true

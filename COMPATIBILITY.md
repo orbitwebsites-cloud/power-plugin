@@ -40,7 +40,7 @@ Every kit moves players by setting velocity directly, which is exactly what NCP 
 Without exemptions, abilities get cancelled and players get flagged and kicked mid-fight.
 
 Run **`server-setup/luckperms-commands.txt`** — it creates a `powersmp` group with the exemptions and
-adds all 16 players. Paste it into console.
+adds all 17 players. Paste it into console.
 
 What breaks without it:
 
@@ -125,8 +125,8 @@ advancement that unlocks Sporic Mind Control — that fires on the trade itself.
 1. Drop the 3 jars listed above; install the other 11.
 2. Paste `server-setup/luckperms-commands.txt` into console.
 3. Configure LaggRemoverPlus exclusions.
-4. Start the server and check the log for `PowerSMP enabled with 16 kit(s).`
-5. `/powersmp info <player>` for each of the 16 to confirm assignment and unlock state.
+4. Start the server and check the log for `PowerSMP enabled with 19 kit(s).`
+5. `/powersmp info <player>` for each of the 17 to confirm assignment and unlock state.
 6. Test one movement ability per player — a dash, a grapple, a riptide — to confirm NCP is not
    blocking them.
 7. Have `_glueman` toggle Astral Form near another player and check their tab-list name obfuscates,
