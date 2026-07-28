@@ -527,8 +527,10 @@ public class MavriccKit implements PowerKit, Listener {
         Text.msg(player, "<gradient:#c77dff:#7b2cbf><bold>DRACONIC EVOLUTION</bold></gradient> "
                 + "<gray>-- red, blue and green are one. Every perk, all at once.</gray>");
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 0.6f, 1.6f);
+        // DRAGON_BREATH requires a Float data argument (its strength/alpha) -- omitting it throws
+        // IllegalArgumentException at runtime the same way Particle.FLASH did.
         player.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH,
-                player.getLocation().add(0, 1, 0), 80, 0.6d, 1.0d, 0.6d, 0.05d);
+                player.getLocation().add(0, 1, 0), 80, 0.6d, 1.0d, 0.6d, 0.05d, 1.0f);
     }
 
     /** Re-issued if lost, matching how the bound elytra behaves. */
