@@ -56,6 +56,7 @@ assignments:
   TechKnightGaming: techknight
   ahriahn: voidwalker
   disasterflames: disasterflames
+  _glueman: theghost
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -779,3 +780,23 @@ disasterflames:
     # swap-hands is the action most commonly rebound to C). No cooldown, same
     # call as TechKnightGaming's infinite XP bottles.
     stack-size: 64
+
+# =====================================================================
+# The Ghost (_glueman) -- Possession / Spectral Body / Astral Form
+# =====================================================================
+theghost:
+  possession:
+    range: 20.0                    # ASSUMED -- how far away a mob can be to possess
+    # Sneak + swap-hands while possessing makes the mob take a swing -- a
+    # spectator cannot throw a real attack, so this is faked by hand.
+    attack-range: 3.0               # ASSUMED
+    attack-damage: 4.0              # ASSUMED -- 2 hearts
+    attack-cooldown-seconds: 1.0    # ASSUMED -- roughly a normal attack speed
+
+  spectral-body:
+    # How many blocks out from him get checked every move. Cubed, so this is
+    # not cheap -- 2 is a 5x5x5 box (125 blocks) checked on every movement
+    # event. Raising it much further starts to cost real packet traffic.
+    scan-radius: 2
+    # These stay solid even to him. Names must match a real Material.
+    impassable-blocks: [OBSIDIAN, BEDROCK, REINFORCED_DEEPSLATE]
