@@ -39,8 +39,9 @@ import org.bukkit.inventory.ItemStack;
  * <p><b>The levelling ladder.</b> "1 kill density 1 and so on" runs out of vanilla at 5 kills --
  * Density caps at V. Two readings are built:
  * <ul>
- *   <li>{@code LADDER} (default): Density I-V over the first five kills, then Breach I-IV, then Wind
- *       Burst I-III. Stays inside vanilla enchantment levels and keeps escalating to kill 12.</li>
+ *   <li>{@code LADDER} (default): Density I-V and Wind Burst I-III climb together from kill 1, each
+ *       capped at their own level; Breach I-IV unlocks once Density maxes out at kill 5. Stays inside
+ *       vanilla enchantment levels and keeps escalating to kill 9.</li>
  *   <li>{@code LITERAL}: Density really does equal the kill count, past the vanilla cap, up to
  *       {@code literal-max-density}. Density scales with fall distance, so this gets absurd fast --
  *       that is the point, but it is worth knowing before switching it on.</li>
@@ -158,7 +159,9 @@ public class TechKnightKit implements PowerKit, Listener {
         }
         int density = Math.min(kills, 5);
         int breach = clamp(kills - 5, 0, 4);
-        int windBurst = clamp(kills - 9, 0, 3);
+        // Wind Burst now climbs alongside Density from kill 1 (capped at III, same as before) --
+        // it used to wait for Density and Breach to both max out first, gating it behind kill 10.
+        int windBurst = Math.min(kills, 3);
         return new MaceItem.Levels(density, breach, windBurst);
     }
 

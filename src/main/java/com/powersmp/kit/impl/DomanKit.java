@@ -33,6 +33,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
@@ -377,26 +378,31 @@ public class DomanKit implements PowerKit, Listener {
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 1.4f);
 
         int[] elapsed = {0};
-        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, self -> {
-            if (elapsed[0]++ >= grapplePulseTicks || !owner.isOnline()
-                    || (target != null && (!target.isOnline() || target.isDead()))) {
-                self.cancel();
-                activeGrapples.remove(owner.getUniqueId());
-                return;
+        // Bukkit's scheduler only takes a plain Runnable -- there is no self-referencing lambda
+        // overload -- so a task that needs to cancel itself has to be a BukkitRunnable subclass.
+        BukkitTask task = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (elapsed[0]++ >= grapplePulseTicks || !owner.isOnline()
+                        || (target != null && (!target.isOnline() || target.isDead()))) {
+                    cancel();
+                    activeGrapples.remove(owner.getUniqueId());
+                    return;
+                }
+                Location currentAnchor = target != null ? target.getEyeLocation() : anchor;
+                Location from = owner.getEyeLocation();
+                Vector to = currentAnchor.toVector().subtract(from.toVector());
+                double distance = to.length();
+                drawLine(from, currentAnchor, Particle.SMOKE);
+                if (distance < 1.5d) {
+                    cancel();
+                    activeGrapples.remove(owner.getUniqueId());
+                    return;
+                }
+                owner.setVelocity(to.normalize().multiply(grapplePower));
+                owner.setFallDistance(0.0f);
             }
-            Location currentAnchor = target != null ? target.getEyeLocation() : anchor;
-            Location from = owner.getEyeLocation();
-            Vector to = currentAnchor.toVector().subtract(from.toVector());
-            double distance = to.length();
-            drawLine(from, currentAnchor, Particle.SMOKE);
-            if (distance < 1.5d) {
-                self.cancel();
-                activeGrapples.remove(owner.getUniqueId());
-                return;
-            }
-            owner.setVelocity(to.normalize().multiply(grapplePower));
-            owner.setFallDistance(0.0f);
-        }, 0L, 1L);
+        }.runTaskTimer(plugin, 0L, 1L);
         activeGrapples.put(owner.getUniqueId(), task);
     }
 
