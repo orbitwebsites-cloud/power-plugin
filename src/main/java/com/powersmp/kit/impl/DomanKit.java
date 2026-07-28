@@ -199,12 +199,21 @@ public class DomanKit implements PowerKit, Listener {
             }
             return;
         }
+        boolean startingClimb = !climbStartY.containsKey(id);
         double startY = climbStartY.computeIfAbsent(id, k -> owner.getLocation().getY());
         if (owner.getLocation().getY() - startY >= climbLimit) {
-            MovementExemption.end(owner);
+            climbStartY.remove(id);
+            if (!startingClimb) {
+                MovementExemption.end(owner);
+            }
             return;
         }
-        MovementExemption.begin(owner);
+        // begin() is reference-counted against a single matching end() above -- call it once, when
+        // the climb starts, not on every tick the climb continues, or the count never comes back
+        // down to zero and the player is left permanently exempted from the movement check.
+        if (startingClimb) {
+            MovementExemption.begin(owner);
+        }
         Vector velocity = owner.getVelocity();
         owner.setVelocity(new Vector(velocity.getX(), climbSpeed, velocity.getZ()));
         owner.setFallDistance(0.0f);
