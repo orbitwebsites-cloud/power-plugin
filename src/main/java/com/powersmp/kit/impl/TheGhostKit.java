@@ -17,6 +17,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
@@ -194,6 +195,8 @@ public class TheGhostKit implements PowerKit, Listener {
         Text.msg(owner, "<dark_purple>You possess</dark_purple> <white>"
                 + Text.plain(prettifyType(target)) + "</white><dark_purple>.</dark_purple>");
         owner.playSound(owner.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 0.6f);
+        target.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0.0, 1.0, 0.0),
+                30, 0.4, 0.6, 0.4, 0.02);
         return true;
     }
 
@@ -216,6 +219,8 @@ public class TheGhostKit implements PowerKit, Listener {
             owner.setSpectatorTarget(null);
             owner.setGameMode(memory.gameMode());
             owner.teleport(memory.location());
+            owner.getWorld().spawnParticle(Particle.SOUL, owner.getLocation().add(0.0, 1.0, 0.0),
+                    20, 0.3, 0.5, 0.3, 0.02);
         }
         if (message != null && owner.isOnline()) {
             Text.msg(owner, message);
@@ -244,6 +249,8 @@ public class TheGhostKit implements PowerKit, Listener {
         }
         victim.damage(possessAttackDamage, mob);
         mob.getWorld().playSound(mob.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.3f, 1.8f);
+        victim.getWorld().spawnParticle(Particle.SWEEP_ATTACK, victim.getLocation().add(0.0, 1.0, 0.0),
+                3, 0.2, 0.2, 0.2, 0.0);
     }
 
     private Mob findPossessTarget(Player owner, double range) {
@@ -323,6 +330,10 @@ public class TheGhostKit implements PowerKit, Listener {
         for (Location location : shouldBeFaked) {
             if (faked.add(location)) {
                 owner.sendBlockChange(location, air);
+                // Only on blocks newly entered, not every block already in the bubble -- otherwise
+                // standing still near a wall would spam particles every single move event.
+                owner.getWorld().spawnParticle(Particle.SOUL, location.clone().add(0.5, 0.5, 0.5),
+                        2, 0.2, 0.2, 0.2, 0.0);
             }
         }
         faked.removeIf(location -> {
@@ -368,6 +379,8 @@ public class TheGhostKit implements PowerKit, Listener {
             setMutualVisibility(owner, true);
             Text.msg(owner, "<gray>You return to the material world.</gray>");
             owner.playSound(owner.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.6f, 0.9f);
+            owner.getWorld().spawnParticle(Particle.END_ROD, owner.getLocation().add(0.0, 1.0, 0.0),
+                    25, 0.4, 0.6, 0.4, 0.03);
             return true;
         }
         astralActive.add(id);
@@ -375,6 +388,8 @@ public class TheGhostKit implements PowerKit, Listener {
         Text.msg(owner, "<dark_purple>You slip into the astral plane.</dark_purple> "
                 + "<gray>No one can see you, and you can see no one.</gray>");
         owner.playSound(owner.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.8f, 0.4f);
+        owner.getWorld().spawnParticle(Particle.REVERSE_PORTAL, owner.getLocation().add(0.0, 1.0, 0.0),
+                40, 0.4, 0.6, 0.4, 0.05);
         return true;
     }
 

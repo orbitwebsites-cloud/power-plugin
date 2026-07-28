@@ -7,6 +7,7 @@ import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -115,6 +116,8 @@ public class ReturnByDeathKit implements PowerKit, Listener {
         Location here = owner.getLocation().clone();
         owner.setBedSpawnLocation(here, true);
         owner.playSound(here, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.4f, 1.6f);
+        owner.getWorld().spawnParticle(Particle.END_ROD, here.clone().add(0.0, 1.0, 0.0),
+                12, 0.3, 0.4, 0.3, 0.02);
         Text.actionBar(owner, "<dark_purple><italic>...a memory anchors itself here.</italic></dark_purple>");
     }
 
@@ -128,5 +131,8 @@ public class ReturnByDeathKit implements PowerKit, Listener {
         }
         Effects.apply(player, PotionEffectType.STRENGTH, respawnBuffSeconds * 20, respawnStrengthAmplifier);
         Effects.apply(player, PotionEffectType.SPEED, respawnBuffSeconds * 20, respawnSpeedAmplifier);
+        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0.0, 1.6, 0.0),
+                10, 0.4, 0.4, 0.4, 0.0);
+        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.3f);
     }
 }
