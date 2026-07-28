@@ -64,6 +64,7 @@ public class DataStore {
             data.stanceConsolidated(section.getBoolean("stance-consolidated", false));
             data.omeletGranted(section.getBoolean("omelet-granted", false));
             data.lastKnownName(section.getString("name", ""));
+            data.abilityTrigger(section.getString("ability-trigger", "SNEAK_RIGHT_CLICK"));
             data.realmReturn(section.getString("realm-return", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
 
@@ -102,6 +103,7 @@ public class DataStore {
         for (PlayerData data : cache.values()) {
             String path = "players." + data.uuid();
             yaml.set(path + ".name", data.lastKnownName());
+            yaml.set(path + ".ability-trigger", data.abilityTrigger());
             yaml.set(path + ".stance", data.stance());
             yaml.set(path + ".kills", data.kills());
             yaml.set(path + ".spear-kills", data.spearKills());

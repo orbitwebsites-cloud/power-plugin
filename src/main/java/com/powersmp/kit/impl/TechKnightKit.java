@@ -437,6 +437,9 @@ public class TechKnightKit implements PowerKit, Listener {
             return false;
         }
 
+        // Vanilla's own movement check does not know the leap is deliberate and will snap him back
+        // mid-air without this. Ends in slam(), which fires exactly when the leap's hang time ends.
+        com.powersmp.util.MovementExemption.begin(owner);
         owner.setVelocity(new Vector(0.0d, earthbreakerLeapPower, 0.0d));
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 0.6f);
@@ -446,6 +449,7 @@ public class TechKnightKit implements PowerKit, Listener {
     }
 
     private void slam(Player owner) {
+        com.powersmp.util.MovementExemption.end(owner);
         if (!owner.isOnline()) {
             return;
         }
@@ -460,6 +464,12 @@ public class TechKnightKit implements PowerKit, Listener {
             target.damage(damage, owner);
             Vector knockup = target.getVelocity();
             target.setVelocity(new Vector(knockup.getX(), Math.max(earthbreakerKnockup, knockup.getY()), knockup.getZ()));
+            // Only a player has a client whose movement report vanilla scrutinises.
+            if (target instanceof Player targetPlayer) {
+                com.powersmp.util.MovementExemption.begin(targetPlayer);
+                Bukkit.getScheduler().runTaskLater(plugin,
+                        () -> com.powersmp.util.MovementExemption.end(targetPlayer), 15L);
+            }
         }
 
         owner.getWorld().spawnParticle(Particle.EXPLOSION, owner.getLocation(),

@@ -597,6 +597,10 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.cooldowns().tryUse(owner, ABILITY_LAUNCH, launchCooldown)) {
             return false;
         }
+        // Vanilla's own movement check does not know this upward burst is deliberate and will snap
+        // him back before gliding even engages, without this. Ends inside the same delayed task
+        // below -- by then he is either gliding (elytra flight is its own exemption) or grounded.
+        com.powersmp.util.MovementExemption.begin(owner);
         owner.setVelocity(owner.getVelocity().setY(launchPower));
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.8f, 1.6f);
@@ -606,6 +610,7 @@ public class MavriccKit implements PowerKit, Listener {
             if (owner.isOnline() && !owner.isOnGround() && !owner.isInWater()) {
                 owner.setGliding(true);
             }
+            com.powersmp.util.MovementExemption.end(owner);
         }, 6L);
         return true;
     }
@@ -625,6 +630,9 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.cooldowns().tryUse(owner, ABILITY_RIPTIDE, riptideCooldown)) {
             return false;
         }
+        com.powersmp.util.MovementExemption.begin(owner);
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin,
+                () -> com.powersmp.util.MovementExemption.end(owner), 20L);
         owner.setVelocity(owner.getLocation().getDirection().multiply(riptidePower));
         owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_2, 1.0f, 1.0f);
         owner.getWorld().spawnParticle(org.bukkit.Particle.BUBBLE_COLUMN_UP, owner.getLocation(), 40, 0.3, 0.3, 0.3, 0.1);

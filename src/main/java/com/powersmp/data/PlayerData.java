@@ -27,6 +27,8 @@ public class PlayerData {
     /** The omelet has been handed out once; it is not re-issued after being eaten. */
     private boolean omeletGranted;
     private String lastKnownName = "";
+    /** Which client action fires this player's primary ability. See {@code AbilityTrigger}. */
+    private String abilityTrigger = "SNEAK_RIGHT_CLICK";
     /**
      * Serialised location to send someone home to if the Illusory Realm loses track of them --
      * a crash or a forced shutdown mid-domain must not strand anyone in the arena world. Cleared
@@ -133,6 +135,15 @@ public class PlayerData {
 
     public void lastKnownName(String lastKnownName) {
         this.lastKnownName = lastKnownName == null ? "" : lastKnownName;
+    }
+
+    public String abilityTrigger() {
+        return abilityTrigger;
+    }
+
+    public void abilityTrigger(String abilityTrigger) {
+        this.abilityTrigger = abilityTrigger == null || abilityTrigger.isBlank()
+                ? "SNEAK_RIGHT_CLICK" : abilityTrigger;
     }
 
     public String realmReturn() {

@@ -9,6 +9,7 @@ import com.powersmp.cooldown.CooldownManager;
 import com.powersmp.data.DataStore;
 import com.powersmp.domain.IllusoryRealm;
 import com.powersmp.food.MushroomHungerService;
+import com.powersmp.kit.AbilityTriggerListener;
 import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
@@ -28,6 +29,7 @@ import com.powersmp.kit.impl.SparkKit;
 import com.powersmp.kit.impl.TechKnightKit;
 import com.powersmp.kit.impl.VoidwalkerKit;
 import com.powersmp.kit.impl.XCriticKit;
+import com.powersmp.menu.KeybindMenu;
 import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
 import com.powersmp.stance.StanceCommand;
@@ -75,6 +77,8 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private MushroomHungerService food;
     private IllusoryRealm realm;
     private PowerMenu powerMenu;
+    private KeybindMenu keybindMenu;
+    private AbilityTriggerListener abilityTriggers;
 
     private MavriccKit mavricc;
     private NorthOfNowhereKit northOfNowhere;
@@ -116,6 +120,8 @@ public class PowerSMP extends JavaPlugin implements Listener {
         food = new MushroomHungerService(this);
         realm = new IllusoryRealm(this);
         powerMenu = new PowerMenu(this);
+        keybindMenu = new KeybindMenu(this);
+        abilityTriggers = new AbilityTriggerListener(this);
 
         mavricc = new MavriccKit(this);
         northOfNowhere = new NorthOfNowhereKit(this);
@@ -162,6 +168,8 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(food, this);
         Bukkit.getPluginManager().registerEvents(realm, this);
         Bukkit.getPluginManager().registerEvents(powerMenu, this);
+        Bukkit.getPluginManager().registerEvents(keybindMenu, this);
+        Bukkit.getPluginManager().registerEvents(abilityTriggers, this);
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(northOfNowhere, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
@@ -331,30 +339,6 @@ public class PowerSMP extends JavaPlugin implements Listener {
         cooldowns.clearAll(event.getPlayer().getUniqueId());
     }
 
-    /** Sneak + right-click air with an empty hand fires the kit's primary ability. */
-    @EventHandler
-    public void onSneakRightClick(PlayerInteractEvent event) {
-        if (!kitsConfig.getBoolean("general.sneak-right-click-primary", true)) {
-            return;
-        }
-        // RIGHT_CLICK_AIR fires once per hand; only react to the main hand.
-        if (event.getAction() != Action.RIGHT_CLICK_AIR || event.getHand() != EquipmentSlot.HAND) {
-            return;
-        }
-        Player player = event.getPlayer();
-        if (!player.isSneaking() || !player.getInventory().getItemInMainHand().getType().isAir()) {
-            return;
-        }
-        PowerKit kit = kits.kitOf(player);
-        if (kit == null) {
-            return;
-        }
-        String primary = kit.primaryAbilityId();
-        if (primary != null) {
-            kit.activate(player, primary);
-        }
-    }
-
     // ---- service accessors ----------------------------------------------
 
     public FileConfiguration kitsConfig() {
@@ -403,5 +387,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     public PowerMenu powerMenu() {
         return powerMenu;
+    }
+
+    public KeybindMenu keybindMenu() {
+        return keybindMenu;
     }
 }

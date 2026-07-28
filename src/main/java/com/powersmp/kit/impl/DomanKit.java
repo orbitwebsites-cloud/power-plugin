@@ -7,6 +7,7 @@ import com.powersmp.progression.Power;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
+import com.powersmp.util.MovementExemption;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -190,13 +191,20 @@ public class DomanKit implements PowerKit, Listener {
         }
         UUID id = owner.getUniqueId();
         if (!owner.isSneaking() || !againstWall(owner)) {
-            climbStartY.remove(id);
+            if (climbStartY.remove(id) != null) {
+                // Vanilla's own movement check does not know a climb is a deliberate server-driven
+                // ability -- without this it silently snaps the player back mid-climb, which reads
+                // as "the ability barely works" even though the velocity was applied correctly.
+                MovementExemption.end(owner);
+            }
             return;
         }
         double startY = climbStartY.computeIfAbsent(id, k -> owner.getLocation().getY());
         if (owner.getLocation().getY() - startY >= climbLimit) {
+            MovementExemption.end(owner);
             return;
         }
+        MovementExemption.begin(owner);
         Vector velocity = owner.getVelocity();
         owner.setVelocity(new Vector(velocity.getX(), climbSpeed, velocity.getZ()));
         owner.setFallDistance(0.0f);
@@ -477,6 +485,9 @@ public class DomanKit implements PowerKit, Listener {
             previous.cancel();
         }
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 1.4f);
+        // Without this, vanilla's own movement check eventually snaps the puller back mid-flight --
+        // exactly the "the grapple barely pulls me anywhere" symptom this was built to fix.
+        MovementExemption.begin(owner);
 
         int[] elapsed = {0};
         // Bukkit's scheduler only takes a plain Runnable -- there is no self-referencing lambda
@@ -488,6 +499,7 @@ public class DomanKit implements PowerKit, Listener {
                         || (target != null && (!target.isOnline() || target.isDead()))) {
                     cancel();
                     activeGrapples.remove(owner.getUniqueId());
+                    MovementExemption.end(owner);
                     return;
                 }
                 Location currentAnchor = target != null ? target.getEyeLocation() : anchor;
@@ -498,6 +510,7 @@ public class DomanKit implements PowerKit, Listener {
                 if (distance < 1.5d) {
                     cancel();
                     activeGrapples.remove(owner.getUniqueId());
+                    MovementExemption.end(owner);
                     return;
                 }
                 owner.setVelocity(to.normalize().multiply(grapplePower));
@@ -526,6 +539,10 @@ public class DomanKit implements PowerKit, Listener {
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1.0f, 0.8f);
         Text.actionBar(owner, "<gray>Reeling in " + Text.plain(target.getName()) + "</gray>");
 
+        // The exemption belongs to the person being pulled, not the caster -- it is the target's
+        // client whose reported movement would otherwise get flagged and snapped back mid-pull.
+        MovementExemption.begin(target);
+
         int[] elapsed = {0};
         // Single locked target, not everyone in range: reelIn() used to pull every player within
         // pullRange indiscriminately, which is not "click on the player" at all. The scheduler only
@@ -536,11 +553,13 @@ public class DomanKit implements PowerKit, Listener {
                 if (elapsed[0]++ >= pullPulseTicks || !owner.isOnline()
                         || !target.isOnline() || target.isDead()) {
                     cancel();
+                    MovementExemption.end(target);
                     return;
                 }
                 Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
                 if (to.lengthSquared() < 1.0d) {
                     cancel();
+                    MovementExemption.end(target);
                     return;
                 }
                 drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
@@ -603,5 +622,6 @@ public class DomanKit implements PowerKit, Listener {
         if (task != null) {
             task.cancel();
         }
+        MovementExemption.end(owner);
     }
 }
