@@ -1,7 +1,9 @@
 package com.powersmp.menu;
 
 import com.powersmp.PowerSMP;
+import com.powersmp.kit.Ability;
 import com.powersmp.kit.AbilityTrigger;
+import com.powersmp.kit.PowerKit;
 import com.powersmp.util.Text;
 import java.util.List;
 import org.bukkit.Bukkit;
@@ -20,16 +22,25 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * {@code /power keybind} -- lets a player choose which client action fires their primary ability.
+ * {@code /power keybind} -- lets a player choose which client action fires their primary ability,
+ * and (for kits with more than one activated ability) which of their abilities that action fires.
  *
  * <p>There is no way for a server plugin to see a literal key like "G" -- Minecraft only ever sends
- * the vanilla action a key is bound to (sneak, attack, use-item, swap-hands). What this menu actually
- * offers is a choice of <em>which action</em>. To land on a specific physical key, rebind that
- * vanilla action to it in Minecraft's own Controls menu -- e.g. pick "Swap Hands" here, then rebind
- * "Swap Item In Hand" from F to G in Controls, and G fires the ability. That mapping is entirely
- * client-side; the server never needs to know which physical key was pressed.
+ * the vanilla action a key is bound to (sneak, attack, use-item, swap-hands). The top row offers a
+ * choice of <em>which action</em>. To land on a specific physical key, rebind that vanilla action to
+ * it in Minecraft's own Controls menu -- e.g. pick "Swap Hands" here, then rebind "Swap Item In Hand"
+ * from F to G in Controls, and G fires the ability. That mapping is entirely client-side; the server
+ * never needs to know which physical key was pressed.
+ *
+ * <p>The bottom row offers a choice of <em>which ability</em> that action fires, for kits whose
+ * {@code primaryAbilityId()} is not the only ability worth binding to a single key -- everything else
+ * always stays reachable via {@code /power <id>} or the {@code /power gui} click-menu regardless of
+ * what is bound here.
  */
 public class KeybindMenu implements Listener {
+
+    private static final int SIZE = 27;
+    private static final int ABILITY_ROW_START = 18;
 
     private final PowerSMP plugin;
 
@@ -39,7 +50,7 @@ public class KeybindMenu implements Listener {
 
     public void open(Player player) {
         Holder holder = new Holder();
-        Inventory inventory = Bukkit.createInventory(holder, 9,
+        Inventory inventory = Bukkit.createInventory(holder, SIZE,
                 Text.mm("<dark_gray>Ability trigger</dark_gray>"));
         holder.inventory = inventory;
         redraw(player, inventory);
@@ -53,6 +64,26 @@ public class KeybindMenu implements Listener {
         AbilityTrigger[] values = AbilityTrigger.values();
         for (int i = 0; i < values.length; i++) {
             inventory.setItem(i, icon(values[i], values[i] == current));
+        }
+        for (int i = values.length; i < ABILITY_ROW_START; i++) {
+            inventory.setItem(i, filler());
+        }
+
+        PowerKit kit = plugin.kits().kitOf(player);
+        List<Ability> abilities = kit == null ? List.of() : kit.abilities();
+        String chosen = plugin.data().get(player.getUniqueId()).primaryAbility();
+        String effectiveDefault = kit == null ? null : kit.primaryAbilityId();
+        for (int i = 0; i < 9; i++) {
+            int slot = ABILITY_ROW_START + i;
+            if (i >= abilities.size()) {
+                inventory.setItem(slot, filler());
+                continue;
+            }
+            Ability ability = abilities.get(i);
+            boolean selected = chosen.isBlank()
+                    ? ability.id().equalsIgnoreCase(effectiveDefault)
+                    : ability.id().equalsIgnoreCase(chosen);
+            inventory.setItem(slot, abilityIcon(ability, selected));
         }
     }
 
@@ -70,6 +101,30 @@ public class KeybindMenu implements Listener {
         return item;
     }
 
+    private ItemStack abilityIcon(Ability ability, boolean selected) {
+        ItemStack item = new ItemStack(selected ? Material.LIME_DYE : Material.GRAY_DYE);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Text.mm((selected ? "<green><bold>" : "<white>") + Text.plain(ability.name())));
+            meta.lore(List.of(
+                    Text.mm("<gray>" + Text.plain(ability.description()) + "</gray>"),
+                    selected ? Text.mm("<green>Bound to your trigger</green>")
+                            : Text.mm("<yellow>Click to bind</yellow>")));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
+    private ItemStack filler() {
+        ItemStack item = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        if (meta != null) {
+            meta.displayName(Text.mm("<dark_gray> </dark_gray>"));
+            item.setItemMeta(meta);
+        }
+        return item;
+    }
+
     @EventHandler(priority = EventPriority.LOWEST)
     public void onClick(InventoryClickEvent event) {
         if (!(event.getInventory().getHolder() instanceof Holder)) {
@@ -77,16 +132,33 @@ public class KeybindMenu implements Listener {
         }
         event.setCancelled(true);
         int slot = event.getRawSlot();
-        AbilityTrigger[] values = AbilityTrigger.values();
-        if (!(event.getWhoClicked() instanceof Player player) || slot < 0 || slot >= values.length) {
+        if (!(event.getWhoClicked() instanceof Player player) || slot < 0 || slot >= SIZE) {
             return;
         }
-        AbilityTrigger chosen = values[slot];
-        plugin.data().get(player.getUniqueId()).abilityTrigger(chosen.name());
-        plugin.data().markDirty();
-        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.4f);
-        Text.msg(player, "<green>Ability trigger set to <white>" + Text.plain(chosen.label()) + "</white>.</green>");
-        redraw(player, event.getInventory());
+        AbilityTrigger[] triggers = AbilityTrigger.values();
+        if (slot < triggers.length) {
+            AbilityTrigger chosen = triggers[slot];
+            plugin.data().get(player.getUniqueId()).abilityTrigger(chosen.name());
+            plugin.data().markDirty();
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.4f);
+            Text.msg(player, "<green>Ability trigger set to <white>" + Text.plain(chosen.label()) + "</white>.</green>");
+            redraw(player, event.getInventory());
+            return;
+        }
+        if (slot >= ABILITY_ROW_START && slot < ABILITY_ROW_START + 9) {
+            PowerKit kit = plugin.kits().kitOf(player);
+            List<Ability> abilities = kit == null ? List.of() : kit.abilities();
+            int index = slot - ABILITY_ROW_START;
+            if (index >= abilities.size()) {
+                return;
+            }
+            Ability chosen = abilities.get(index);
+            plugin.data().get(player.getUniqueId()).primaryAbility(chosen.id());
+            plugin.data().markDirty();
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.8f, 1.4f);
+            Text.msg(player, "<green>Your trigger now fires <white>" + Text.plain(chosen.name()) + "</white>.</green>");
+            redraw(player, event.getInventory());
+        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

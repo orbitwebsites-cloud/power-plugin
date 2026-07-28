@@ -30,6 +30,11 @@ public class PlayerData {
     /** Which client action fires this player's primary ability. See {@code AbilityTrigger}. */
     private String abilityTrigger = "SNEAK_RIGHT_CLICK";
     /**
+     * Player-chosen ability id to fire on that trigger, overriding the kit's own
+     * {@code primaryAbilityId()}. Empty means "use the kit default".
+     */
+    private String primaryAbility = "";
+    /**
      * Serialised location to send someone home to if the Illusory Realm loses track of them --
      * a crash or a forced shutdown mid-domain must not strand anyone in the arena world. Cleared
      * the moment they are released normally.
@@ -144,6 +149,14 @@ public class PlayerData {
     public void abilityTrigger(String abilityTrigger) {
         this.abilityTrigger = abilityTrigger == null || abilityTrigger.isBlank()
                 ? "SNEAK_RIGHT_CLICK" : abilityTrigger;
+    }
+
+    public String primaryAbility() {
+        return primaryAbility;
+    }
+
+    public void primaryAbility(String primaryAbility) {
+        this.primaryAbility = primaryAbility == null ? "" : primaryAbility;
     }
 
     public String realmReturn() {

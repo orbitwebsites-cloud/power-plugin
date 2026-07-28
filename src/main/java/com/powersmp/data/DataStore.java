@@ -66,6 +66,7 @@ public class DataStore {
             data.omeletGranted(section.getBoolean("omelet-granted", false));
             data.lastKnownName(section.getString("name", ""));
             data.abilityTrigger(section.getString("ability-trigger", "SNEAK_RIGHT_CLICK"));
+            data.primaryAbility(section.getString("primary-ability", ""));
             data.realmReturn(section.getString("realm-return", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
 
@@ -133,6 +134,9 @@ public class DataStore {
             String path = "players." + data.uuid();
             yaml.set(path + ".name", data.lastKnownName());
             yaml.set(path + ".ability-trigger", data.abilityTrigger());
+            if (!data.primaryAbility().isBlank()) {
+                yaml.set(path + ".primary-ability", data.primaryAbility());
+            }
             yaml.set(path + ".stance", data.stance());
             yaml.set(path + ".kills", data.kills());
             yaml.set(path + ".spear-kills", data.spearKills());

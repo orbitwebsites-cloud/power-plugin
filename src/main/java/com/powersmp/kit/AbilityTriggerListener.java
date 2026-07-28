@@ -78,11 +78,21 @@ public class AbilityTriggerListener implements Listener {
         if (kit == null) {
             return false;
         }
-        String primary = kit.primaryAbilityId();
+        String chosen = plugin.data().get(player.getUniqueId()).primaryAbility();
+        String primary = !chosen.isBlank() && hasAbility(kit, chosen) ? chosen : kit.primaryAbilityId();
         if (primary == null) {
             return false;
         }
         kit.activate(player, primary);
         return true;
+    }
+
+    private boolean hasAbility(PowerKit kit, String abilityId) {
+        for (Ability ability : kit.abilities()) {
+            if (ability.id().equalsIgnoreCase(abilityId)) {
+                return true;
+            }
+        }
+        return false;
     }
 }
