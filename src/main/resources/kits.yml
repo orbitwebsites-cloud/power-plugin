@@ -8,9 +8,16 @@
 # =====================================================================
 
 general:
-  # How often (in ticks) the per-player kit tick runs. 20 = once a second,
-  # which is what the spec asks for ("polled ~1x/sec").
-  tick-interval-ticks: 20
+  # How often (in ticks) the per-player kit tick runs -- every online player's kit.tick() fires
+  # once per this many ticks. 20 = once a second, which is what the spec originally asked for
+  # ("polled ~1x/sec"). Raised to 40 (once every 2s) for headroom on constrained hardware: this is
+  # the main per-player, per-kit recurring cost in the plugin (passive buff refreshes, restock/xray
+  # cooldown-driven checks, etc.), and it scales with online-player-count x kits-with-passives, so
+  # it is the cheapest lever to pull for less main-thread work without changing any ability's actual
+  # behaviour. The only visible cost is passive effects (Regen, Resistance, Haste, and the like)
+  # taking up to 2s to reapply after something strips them, instead of up to 1s. Set back to 20 if
+  # that lag is not worth the responsiveness.
+  tick-interval-ticks: 40
   # Show remaining cooldowns on the action bar.
   cooldown-action-bar: true
   # Which client action fires a player's primary ability is now a per-player choice, not a
