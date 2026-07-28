@@ -1,7 +1,6 @@
 package com.powersmp.util;
 
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.entity.Player;
@@ -19,10 +18,17 @@ import org.bukkit.entity.Player;
  * it would otherwise apply. Toggling both for the duration of a burst, then restoring whatever the
  * player actually had before, gets a real dash-style movement through without granting them
  * standing flight.
+ *
+ * <p>Reference-counted rather than a plain on/off flag: multiple kits call this on the same player
+ * (a grapple pulling someone who is also mid-dash, TechKnightGaming's Earthbreaker landing on someone
+ * being reeled in, etc.), and a naive flag lets whichever ability finishes first restore original
+ * flight state out from under an ability that is still mid-burst -- the second one then gets snapped
+ * back by vanilla's own check right as it is happening. Counting how many callers are still inside
+ * their window means the real state is only restored once every one of them has called {@link #end}.
  */
 public final class MovementExemption {
 
-    private static final Set<UUID> active = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, Integer> depth = new ConcurrentHashMap<>();
     private static final Map<UUID, boolean[]> saved = new ConcurrentHashMap<>();
 
     private MovementExemption() {
@@ -31,7 +37,8 @@ public final class MovementExemption {
     /** Starts (or extends) an exemption window. Safe to call every tick while a burst is ongoing. */
     public static void begin(Player player) {
         UUID id = player.getUniqueId();
-        if (active.add(id)) {
+        int count = depth.merge(id, 1, Integer::sum);
+        if (count == 1) {
             saved.put(id, new boolean[]{player.getAllowFlight(), player.isFlying()});
         }
         if (!player.getAllowFlight()) {
@@ -42,11 +49,20 @@ public final class MovementExemption {
         }
     }
 
-    /** Ends the exemption and restores whatever flight state the player actually had. */
+    /**
+     * Ends one exemption window. Only restores the player's real flight state once every {@link
+     * #begin} on this player has a matching {@code end} -- an unmatched extra {@code end} (a bug
+     * elsewhere) is clamped at zero rather than going negative and leaving the count permanently
+     * confused.
+     */
     public static void end(Player player) {
         UUID id = player.getUniqueId();
+        int remaining = depth.merge(id, -1, Integer::sum);
+        if (remaining > 0) {
+            return;
+        }
+        depth.remove(id);
         boolean[] previous = saved.remove(id);
-        active.remove(id);
         if (previous == null || !player.isOnline()) {
             return;
         }

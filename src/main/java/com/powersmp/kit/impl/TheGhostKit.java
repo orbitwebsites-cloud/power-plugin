@@ -306,6 +306,17 @@ public class TheGhostKit implements PowerKit, Listener {
         if (!plugin.kits().isOwner(owner, ID) || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)) {
             return;
         }
+        // PlayerMoveEvent also fires on a pure camera turn with the feet planted. Rescanning a
+        // (2*radius+1)^3 block box -- up to 729 blocks at the max radius -- on every single one of
+        // those, for a power that is always on once unlocked, is exactly the kind of thing that reads
+        // as constant server lag rather than a one-off cost. Only an actual position change needs a
+        // rescan; looking around is free.
+        Location from = event.getFrom();
+        Location to = event.getTo();
+        if (to == null || (from.getBlockX() == to.getBlockX() && from.getBlockY() == to.getBlockY()
+                && from.getBlockZ() == to.getBlockZ())) {
+            return;
+        }
         updatePhaseBubble(owner);
     }
 
