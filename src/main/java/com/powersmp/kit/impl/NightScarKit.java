@@ -9,6 +9,7 @@ import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
+import com.powersmp.util.MovementExemption;
 import com.powersmp.util.Text;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -162,6 +163,11 @@ public class NightScarKit implements PowerKit, Listener {
             lastDashRecharge.put(id, System.currentTimeMillis());
         }
         dashesUsed.put(id, used + 1);
+
+        // Vanilla's own movement check does not know a dash is deliberate and will snap him back
+        // mid-flight without this -- the same fix the web shooter's grapple needed.
+        MovementExemption.begin(owner);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> MovementExemption.end(owner), 20L);
 
         // "boost in any direction" -- wherever he is looking, including straight up.
         Vector direction = owner.getLocation().getDirection().normalize().multiply(dashPower);

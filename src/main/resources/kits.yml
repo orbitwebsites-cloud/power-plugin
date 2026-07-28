@@ -13,9 +13,9 @@ general:
   tick-interval-ticks: 20
   # Show remaining cooldowns on the action bar.
   cooldown-action-bar: true
-  # Sneak + right-click air with an empty main hand fires your kit's
-  # primary ability, as a shortcut for /power use <primary>.
-  sneak-right-click-primary: true
+  # Which client action fires a player's primary ability is now a per-player choice, not a
+  # server-wide setting -- see /power keybind and com.powersmp.kit.AbilityTrigger. Defaults to
+  # sneak + right-click, same as before, but every player can change it for themselves.
   # Cooldowns longer than this are left off the action bar and only reported
   # when you try to use them -- otherwise KornFlakis's 7-day execute would
   # pin a message to his screen for a week.
@@ -677,6 +677,11 @@ techknight:
     scaling-cap: 10                # mace-kill levels beyond this add nothing further
     knockup-power: 0.8             # ASSUMED -- minimum upward velocity applied to everyone caught
     cooldown-seconds: 25           # ASSUMED
+
+  # Passive, no cooldown, no toggle. Only fires with his own soulbound mace in hand.
+  shield-break:
+    enabled: true
+    chance: 0.5                    # half of blocked hits ignore the shield entirely
 
 # =====================================================================
 # Voidwalker (ahriahn) -- Shadow Step / Grasp of Eylis / Illusory Realm

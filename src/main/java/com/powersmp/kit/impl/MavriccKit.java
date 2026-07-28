@@ -527,8 +527,10 @@ public class MavriccKit implements PowerKit, Listener {
         Text.msg(player, "<gradient:#c77dff:#7b2cbf><bold>DRACONIC EVOLUTION</bold></gradient> "
                 + "<gray>-- red, blue and green are one. Every perk, all at once.</gray>");
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 0.6f, 1.6f);
+        // DRAGON_BREATH requires a Float data argument (its strength/alpha) -- omitting it throws
+        // IllegalArgumentException at runtime the same way Particle.FLASH did.
         player.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH,
-                player.getLocation().add(0, 1, 0), 80, 0.6d, 1.0d, 0.6d, 0.05d);
+                player.getLocation().add(0, 1, 0), 80, 0.6d, 1.0d, 0.6d, 0.05d, 1.0f);
     }
 
     /** Re-issued if lost, matching how the bound elytra behaves. */
@@ -595,6 +597,10 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.cooldowns().tryUse(owner, ABILITY_LAUNCH, launchCooldown)) {
             return false;
         }
+        // Vanilla's own movement check does not know this upward burst is deliberate and will snap
+        // him back before gliding even engages, without this. Ends inside the same delayed task
+        // below -- by then he is either gliding (elytra flight is its own exemption) or grounded.
+        com.powersmp.util.MovementExemption.begin(owner);
         owner.setVelocity(owner.getVelocity().setY(launchPower));
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_WITHER_SHOOT, 0.8f, 1.6f);
@@ -604,6 +610,7 @@ public class MavriccKit implements PowerKit, Listener {
             if (owner.isOnline() && !owner.isOnGround() && !owner.isInWater()) {
                 owner.setGliding(true);
             }
+            com.powersmp.util.MovementExemption.end(owner);
         }, 6L);
         return true;
     }
@@ -623,6 +630,9 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.cooldowns().tryUse(owner, ABILITY_RIPTIDE, riptideCooldown)) {
             return false;
         }
+        com.powersmp.util.MovementExemption.begin(owner);
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin,
+                () -> com.powersmp.util.MovementExemption.end(owner), 20L);
         owner.setVelocity(owner.getLocation().getDirection().multiply(riptidePower));
         owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_2, 1.0f, 1.0f);
         owner.getWorld().spawnParticle(org.bukkit.Particle.BUBBLE_COLUMN_UP, owner.getLocation(), 40, 0.3, 0.3, 0.3, 0.1);

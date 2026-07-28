@@ -169,7 +169,9 @@ public class SparkKit implements PowerKit, Listener {
         if (where.getWorld() == null) {
             return;
         }
-        where.getWorld().spawnParticle(Particle.FLASH, where, 1);
+        // Particle.FLASH throws IllegalArgumentException ("missing required data class
+        // org.bukkit.Color") on this server build -- createExplosion's own EXPLOSION particle
+        // covers the visual anyway.
         where.getWorld().createExplosion(where, power, fire, breakBlocks, owner);
         where.getWorld().playSound(where, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.8f);
         where.getWorld().spawnParticle(Particle.LARGE_SMOKE, where, 60, power, power, power, 0.05);

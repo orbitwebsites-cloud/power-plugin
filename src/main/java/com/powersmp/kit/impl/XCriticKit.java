@@ -295,6 +295,13 @@ public class XCriticKit implements PowerKit, Listener {
         if (pull.lengthSquared() > 1.0e-4) {
             pull = pull.normalize().multiply(pullStrength);
             pull.setY(Math.max(0.35d, pull.getY()));
+            // Only players have a client to flag -- a mob's movement is server-authoritative
+            // already, so there is nothing for vanilla's check to reject.
+            if (target instanceof Player targetPlayer) {
+                com.powersmp.util.MovementExemption.begin(targetPlayer);
+                Bukkit.getScheduler().runTaskLater(plugin,
+                        () -> com.powersmp.util.MovementExemption.end(targetPlayer), 15L);
+            }
             target.setVelocity(pull);
         }
         player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RETURN, 1.0f, 0.8f);

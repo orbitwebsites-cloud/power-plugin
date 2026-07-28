@@ -18,9 +18,9 @@ import org.jetbrains.annotations.NotNull;
 /**
  * {@code /power} -- the player-facing entry point to their own kit.
  *
- * <p>Every activated ability is reachable here. Sneak + right-click is a shortcut for the kit's
- * primary, but a command always works, which matters for abilities whose natural trigger would
- * collide with normal play.
+ * <p>Every activated ability is reachable here. Each player's own chosen client action (see
+ * {@code /power keybind}) is a shortcut for the kit's primary, but a command always works, which
+ * matters for abilities whose natural trigger would collide with normal play.
  */
 public class PowerCommand implements CommandExecutor, TabCompleter {
 
@@ -51,6 +51,10 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
             // A clickable alternative to typing an exact ability id -- console/controller players
             // in particular are fighting an on-screen keyboard for something a click already does.
             plugin.powerMenu().open(player, kit);
+            return true;
+        }
+        if (args[0].equalsIgnoreCase("keybind") || args[0].equalsIgnoreCase("keybinds")) {
+            plugin.keybindMenu().open(player);
             return true;
         }
 
@@ -129,6 +133,9 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
         }
         if ("gui".startsWith(prefix)) {
             out.add("gui");
+        }
+        if ("keybind".startsWith(prefix)) {
+            out.add("keybind");
         }
         for (Ability ability : kit.abilities()) {
             if (ability.id().toLowerCase(Locale.ROOT).startsWith(prefix)) {

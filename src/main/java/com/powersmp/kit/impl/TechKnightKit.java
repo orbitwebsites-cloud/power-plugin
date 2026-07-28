@@ -7,6 +7,7 @@ import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.menu.RestockMenu;
 import com.powersmp.progression.Power;
+import com.powersmp.util.Attributes;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -15,6 +16,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -26,6 +28,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -38,8 +41,10 @@ import org.bukkit.util.Vector;
 /**
  * TechKnightGaming: Mace Massacre.
  *
- * <p>Three powers: a soulbound mace that levels with kills, a long-cooldown utility restock, and
- * on-demand XP bottles.
+ * <p>Four powers: a soulbound mace that levels with kills, a long-cooldown utility restock,
+ * on-demand XP bottles, and a passive that ignores an opponent's shield half the time. The
+ * shield-ignore has no cooldown and no toggle -- it either fires on a given blocked hit or it
+ * does not -- and only triggers with his own mace in hand, on him specifically.
  *
  * <p><b>The levelling ladder.</b> "1 kill density 1 and so on" runs out of vanilla at 5 kills --
  * Density caps at V. Two readings are built:
@@ -89,6 +94,9 @@ public class TechKnightKit implements PowerKit, Listener {
     private int earthbreakerScalingCap = 10;
     private double earthbreakerKnockup = 0.8d;
     private double earthbreakerCooldown = 25.0d;
+
+    private boolean shieldBreakEnabled = true;
+    private double shieldBreakChance = 0.5d;
 
     public TechKnightKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -154,6 +162,12 @@ public class TechKnightKit implements PowerKit, Listener {
             earthbreakerScalingCap = Math.max(0, earthbreaker.getInt("scaling-cap", earthbreakerScalingCap));
             earthbreakerKnockup = earthbreaker.getDouble("knockup-power", earthbreakerKnockup);
             earthbreakerCooldown = earthbreaker.getDouble("cooldown-seconds", earthbreakerCooldown);
+        }
+
+        ConfigurationSection shieldBreak = section.getConfigurationSection("shield-break");
+        if (shieldBreak != null) {
+            shieldBreakEnabled = shieldBreak.getBoolean("enabled", true);
+            shieldBreakChance = shieldBreak.getDouble("chance", shieldBreakChance);
         }
 
         plugin.cooldowns().registerLabel(ABILITY_RESTOCK, "Restock");
@@ -265,6 +279,48 @@ public class TechKnightKit implements PowerKit, Listener {
         } else {
             Text.actionBar(killer, "<gray>Massacre: " + data.maceKills() + " kills</gray>");
         }
+    }
+
+    /**
+     * Passive, no cooldown: half the time, hitting a blocking player with the soulbound mace
+     * ignores the shield entirely -- same as an axe disabling a shield, except any weapon works
+     * here because it only triggers off <em>this specific mace</em>, not the weapon type. Only
+     * fires for TechKnightGaming himself, and only while his actual mace is in hand.
+     *
+     * <p>Shield blocking is resolved by the server before this event ever reaches a plugin, so the
+     * damage Bukkit hands us here is already reduced. There is no public API to recover the
+     * pre-block number, so on a trigger the mace's own attack-damage attribute is reapplied
+     * directly -- a full, unblocked hit in all but name -- and {@code clearActiveItem()} drops the
+     * target out of their block stance, which is what actually makes it read as "ignored" rather
+     * than just doing more damage while they are still visibly guarding.
+     */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onShieldBreak(EntityDamageByEntityEvent event) {
+        if (!shieldBreakEnabled) {
+            return;
+        }
+        if (!(event.getDamager() instanceof Player killer) || !plugin.kits().isOwner(killer, ID)) {
+            return;
+        }
+        if (!plugin.unlocks().isUnlocked(killer, Power.MACE_MASSACRE)) {
+            return;
+        }
+        if (!MaceItem.isSoulbound(killer.getInventory().getItemInMainHand())) {
+            return;
+        }
+        if (!(event.getEntity() instanceof Player victim) || !victim.isBlocking()) {
+            return;
+        }
+        if (ThreadLocalRandom.current().nextDouble() >= shieldBreakChance) {
+            return;
+        }
+
+        victim.clearActiveItem();
+        event.setDamage(Attributes.valueOf(killer, Attributes.ATTACK_DAMAGE, event.getDamage()));
+
+        victim.getWorld().playSound(victim.getLocation(), Sound.ITEM_SHIELD_BREAK, 1.0f, 0.8f);
+        Text.actionBar(killer, "<gold>Shield ignored.</gold>");
+        Text.actionBar(victim, "<red>Your shield did nothing.</red>");
     }
 
     private String describe(MaceItem.Levels levels) {
@@ -381,6 +437,9 @@ public class TechKnightKit implements PowerKit, Listener {
             return false;
         }
 
+        // Vanilla's own movement check does not know the leap is deliberate and will snap him back
+        // mid-air without this. Ends in slam(), which fires exactly when the leap's hang time ends.
+        com.powersmp.util.MovementExemption.begin(owner);
         owner.setVelocity(new Vector(0.0d, earthbreakerLeapPower, 0.0d));
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 0.6f);
@@ -390,6 +449,7 @@ public class TechKnightKit implements PowerKit, Listener {
     }
 
     private void slam(Player owner) {
+        com.powersmp.util.MovementExemption.end(owner);
         if (!owner.isOnline()) {
             return;
         }
@@ -404,6 +464,12 @@ public class TechKnightKit implements PowerKit, Listener {
             target.damage(damage, owner);
             Vector knockup = target.getVelocity();
             target.setVelocity(new Vector(knockup.getX(), Math.max(earthbreakerKnockup, knockup.getY()), knockup.getZ()));
+            // Only a player has a client whose movement report vanilla scrutinises.
+            if (target instanceof Player targetPlayer) {
+                com.powersmp.util.MovementExemption.begin(targetPlayer);
+                Bukkit.getScheduler().runTaskLater(plugin,
+                        () -> com.powersmp.util.MovementExemption.end(targetPlayer), 15L);
+            }
         }
 
         owner.getWorld().spawnParticle(Particle.EXPLOSION, owner.getLocation(),
