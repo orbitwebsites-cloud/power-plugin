@@ -15,9 +15,13 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -29,6 +33,7 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.util.Vector;
 
 /**
  * TechKnightGaming: Mace Massacre.
@@ -53,6 +58,7 @@ public class TechKnightKit implements PowerKit, Listener {
     private static final String ABILITY_RESTOCK = "restock";
     private static final String ABILITY_LOADOUT = "loadout";
     private static final String ABILITY_XP = "xp";
+    private static final String ABILITY_EARTHBREAKER = "earthbreaker";
 
     private final PowerSMP plugin;
     private final RestockMenu menu;
@@ -72,6 +78,16 @@ public class TechKnightKit implements PowerKit, Listener {
 
     private boolean xpFillInventory = true;
     private int xpMaxStacks = 36;
+
+    private double earthbreakerLeapPower = 1.3d;
+    private int earthbreakerDelayTicks = 12;
+    private double earthbreakerRadius = 5.0d;
+    private double earthbreakerRadiusPerLevel = 0.2d;
+    private double earthbreakerDamage = 6.0d;
+    private double earthbreakerDamagePerLevel = 0.4d;
+    private int earthbreakerScalingCap = 10;
+    private double earthbreakerKnockup = 0.8d;
+    private double earthbreakerCooldown = 25.0d;
 
     public TechKnightKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -126,9 +142,23 @@ public class TechKnightKit implements PowerKit, Listener {
             xpMaxStacks = Math.max(1, xp.getInt("max-stacks", xpMaxStacks));
         }
 
+        ConfigurationSection earthbreaker = section.getConfigurationSection("earthbreaker");
+        if (earthbreaker != null) {
+            earthbreakerLeapPower = earthbreaker.getDouble("leap-power", earthbreakerLeapPower);
+            earthbreakerDelayTicks = earthbreaker.getInt("delay-ticks", earthbreakerDelayTicks);
+            earthbreakerRadius = earthbreaker.getDouble("radius", earthbreakerRadius);
+            earthbreakerRadiusPerLevel = earthbreaker.getDouble("radius-per-level", earthbreakerRadiusPerLevel);
+            earthbreakerDamage = earthbreaker.getDouble("damage", earthbreakerDamage);
+            earthbreakerDamagePerLevel = earthbreaker.getDouble("damage-per-level", earthbreakerDamagePerLevel);
+            earthbreakerScalingCap = Math.max(0, earthbreaker.getInt("scaling-cap", earthbreakerScalingCap));
+            earthbreakerKnockup = earthbreaker.getDouble("knockup-power", earthbreakerKnockup);
+            earthbreakerCooldown = earthbreaker.getDouble("cooldown-seconds", earthbreakerCooldown);
+        }
+
         plugin.cooldowns().registerLabel(ABILITY_RESTOCK, "Restock");
         // Five hours is far longer than a server uptime; without this a restart is a free use.
         plugin.cooldowns().registerPersistent(ABILITY_RESTOCK);
+        plugin.cooldowns().registerLabel(ABILITY_EARTHBREAKER, "Earthbreaker");
     }
 
     /** Parses {@code "ENDER_PEARL:16"}. */
@@ -321,6 +351,62 @@ public class TechKnightKit implements PowerKit, Listener {
         }
     }
 
+    // ---- Earthbreaker -----------------------------------------------------
+
+    /**
+     * Leap, then slam. A fixed delay rather than watching for landing -- same call as the spear's
+     * lunge-then-stun -- keeps this simple and correct even if he leaps off a ledge or into water,
+     * where "have I landed yet" gets genuinely ambiguous.
+     *
+     * <p>Radius and damage scale with the same {@code maceKills} counter Density already rides, up to
+     * {@code scaling-cap}, so this grows alongside the rest of the kit instead of being a flat number
+     * bolted on next to it.
+     */
+    private boolean earthbreaker(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.EARTHBREAKER)) {
+            return plugin.unlocks().denyLocked(owner, Power.EARTHBREAKER);
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_EARTHBREAKER, earthbreakerCooldown)) {
+            return false;
+        }
+
+        owner.setVelocity(new Vector(0.0d, earthbreakerLeapPower, 0.0d));
+        owner.setFallDistance(0.0f);
+        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 0.6f);
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> slam(owner), earthbreakerDelayTicks);
+        return true;
+    }
+
+    private void slam(Player owner) {
+        if (!owner.isOnline()) {
+            return;
+        }
+        int level = Math.min(earthbreakerScalingCap, plugin.data().get(owner.getUniqueId()).maceKills());
+        double radius = earthbreakerRadius + level * earthbreakerRadiusPerLevel;
+        double damage = earthbreakerDamage + level * earthbreakerDamagePerLevel;
+
+        for (Entity nearby : owner.getNearbyEntities(radius, radius, radius)) {
+            if (nearby.equals(owner) || !(nearby instanceof LivingEntity target)) {
+                continue;
+            }
+            target.damage(damage, owner);
+            Vector knockup = target.getVelocity();
+            target.setVelocity(new Vector(knockup.getX(), Math.max(earthbreakerKnockup, knockup.getY()), knockup.getZ()));
+        }
+
+        owner.getWorld().spawnParticle(Particle.EXPLOSION, owner.getLocation(),
+                Math.max(1, (int) radius), 0.0, 0.0, 0.0, 0.0);
+        for (double angle = 0.0d; angle < 360.0d; angle += 15.0d) {
+            double radians = Math.toRadians(angle);
+            owner.getWorld().spawnParticle(Particle.CLOUD,
+                    owner.getLocation().add(Math.cos(radians) * radius, 0.1d, Math.sin(radians) * radius),
+                    1, 0.0, 0.0, 0.0, 0.0);
+        }
+        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.7f);
+        Text.actionBar(owner, "<gold><bold>EARTHBREAKER</bold></gold>");
+    }
+
     // ---- abilities ------------------------------------------------------
 
     @Override
@@ -331,7 +417,9 @@ public class TechKnightKit implements PowerKit, Listener {
                 new Ability(ABILITY_LOADOUT, "Restock Loadout",
                         "Choose what Restock gives you -- " + menu.slots() + " slots, anything you like."),
                 new Ability(ABILITY_XP, "XP Bottles",
-                        "Fill your inventory with experience bottles. No cooldown."));
+                        "Fill your inventory with experience bottles. No cooldown."),
+                new Ability(ABILITY_EARTHBREAKER, "Earthbreaker",
+                        "Leap up and slam down, damaging and launching everyone nearby."));
     }
 
     @Override
@@ -345,6 +433,7 @@ public class TechKnightKit implements PowerKit, Listener {
             case ABILITY_RESTOCK -> restock(owner);
             case ABILITY_LOADOUT -> openLoadout(owner);
             case ABILITY_XP -> xpBottles(owner);
+            case ABILITY_EARTHBREAKER -> earthbreaker(owner);
             default -> false;
         };
     }

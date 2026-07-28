@@ -26,6 +26,7 @@ import com.powersmp.kit.impl.SparkKit;
 import com.powersmp.kit.impl.TechKnightKit;
 import com.powersmp.kit.impl.VoidwalkerKit;
 import com.powersmp.kit.impl.XCriticKit;
+import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
 import com.powersmp.stance.StanceCommand;
 import com.powersmp.stance.StanceManager;
@@ -70,6 +71,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private StanceManager stances;
     private MushroomHungerService food;
     private IllusoryRealm realm;
+    private PowerMenu powerMenu;
 
     private MavriccKit mavricc;
     private NorthOfNowhereKit northOfNowhere;
@@ -108,6 +110,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         stances = new StanceManager(this);
         food = new MushroomHungerService(this);
         realm = new IllusoryRealm(this);
+        powerMenu = new PowerMenu(this);
 
         mavricc = new MavriccKit(this);
         northOfNowhere = new NorthOfNowhereKit(this);
@@ -150,6 +153,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(stances, this);
         Bukkit.getPluginManager().registerEvents(food, this);
         Bukkit.getPluginManager().registerEvents(realm, this);
+        Bukkit.getPluginManager().registerEvents(powerMenu, this);
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(northOfNowhere, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
@@ -379,5 +383,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     public IllusoryRealm realm() {
         return realm;
+    }
+
+    public PowerMenu powerMenu() {
+        return powerMenu;
     }
 }
