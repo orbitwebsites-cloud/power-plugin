@@ -13,8 +13,10 @@ import com.powersmp.util.Crits;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -33,11 +35,18 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerAdvancementDoneEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
 
 /**
  * Mavricc: stances, Mushroom Affinity, Mushroom Hunger, and the achievement-gated powers.
@@ -77,6 +86,8 @@ public class MavriccKit implements PowerKit, Listener {
     private int draconicMaceBreach = 4;
     private boolean draconicMaceUnbreakable = true;
     private boolean reissueDraconicMace = true;
+    /** Bound items pulled out of death drops (elytra, draconic mace), held until respawn. */
+    private final Map<UUID, List<ItemStack>> deathStash = new ConcurrentHashMap<>();
 
     public MavriccKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -320,6 +331,81 @@ public class MavriccKit implements PowerKit, Listener {
         ItemMeta meta = item.getItemMeta();
         return meta != null && meta.getPersistentDataContainer()
                 .has(Keys.BOUND_ELYTRA, PersistentDataType.BYTE);
+    }
+
+    private boolean isBound(ItemStack item) {
+        return isBoundElytra(item) || DraconicItems.isDraconicMace(item);
+    }
+
+    // ---- "can't be taken away, even if I die" ---------------------------
+    // Neither bound item (the elytra, the draconic mace) had drop/death/container guards -- only
+    // the reissue-on-join. That combination is how a duplicate happens: the original ends up on
+    // the ground or in a chest while ensureElytra()/grantDraconicMace(), seeing nothing bound in
+    // inventory, hand out a second one. Mirrors techknight's mace protection.
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (!plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        List<ItemStack> stashed = new ArrayList<>();
+        for (Iterator<ItemStack> it = event.getDrops().iterator(); it.hasNext(); ) {
+            ItemStack drop = it.next();
+            if (isBound(drop)) {
+                stashed.add(drop.clone());
+                it.remove();
+            }
+        }
+        if (!stashed.isEmpty()) {
+            deathStash.put(player.getUniqueId(), stashed);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        List<ItemStack> stashed = deathStash.remove(player.getUniqueId());
+        if (stashed == null || stashed.isEmpty()) {
+            return;
+        }
+        org.bukkit.Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
+            if (player.isOnline()) {
+                for (ItemStack item : stashed) {
+                    HashMap<Integer, ItemStack> leftover =
+                            new HashMap<>(player.getInventory().addItem(item));
+                    if (!leftover.isEmpty()) {
+                        player.getWorld().dropItemNaturally(player.getLocation(), item);
+                    }
+                }
+                Text.msg(player, "<gray>Your bound items came back with you.</gray>");
+            }
+        });
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (isBound(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+            Text.actionBar(event.getPlayer(), "<red>That will not leave you.</red>");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getType() == InventoryType.CRAFTING) {
+            return;
+        }
+        if (isBound(event.getCurrentItem()) || isBound(event.getCursor())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getInventory().getType() != InventoryType.CRAFTING && isBound(event.getOldCursor())) {
+            event.setCancelled(true);
+        }
     }
 
     // ---- advancement-gated powers ---------------------------------------

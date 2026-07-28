@@ -320,6 +320,10 @@ xcr1t1cx:
     hit-cooldown-seconds: 60
     # Trident's own throwing is disabled so it stays a melee spear.
     disable-throw: true
+    # Player kills only -- was always true with no toggle before, so mob kills silently
+    # upgraded Lunge tiers. Matches techknight's mace.
+    count-player-kills: true
+    count-mob-kills: false
 
 # =====================================================================
 # ItzMeTentx -- water kit
@@ -458,7 +462,7 @@ night_scar3:
     charges: 3
     power: 1.5                     # ASSUMED
     recharge-seconds: 10           # ASSUMED -- charges return one at a time
-    wind-burst-level: 3            # "gives me (Wind Burst)" -- on the mace
+    wind-burst-level: 1            # "gives me (Wind Burst)" -- on the mace
 
   # HIGH TIER
   mace:
@@ -468,6 +472,10 @@ night_scar3:
     health-per-kill-after-max: 2.0
     max-bonus-health: 40.0         # ASSUMED cap, 20 extra hearts
     unbreakable: true
+    # Player kills only -- was always true with no toggle before, so mob kills silently
+    # raised density. Matches techknight's mace.
+    count-player-kills: true
+    count-mob-kills: false
 
 # =====================================================================
 # Marb13_ -- Miner's Haven / Ender Magic / Portal and Shadow Master

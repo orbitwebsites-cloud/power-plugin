@@ -10,6 +10,7 @@ import com.powersmp.progression.Power;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -26,8 +27,15 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
+import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
@@ -72,6 +80,10 @@ public class XCriticKit implements PowerKit, Listener {
     private final Map<Integer, Integer> spearUpgradeKills = new HashMap<>();
     private double spearHitCooldown = 8.0d;
     private boolean disableThrow = true;
+    private boolean countPlayerKills = true;
+    private boolean countMobKills = true;
+    /** Spears pulled out of death drops, held until the owner respawns. */
+    private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
 
     public XCriticKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -138,6 +150,10 @@ public class XCriticKit implements PowerKit, Listener {
             }
             spearHitCooldown = spear.getDouble("hit-cooldown-seconds", spearHitCooldown);
             disableThrow = spear.getBoolean("disable-throw", true);
+            countPlayerKills = spear.getBoolean("count-player-kills", true);
+            // Was always true with no way to turn it off -- mob kills were silently upgrading
+            // Lunge tiers. Defaults to false now.
+            countMobKills = spear.getBoolean("count-mob-kills", false);
         }
 
         plugin.cooldowns().registerLabel(COOLDOWN_KA_CHOW, "Ka-Chow");
@@ -302,6 +318,10 @@ public class XCriticKit implements PowerKit, Listener {
         if (!SpearItem.isSpear(weapon)) {
             return;
         }
+        boolean victimIsPlayer = event.getEntity() instanceof Player;
+        if (victimIsPlayer ? !countPlayerKills : !countMobKills) {
+            return;
+        }
         PlayerData data = plugin.data().get(killer.getUniqueId());
         data.spearKills(data.spearKills() + 1);
         plugin.data().markDirty();
@@ -322,6 +342,90 @@ public class XCriticKit implements PowerKit, Listener {
             Text.msg(killer, "<gold>Your spear sharpens: <white>Lunge "
                     + SpearItem.numeral(upgraded) + "</white>.");
             killer.playSound(killer.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.4f);
+        }
+    }
+
+    // ---- "can't be taken away, even if I die" ---------------------------
+    // The spear previously had no reissue-on-join at all, unlike every other bound item in this
+    // plugin -- if it was ever lost, xCR1T1Cx simply had no way to get it back. It also had none
+    // of techknight's mace's drop/death/container guards, which is how a duplicate happens: the
+    // original ends up on the ground or in a chest while something else hands out a second one.
+
+    @Override
+    public void onJoin(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.SPEAR_MASTER)) {
+            return;
+        }
+        for (ItemStack item : owner.getInventory().getContents()) {
+            if (SpearItem.isSpear(item)) {
+                return;
+            }
+        }
+        PlayerData data = plugin.data().get(owner.getUniqueId());
+        ItemStack spear = SpearItem.create(owner.getUniqueId(), data.spearTier());
+        Map<Integer, ItemStack> leftover = owner.getInventory().addItem(spear);
+        if (!leftover.isEmpty()) {
+            owner.getWorld().dropItemNaturally(owner.getLocation(), spear);
+            Text.msg(owner, "<yellow>Your spear was dropped at your feet -- your inventory is full.");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (!plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        for (Iterator<ItemStack> it = event.getDrops().iterator(); it.hasNext(); ) {
+            ItemStack drop = it.next();
+            if (SpearItem.isSpear(drop)) {
+                deathStash.put(player.getUniqueId(), drop.clone());
+                it.remove();
+                break;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        ItemStack stashed = deathStash.remove(player.getUniqueId());
+        if (stashed == null) {
+            return;
+        }
+        Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
+            if (player.isOnline()) {
+                HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
+                if (!leftover.isEmpty()) {
+                    player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+                }
+                Text.msg(player, "<gray>Your spear came back with you.</gray>");
+            }
+        });
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onDrop(PlayerDropItemEvent event) {
+        if (SpearItem.isSpear(event.getItemDrop().getItemStack())) {
+            event.setCancelled(true);
+            Text.actionBar(event.getPlayer(), "<red>Your spear will not leave you.</red>");
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getType() == InventoryType.CRAFTING) {
+            return;
+        }
+        if (SpearItem.isSpear(event.getCurrentItem()) || SpearItem.isSpear(event.getCursor())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getInventory().getType() != InventoryType.CRAFTING && SpearItem.isSpear(event.getOldCursor())) {
+            event.setCancelled(true);
         }
     }
 
