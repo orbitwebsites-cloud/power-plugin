@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
@@ -28,9 +29,11 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 /**
@@ -53,8 +56,10 @@ public class DomanKit implements PowerKit, Listener {
     private static final String COOLDOWN_PULL = "web_pull";
 
     private final PowerSMP plugin;
-    /** Climb progress, reset when he leaves the wall, so a climb cannot exceed its limit. */
-    private final Map<UUID, Integer> climbed = new ConcurrentHashMap<>();
+    /** Y at which the current unbroken climb started, so climb-limit-blocks means what it says. */
+    private final Map<UUID, Double> climbStartY = new ConcurrentHashMap<>();
+    /** In-flight grapple pulls, so re-firing retargets instead of stacking pulls on top of each other. */
+    private final Map<UUID, BukkitTask> activeGrapples = new ConcurrentHashMap<>();
 
     // Low tier
     private int resistanceAmplifier;
@@ -65,12 +70,15 @@ public class DomanKit implements PowerKit, Listener {
     private double webRange = 20.0d;
     private double webStrikeCooldown = 60.0d;
     private int climbLimit = 10;
+    private double climbSpeed = 0.2d;
     // High tier
     private double grappleRange = 20.0d;
     private double grapplePower = 1.4d;
+    private int grapplePulseTicks = 40;
     private double pullRange = 15.0d;
     private double pullCooldown = 10.0d;
     private double pullPower = 1.2d;
+    private int pullPulseTicks = 8;
 
     public DomanKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -100,14 +108,17 @@ public class DomanKit implements PowerKit, Listener {
                 webRange = web.getDouble("range", webRange);
                 webStrikeCooldown = web.getDouble("cooldown-seconds", webStrikeCooldown);
                 climbLimit = web.getInt("climb-limit-blocks", climbLimit);
+                climbSpeed = web.getDouble("climb-speed", climbSpeed);
             }
             ConfigurationSection shooter = section.getConfigurationSection("web-shooter");
             if (shooter != null) {
                 grappleRange = shooter.getDouble("grapple-range", grappleRange);
                 grapplePower = shooter.getDouble("grapple-power", grapplePower);
+                grapplePulseTicks = shooter.getInt("grapple-pulse-ticks", grapplePulseTicks);
                 pullRange = shooter.getDouble("pull-range", pullRange);
                 pullCooldown = shooter.getDouble("pull-cooldown-seconds", pullCooldown);
                 pullPower = shooter.getDouble("pull-power", pullPower);
+                pullPulseTicks = shooter.getInt("pull-pulse-ticks", pullPulseTicks);
             }
         }
         plugin.cooldowns().registerLabel(ABILITY_WEB_STRIKE, "Web Strike");
@@ -124,10 +135,6 @@ public class DomanKit implements PowerKit, Listener {
         Effects.refresh(owner, org.bukkit.potion.PotionEffectType.RESISTANCE, resistanceAmplifier);
         // WEAVING is the 1.21 effect that lets you move through cobwebs unhindered.
         Effects.refresh(owner, org.bukkit.potion.PotionEffectType.WEAVING, weavingAmplifier);
-
-        if (plugin.unlocks().isUnlocked(owner, Power.WEB_STRIKE)) {
-            climb(owner);
-        }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -142,19 +149,32 @@ public class DomanKit implements PowerKit, Listener {
         }
     }
 
-    /** Wall climbing: hold sneak against a solid block to scale it, up to the limit per climb. */
-    private void climb(Player owner) {
+    /**
+     * Wall climbing: hold sneak against a solid block to scale it, up to {@code climb-limit-blocks}
+     * of net height per unbroken climb.
+     *
+     * <p>This has to run on every {@link PlayerMoveEvent}, not the shared once-a-second kit tick --
+     * a single small velocity nudge applied once a second gets eaten by gravity before the next one
+     * lands, which is why this used to feel like it barely worked at all. A ladder-style constant
+     * upward velocity, reapplied every tick the conditions hold, is what actually scales a wall.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onMove(PlayerMoveEvent event) {
+        Player owner = event.getPlayer();
+        if (!plugin.kits().isOwner(owner, ID) || !plugin.unlocks().isUnlocked(owner, Power.WEB_STRIKE)) {
+            return;
+        }
         UUID id = owner.getUniqueId();
         if (!owner.isSneaking() || !againstWall(owner)) {
-            climbed.remove(id);
+            climbStartY.remove(id);
             return;
         }
-        int done = climbed.getOrDefault(id, 0);
-        if (done >= climbLimit) {
+        double startY = climbStartY.computeIfAbsent(id, k -> owner.getLocation().getY());
+        if (owner.getLocation().getY() - startY >= climbLimit) {
             return;
         }
-        climbed.put(id, done + 1);
-        owner.setVelocity(owner.getVelocity().setY(0.35d));
+        Vector velocity = owner.getVelocity();
+        owner.setVelocity(new Vector(velocity.getX(), climbSpeed, velocity.getZ()));
         owner.setFallDistance(0.0f);
     }
 
@@ -322,44 +342,103 @@ public class DomanKit implements PowerKit, Listener {
         }
     }
 
-    /** No cooldown, per the spec -- the range limit is the only constraint. */
+    /**
+     * No cooldown, per the spec -- the range limit is the only constraint.
+     *
+     * <p>A single one-off velocity impulse cannot reliably cross 20 blocks -- gravity eats most of
+     * it before it gets there, which read as "the range is really about 3 blocks" even though the
+     * target-finding itself was working out to the full range. Pulling every tick toward a fixed
+     * anchor, like an actual hookshot, is what makes the full range usable, and it comes with a
+     * visible line for free since the anchor point is already being recomputed every tick anyway.
+     */
     private void grapple(Player owner) {
         Block target = owner.getTargetBlockExact((int) grappleRange);
         if (target == null) {
+            Text.actionBar(owner, "<gray>Nothing in range to grapple to.</gray>");
             return;
         }
-        Vector to = target.getLocation().toVector().subtract(owner.getLocation().toVector());
-        double distance = Math.sqrt(to.lengthSquared());
-        if (distance < 1.0e-4) {
-            return;
+        Location anchor = target.getLocation().add(0.5d, 0.5d, 0.5d);
+
+        BukkitTask previous = activeGrapples.remove(owner.getUniqueId());
+        if (previous != null) {
+            previous.cancel();
         }
-        Vector launch = to.normalize().multiply(grapplePower * Math.min(3.0d, 1.0d + distance / 8.0d));
-        launch.setY(Math.max(0.4d, launch.getY()));
-        owner.setVelocity(launch);
-        owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 1.4f);
+
+        int[] elapsed = {0};
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer(plugin, self -> {
+            if (elapsed[0]++ >= grapplePulseTicks || !owner.isOnline()) {
+                self.cancel();
+                activeGrapples.remove(owner.getUniqueId());
+                return;
+            }
+            Location from = owner.getEyeLocation();
+            Vector to = anchor.toVector().subtract(from.toVector());
+            double distance = to.length();
+            drawLine(from, anchor, Particle.SMOKE);
+            if (distance < 1.5d) {
+                self.cancel();
+                activeGrapples.remove(owner.getUniqueId());
+                return;
+            }
+            owner.setVelocity(to.normalize().multiply(grapplePower));
+            owner.setFallDistance(0.0f);
+        }, 0L, 1L);
+        activeGrapples.put(owner.getUniqueId(), task);
     }
 
+    /** Same pulsed-pull fix as {@link #grapple}: one packet is too easy for friction to cancel out. */
     private void reelIn(Player owner) {
+        List<Player> caught = new ArrayList<>();
+        for (Entity entity : owner.getNearbyEntities(pullRange, pullRange, pullRange)) {
+            if (entity instanceof Player target && !target.equals(owner)) {
+                caught.add(target);
+            }
+        }
+        if (caught.isEmpty()) {
+            Text.actionBar(owner, "<gray>Nobody in range to reel in.</gray>");
+            return;
+        }
         if (!plugin.cooldowns().tryUse(owner, COOLDOWN_PULL, pullCooldown)) {
             return;
         }
-        int pulled = 0;
-        for (Entity entity : owner.getNearbyEntities(pullRange, pullRange, pullRange)) {
-            if (!(entity instanceof Player target) || target.equals(owner)) {
-                continue;
-            }
-            Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
-            if (to.lengthSquared() < 1.0e-4) {
-                continue;
-            }
-            Vector pull = to.normalize().multiply(pullPower);
-            pull.setY(Math.max(0.3d, pull.getY()));
-            target.setVelocity(pull);
-            pulled++;
-        }
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1.0f, 0.8f);
-        Text.actionBar(owner, "<gray>Reeled in " + pulled + " player(s)</gray>");
+        Text.actionBar(owner, "<gray>Reeling in " + caught.size() + " player(s)</gray>");
+
+        int[] elapsed = {0};
+        Bukkit.getScheduler().runTaskTimer(plugin, self -> {
+            if (elapsed[0]++ >= pullPulseTicks || !owner.isOnline()) {
+                self.cancel();
+                return;
+            }
+            for (Player target : caught) {
+                if (!target.isOnline() || target.isDead()) {
+                    continue;
+                }
+                Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
+                if (to.lengthSquared() < 1.0d) {
+                    continue;
+                }
+                drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
+                Vector pull = to.normalize().multiply(pullPower);
+                pull.setY(Math.max(0.3d, pull.getY()));
+                target.setVelocity(pull);
+            }
+        }, 0L, 1L);
+    }
+
+    /** Traces a thin line of particles between two points -- the visible "web line" on a grapple. */
+    private void drawLine(Location from, Location to, Particle particle) {
+        Vector direction = to.toVector().subtract(from.toVector());
+        double length = direction.length();
+        if (length < 1.0e-4 || from.getWorld() == null) {
+            return;
+        }
+        direction.normalize();
+        for (double d = 0.0d; d <= length; d += 0.5d) {
+            Location point = from.clone().add(direction.clone().multiply(d));
+            from.getWorld().spawnParticle(particle, point, 1, 0.0, 0.0, 0.0, 0.0);
+        }
     }
 
     // ---- abilities ------------------------------------------------------
@@ -395,6 +474,10 @@ public class DomanKit implements PowerKit, Listener {
 
     @Override
     public void onQuit(Player owner) {
-        climbed.remove(owner.getUniqueId());
+        climbStartY.remove(owner.getUniqueId());
+        BukkitTask task = activeGrapples.remove(owner.getUniqueId());
+        if (task != null) {
+            task.cancel();
+        }
     }
 }

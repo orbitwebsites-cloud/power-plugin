@@ -397,16 +397,24 @@ domanthegamer:
     range: 20.0                    # ASSUMED -- no range was given
     cooldown-seconds: 60           # ASSUMED -- no cooldown was given
     climb-limit-blocks: 10
+    # How fast he ascends per tick while climbing, vanilla-ladder-ish. Applied every
+    # tick while sneaking against a wall -- see DomanKit#onMove for why this can't
+    # be a once-a-second nudge (it used to be, and it read as "climbing does nothing").
+    climb-speed: 0.2               # ASSUMED
 
   # HIGH TIER
   web-shooter:
-    # Left click. No cooldown, per his form.
+    # Left click. No cooldown, per his form. Pulls every tick toward the aimed block
+    # rather than a single launch -- a one-shot impulse cannot reliably cross 20
+    # blocks against gravity, which is why the range used to feel like ~3 blocks.
     grapple-range: 20.0
     grapple-power: 1.4             # ASSUMED
+    grapple-pulse-ticks: 40        # ASSUMED -- 2s is enough to cross the full range
     # Right click.
     pull-range: 15.0
     pull-cooldown-seconds: 10
     pull-power: 1.2                # ASSUMED
+    pull-pulse-ticks: 8            # ASSUMED -- repeats the pull so ground friction can't eat it
 
 # =====================================================================
 # Sparkkkkkkkk -- The Atom
