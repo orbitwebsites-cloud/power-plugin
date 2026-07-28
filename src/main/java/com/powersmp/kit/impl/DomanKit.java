@@ -5,9 +5,12 @@ import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Effects;
+import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -27,12 +30,18 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
@@ -61,22 +70,31 @@ public class DomanKit implements PowerKit, Listener {
     private final Map<UUID, Double> climbStartY = new ConcurrentHashMap<>();
     /** In-flight grapple pulls, so re-firing retargets instead of stacking pulls on top of each other. */
     private final Map<UUID, BukkitTask> activeGrapples = new ConcurrentHashMap<>();
+    /** Web shooters pulled out of death drops, held until the owner respawns. */
+    private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
 
     // Low tier
     private int resistanceAmplifier;
-    private int weavingAmplifier = 9;
     private boolean noFallDamage = true;
+    /**
+     * Cobweb slow is friction applied every tick a hitbox overlaps a cobweb block -- there is no
+     * potion effect or attribute that removes it (WEAVING does not; it is the Bogged debuff that
+     * spawns cobwebs around whoever it hits, the opposite of what was wanted, and was actively
+     * harmful when self-applied). The only way to cancel friction the server already applied is to
+     * push back against it, every tick, for as long as the block underneath is still a cobweb.
+     */
+    private double webImmunityVelocityMultiplier = 5.0d;
     // Mid tier
     private int webDurationSeconds = 60;
-    private double webRange = 20.0d;
+    private double webRange = 32.0d;
     private double webStrikeCooldown = 60.0d;
-    private int climbLimit = 10;
+    private int climbLimit = 20;
     private double climbSpeed = 0.2d;
     // High tier
-    private double grappleRange = 20.0d;
+    private double grappleRange = 32.0d;
     private double grapplePower = 1.4d;
     private int grapplePulseTicks = 40;
-    private double pullRange = 15.0d;
+    private double pullRange = 24.0d;
     private double pullCooldown = 10.0d;
     private double pullPower = 1.2d;
     private int pullPulseTicks = 8;
@@ -100,7 +118,8 @@ public class DomanKit implements PowerKit, Listener {
             ConfigurationSection passive = section.getConfigurationSection("spider-passive");
             if (passive != null) {
                 resistanceAmplifier = passive.getInt("resistance-amplifier", 0);
-                weavingAmplifier = passive.getInt("weaving-amplifier", 9);
+                webImmunityVelocityMultiplier =
+                        passive.getDouble("web-immunity-velocity-multiplier", webImmunityVelocityMultiplier);
                 noFallDamage = passive.getBoolean("no-fall-damage", true);
             }
             ConfigurationSection web = section.getConfigurationSection("web-strike");
@@ -134,8 +153,6 @@ public class DomanKit implements PowerKit, Listener {
             return;
         }
         Effects.refresh(owner, org.bukkit.potion.PotionEffectType.RESISTANCE, resistanceAmplifier);
-        // WEAVING is the 1.21 effect that lets you move through cobwebs unhindered.
-        Effects.refresh(owner, org.bukkit.potion.PotionEffectType.WEAVING, weavingAmplifier);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -162,7 +179,13 @@ public class DomanKit implements PowerKit, Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event) {
         Player owner = event.getPlayer();
-        if (!plugin.kits().isOwner(owner, ID) || !plugin.unlocks().isUnlocked(owner, Power.WEB_STRIKE)) {
+        if (!plugin.kits().isOwner(owner, ID)) {
+            return;
+        }
+        if (plugin.unlocks().isUnlocked(owner, Power.SPIDER_PASSIVE)) {
+            cancelWebSlow(owner);
+        }
+        if (!plugin.unlocks().isUnlocked(owner, Power.WEB_STRIKE)) {
             return;
         }
         UUID id = owner.getUniqueId();
@@ -189,6 +212,20 @@ public class DomanKit implements PowerKit, Listener {
             }
         }
         return false;
+    }
+
+    /**
+     * Pushes back against whatever cobweb friction the server just applied. Checks feet and head so
+     * a cobweb anywhere in the hitbox counts, not only the block exactly at the player's feet.
+     */
+    private void cancelWebSlow(Player owner) {
+        Location at = owner.getLocation();
+        boolean inWeb = at.getBlock().getType() == Material.COBWEB
+                || at.clone().add(0, 1, 0).getBlock().getType() == Material.COBWEB;
+        if (!inWeb) {
+            return;
+        }
+        owner.setVelocity(owner.getVelocity().multiply(webImmunityVelocityMultiplier));
     }
 
     // ---- mid tier: Web Strike -------------------------------------------
@@ -236,6 +273,7 @@ public class DomanKit implements PowerKit, Listener {
         }, webDurationSeconds * 20L);
 
         target.getWorld().playSound(target.getLocation(), Sound.BLOCK_WOOL_PLACE, 1.0f, 0.7f);
+        target.getWorld().spawnParticle(Particle.ITEM_COBWEB, target.getLocation().add(0, 1, 0), 40, 0.6, 0.6, 0.6, 0.05);
         Text.msg(owner, "<gray>Web Strike</gray> <dark_gray>--</dark_gray> <white>"
                 + Text.plain(target.getName()) + "</white> <gray>webbed for " + webDurationSeconds + "s.</gray>");
         Text.msg(target, "<gray>You are caught in webs.</gray>");
@@ -277,6 +315,7 @@ public class DomanKit implements PowerKit, Listener {
                     Text.mm("<dark_gray>Bound -- kept on death.</dark_gray>")));
             meta.setUnbreakable(true);
             meta.getPersistentDataContainer().set(Keys.WEB_SHOOTER, PersistentDataType.BYTE, (byte) 1);
+            Enchants.applyVanishing(meta);
             gun.setItemMeta(meta);
         }
         return gun;
@@ -320,6 +359,68 @@ public class DomanKit implements PowerKit, Listener {
         if (isShooter(event.getItemDrop().getItemStack())) {
             event.setCancelled(true);
             Text.actionBar(event.getPlayer(), "<red>The web shooter stays with you.</red>");
+        }
+    }
+
+    // ---- "kept on death", for real this time ----------------------------
+    // The lore already claimed this, but only onDrop existed -- death and chest storage were
+    // both unprotected, so the shooter dropped on death like any other item and ensureShooter()
+    // would then hand out a second one on rejoin. Mirrors techknight's mace.
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        if (!plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        for (Iterator<ItemStack> it = event.getDrops().iterator(); it.hasNext(); ) {
+            ItemStack drop = it.next();
+            if (isShooter(drop)) {
+                deathStash.put(player.getUniqueId(), drop.clone());
+                it.remove();
+                break;
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onRespawn(PlayerRespawnEvent event) {
+        Player player = event.getPlayer();
+        ItemStack stashed = deathStash.remove(player.getUniqueId());
+        // Curse of Vanishing means there is usually nothing to restore -- ensureShooter() is the
+        // fallback that actually hands it back in that case.
+        Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
+            if (!player.isOnline()) {
+                return;
+            }
+            if (stashed == null) {
+                if (plugin.unlocks().isUnlocked(player, Power.WEB_SHOOTER)) {
+                    ensureShooter(player);
+                }
+                return;
+            }
+            HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
+            if (!leftover.isEmpty()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+            }
+            Text.msg(player, "<gray>Your web shooter came back with you.</gray>");
+        });
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (event.getInventory().getType() == InventoryType.CRAFTING) {
+            return;
+        }
+        if (isShooter(event.getCurrentItem()) || isShooter(event.getCursor())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (event.getInventory().getType() != InventoryType.CRAFTING && isShooter(event.getOldCursor())) {
+            event.setCancelled(true);
         }
     }
 
@@ -406,23 +507,24 @@ public class DomanKit implements PowerKit, Listener {
         activeGrapples.put(owner.getUniqueId(), task);
     }
 
-    /** Same pulsed-pull fix as {@link #grapple}: one packet is too easy for friction to cancel out. */
+    /**
+     * Same pulsed-pull fix as {@link #grapple}: one packet is too easy for friction to cancel out.
+     *
+     * <p>Previously grabbed <em>every</em> player in {@code pullRange}, which is not "click on the
+     * player" at all -- it pulled bystanders through walls and gave no way to choose a target. Now
+     * uses the same crosshair lock {@link #nearestLookedAt} already gives the grapple.
+     */
     private void reelIn(Player owner) {
-        List<Player> caught = new ArrayList<>();
-        for (Entity entity : owner.getNearbyEntities(pullRange, pullRange, pullRange)) {
-            if (entity instanceof Player target && !target.equals(owner)) {
-                caught.add(target);
-            }
-        }
-        if (caught.isEmpty()) {
-            Text.actionBar(owner, "<gray>Nobody in range to reel in.</gray>");
+        Player target = nearestLookedAt(owner, pullRange);
+        if (target == null) {
+            Text.actionBar(owner, "<gray>No player in your sights to reel in.</gray>");
             return;
         }
         if (!plugin.cooldowns().tryUse(owner, COOLDOWN_PULL, pullCooldown)) {
             return;
         }
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1.0f, 0.8f);
-        Text.actionBar(owner, "<gray>Reeling in " + caught.size() + " player(s)</gray>");
+        Text.actionBar(owner, "<gray>Reeling in " + Text.plain(target.getName()) + "</gray>");
 
         int[] elapsed = {0};
         Bukkit.getScheduler().runTaskTimer(plugin, self -> {
@@ -430,19 +532,19 @@ public class DomanKit implements PowerKit, Listener {
                 self.cancel();
                 return;
             }
-            for (Player target : caught) {
-                if (!target.isOnline() || target.isDead()) {
-                    continue;
-                }
-                Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
-                if (to.lengthSquared() < 1.0d) {
-                    continue;
-                }
-                drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
-                Vector pull = to.normalize().multiply(pullPower);
-                pull.setY(Math.max(0.3d, pull.getY()));
-                target.setVelocity(pull);
+            if (!target.isOnline() || target.isDead()) {
+                self.cancel();
+                return;
             }
+            Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
+            if (to.lengthSquared() < 1.0d) {
+                self.cancel();
+                return;
+            }
+            drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
+            Vector pull = to.normalize().multiply(pullPower);
+            pull.setY(Math.max(0.3d, pull.getY()));
+            target.setVelocity(pull);
         }, 0L, 1L);
     }
 

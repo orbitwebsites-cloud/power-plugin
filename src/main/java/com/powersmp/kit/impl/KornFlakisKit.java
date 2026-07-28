@@ -10,6 +10,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -113,6 +114,10 @@ public class KornFlakisKit implements PowerKit, Listener {
 
         pendingExecutions.put(target.getUniqueId(), owner.getUniqueId());
         target.getWorld().playSound(target.getLocation(), Sound.ENTITY_WITHER_SPAWN, 1.0f, 0.6f);
+        // A week-long cooldown earns the biggest telegraph in the plugin.
+        target.getWorld().spawnParticle(Particle.SOUL, target.getLocation().add(0, 1, 0), 80, 0.5, 1.2, 0.5, 0.05);
+        target.getWorld().spawnParticle(Particle.SCULK_SOUL, target.getLocation(), 40, 0.6, 0.2, 0.6, 0.02);
+        target.getWorld().spawnParticle(Particle.EXPLOSION, target.getLocation().add(0, 1, 0), 1);
 
         if (bypassProtections) {
             // What vanilla /kill does: straight to zero, through armour, Resistance and totems.

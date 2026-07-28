@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.configuration.ConfigurationSection;
@@ -168,7 +169,9 @@ public class SparkKit implements PowerKit, Listener {
         if (where.getWorld() == null) {
             return;
         }
+        where.getWorld().spawnParticle(Particle.FLASH, where, 1);
         where.getWorld().createExplosion(where, power, fire, breakBlocks, owner);
         where.getWorld().playSound(where, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.8f);
+        where.getWorld().spawnParticle(Particle.LARGE_SMOKE, where, 60, power, power, power, 0.05);
     }
 }

@@ -16,6 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -231,6 +232,7 @@ public class TechKnightKit implements PowerKit, Listener {
         if (!was.equals(now)) {
             Text.msg(killer, "<gold>Massacre</gold> <gray>-- " + describe(now) + "</gray>");
             killer.playSound(killer.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.5f);
+            killer.getWorld().spawnParticle(Particle.CRIT, killer.getLocation().add(0, 1, 0), 25, 0.3, 0.3, 0.3, 0.25);
         } else {
             Text.actionBar(killer, "<gray>Massacre: " + data.maceKills() + " kills</gray>");
         }
@@ -282,18 +284,25 @@ public class TechKnightKit implements PowerKit, Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         ItemStack stashed = deathStash.remove(player.getUniqueId());
-        if (stashed == null) {
-            return;
-        }
-        // Respawn inventory is not populated until after this event resolves.
+        // Curse of Vanishing means the mace usually never reaches getDrops() in the first place --
+        // there is nothing in the stash to restore -- so ensureMace() is the fallback that actually
+        // hands it back in that case. Respawn inventory is not populated until after this event
+        // resolves, so both paths wait a tick.
         org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
-            if (player.isOnline()) {
-                Map<Integer, ItemStack> leftover = player.getInventory().addItem(stashed);
-                if (!leftover.isEmpty()) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), stashed);
-                }
-                Text.msg(player, "<gray>Your mace came back with you.</gray>");
+            if (!player.isOnline()) {
+                return;
             }
+            if (stashed == null) {
+                if (plugin.unlocks().isUnlocked(player, Power.MACE_MASSACRE)) {
+                    ensureMace(player);
+                }
+                return;
+            }
+            Map<Integer, ItemStack> leftover = player.getInventory().addItem(stashed);
+            if (!leftover.isEmpty()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+            }
+            Text.msg(player, "<gray>Your mace came back with you.</gray>");
         });
     }
 
@@ -387,6 +396,7 @@ public class TechKnightKit implements PowerKit, Listener {
             }
         }
         owner.playSound(owner.getLocation(), Sound.BLOCK_ENDER_CHEST_OPEN, 1.0f, 1.2f);
+        owner.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, owner.getLocation().add(0, 1, 0), 15, 0.5, 0.5, 0.5, 0.0);
         Text.msg(owner, "<green>Restocked</green> <gray>-- " + delivered + " item type(s)"
                 + (dropped > 0 ? ", " + dropped + " dropped at your feet (full inventory)" : "") + ".</gray>");
         return true;
@@ -417,6 +427,7 @@ public class TechKnightKit implements PowerKit, Listener {
             return false;
         }
         owner.playSound(owner.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
+        owner.getWorld().spawnParticle(Particle.ENCHANT, owner.getLocation().add(0, 1, 0), 40, 0.6, 0.6, 0.6, 1.0);
         Text.msg(owner, "<green>+" + stacks + "</green> <gray>stack(s) of experience bottles.</gray>");
         return true;
     }

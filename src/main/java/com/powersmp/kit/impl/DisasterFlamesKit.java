@@ -8,6 +8,7 @@ import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.List;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -94,6 +95,7 @@ public class DisasterFlamesKit implements PowerKit, Listener {
         }
         owner.getInventory().addItem(new ItemStack(Material.COOKIE, cookieStackSize));
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_PLAYER_BURP, 0.7f, 1.2f);
+        owner.getWorld().spawnParticle(Particle.HAPPY_VILLAGER, owner.getLocation().add(0, 1, 0), 10, 0.4, 0.4, 0.4, 0.0);
         Text.actionBar(owner, "<gold>+" + cookieStackSize + " cookies</gold>");
         return true;
     }

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.Orientable;
@@ -190,6 +191,8 @@ public class MarbKit implements PowerKit, Listener {
             }
         }
         owner.getWorld().playSound(owner.getLocation(), Sound.BLOCK_PORTAL_TRIGGER, 0.6f, 1.4f);
+        owner.getWorld().spawnParticle(Particle.PORTAL, owner.getLocation().add(0, 1.5, 0), 100, 1.0, 1.5, 1.0, 1.0);
+        owner.getWorld().spawnParticle(Particle.REVERSE_PORTAL, owner.getLocation().add(0, 1, 0), 60, 0.8, 1.2, 0.8, 0.5);
         Text.msg(owner, "<dark_purple>Portal opened</dark_purple> <gray>(" + placed
                 + " blocks placed).</gray>");
         return true;
@@ -236,6 +239,7 @@ public class MarbKit implements PowerKit, Listener {
             owner.getWorld().dropItemNaturally(owner.getLocation(), shadow);
         }
         owner.playSound(owner.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 0.6f);
+        owner.getWorld().spawnParticle(Particle.SMOKE, owner.getLocation().add(0, 1, 0), 30, 0.3, 0.5, 0.3, 0.02);
         Text.msg(owner, "<dark_gray>A shadow forms.</dark_gray> <gray>It fades in "
                 + shadowSeconds + "s.</gray>");
         return true;

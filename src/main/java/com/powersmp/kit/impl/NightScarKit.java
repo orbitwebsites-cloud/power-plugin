@@ -19,6 +19,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -167,6 +168,8 @@ public class NightScarKit implements PowerKit, Listener {
         owner.setVelocity(direction);
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_BREEZE_WIND_BURST, 1.0f, 1.2f);
+        owner.getWorld().spawnParticle(Particle.CLOUD, owner.getLocation(), 25, 0.3, 0.3, 0.3, 0.08);
+        owner.getWorld().spawnParticle(Particle.GUST, owner.getLocation(), 1);
         Text.actionBar(owner, "<aqua>Dash</aqua> <gray>(" + (dashCharges - used - 1) + "/"
                 + dashCharges + " left)</gray>");
         return true;
@@ -190,6 +193,7 @@ public class NightScarKit implements PowerKit, Listener {
                     Text.mm("<gray>Density " + density + " / " + maxDensity + "</gray>"),
                     Text.mm("<dark_gray>Kills past the cap become hearts.</dark_gray>")));
             meta.getPersistentDataContainer().set(Keys.SCAR_MACE, PersistentDataType.INTEGER, density);
+            Enchants.applyVanishing(meta);
             mace.setItemMeta(meta);
         }
         return mace;
@@ -265,12 +269,14 @@ public class NightScarKit implements PowerKit, Listener {
             Text.msg(killer, "<dark_aqua>Density " + Math.min(maxDensity, before + 1)
                     + "</dark_aqua><gray>/" + maxDensity + "</gray>");
             killer.playSound(killer.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.4f);
+            killer.getWorld().spawnParticle(Particle.CRIT, killer.getLocation().add(0, 1, 0), 20, 0.3, 0.3, 0.3, 0.2);
         } else {
             applyBonusHealth(killer);
             double max = Attributes.valueOf(killer, Attributes.MAX_HEALTH, 20.0d);
             Text.msg(killer, "<red>+" + (heartsPerKillAfterMax / 2.0d) + " heart</red> <gray>("
                     + (max / 2.0d) + " total)</gray>");
             killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.3f);
+            killer.getWorld().spawnParticle(Particle.HEART, killer.getLocation().add(0, 1.6, 0), 8, 0.3, 0.3, 0.3, 0.0);
         }
     }
 
@@ -299,17 +305,24 @@ public class NightScarKit implements PowerKit, Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         ItemStack stashed = deathStash.remove(player.getUniqueId());
-        if (stashed == null) {
-            return;
-        }
+        // Curse of Vanishing means there is usually nothing to restore -- tick() would eventually
+        // notice and rebuild it anyway, but ensureMace() here does it immediately instead of after
+        // up to a second's delay.
         Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
-            if (player.isOnline()) {
-                HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
-                if (!leftover.isEmpty()) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), stashed);
-                }
-                Text.msg(player, "<gray>Your mace came back with you.</gray>");
+            if (!player.isOnline()) {
+                return;
             }
+            if (stashed == null) {
+                if (plugin.unlocks().isUnlocked(player, Power.DENSITY_MACE)) {
+                    ensureMace(player);
+                }
+                return;
+            }
+            HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
+            if (!leftover.isEmpty()) {
+                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+            }
+            Text.msg(player, "<gray>Your mace came back with you.</gray>");
         });
     }
 

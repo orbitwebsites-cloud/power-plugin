@@ -1,5 +1,6 @@
 package com.powersmp.item;
 
+import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
 import java.util.List;
@@ -35,6 +36,7 @@ public final class SpearItem {
         meta.setUnbreakable(true);
         meta.getPersistentDataContainer()
                 .set(Keys.SPEAR_OWNER, PersistentDataType.STRING, owner.toString());
+        Enchants.applyVanishing(meta);
         spear.setItemMeta(meta);
         return spear;
     }

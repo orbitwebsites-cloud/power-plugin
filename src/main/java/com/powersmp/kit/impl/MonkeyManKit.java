@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.logging.Level;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -201,6 +202,7 @@ public class MonkeyManKit implements PowerKit, Listener {
             return;
         }
         Effects.apply(target, PotionEffectType.BLINDNESS, flashBlindSeconds * 20, 0);
+        target.getWorld().spawnParticle(Particle.FLASH, target.getEyeLocation(), 1);
     }
 
     // ---- abilities ------------------------------------------------------
@@ -252,6 +254,8 @@ public class MonkeyManKit implements PowerKit, Listener {
         }
 
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ILLUSIONER_MIRROR_MOVE, 1.0f, 1.0f);
+        owner.getWorld().spawnParticle(Particle.END_ROD, owner.getLocation().add(0, 1, 0), 40,
+                mirageRadius, 1.0, mirageRadius, 0.02);
         Text.msg(owner, "<light_purple>Mirage</light_purple> <gray>-- " + spawned
                 + " decoy(s) for " + mirageDuration + "s.</gray>");
         return true;
@@ -278,6 +282,7 @@ public class MonkeyManKit implements PowerKit, Listener {
             }
         }
         owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_FIRECHARGE_USE, 1.0f, 1.8f);
+        owner.getWorld().spawnParticle(Particle.FLASH, owner.getLocation().add(0, 1, 0), 1);
         Text.msg(owner, "<yellow>Flash</yellow> <gray>-- blinded " + blinded + " nearby.</gray>");
         return true;
     }

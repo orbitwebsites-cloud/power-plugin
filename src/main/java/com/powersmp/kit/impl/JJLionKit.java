@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Locale;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -185,6 +186,8 @@ public class JJLionKit implements PowerKit, Listener {
         }
         Effects.apply(owner, PotionEffectType.RESISTANCE, fatTankSeconds * 20, resistanceAmplifier);
         owner.getWorld().playSound(owner.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 0.6f);
+        owner.getWorld().spawnParticle(Particle.BLOCK, owner.getLocation().add(0, 1, 0), 60,
+                0.6, 1.0, 0.6, Material.IRON_BLOCK.createBlockData());
         Text.msg(owner, "<gray><bold>FAT TANK</bold></gray> <gray>-- Resistance "
                 + roman(resistanceAmplifier + 1) + " for " + fatTankSeconds + "s.</gray>");
         return true;
@@ -202,6 +205,8 @@ public class JJLionKit implements PowerKit, Listener {
         Effects.apply(owner, PotionEffectType.REGENERATION, regenerationSeconds * 20, regenerationAmplifier);
         Effects.apply(owner, PotionEffectType.ABSORPTION, absorptionSeconds * 20, absorptionAmplifier);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.8f, 1.6f);
+        owner.getWorld().spawnParticle(Particle.HEART, owner.getLocation().add(0, 1.6, 0), 12, 0.4, 0.4, 0.4, 0.0);
+        owner.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, owner.getLocation().add(0, 1, 0), 30, 0.4, 0.6, 0.4, 0.4);
         Text.msg(owner, "<light_purple><bold>GREEDY HEAL</bold></light_purple> <gray>-- topped up.</gray>");
         return true;
     }

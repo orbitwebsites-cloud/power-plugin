@@ -13,6 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
@@ -197,6 +198,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         // Mark the window by hand: isRiptiding() only reports vanilla's own spin attack.
         manualRiptide.put(player.getUniqueId(), System.currentTimeMillis() + 1500L);
         player.getWorld().playSound(player.getLocation(), soundFor(level), 1.0f, 1.0f);
+        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 60, 0.4, 0.3, 0.4, 0.2);
+        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 20, 0.3, 0.2, 0.3, 0.05);
     }
 
     private Sound soundFor(int level) {
@@ -226,6 +229,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         plugin.freeze().stunSeconds(target, riptideStunSeconds);
         target.getWorld().playSound(target.getLocation(), Sound.ITEM_TRIDENT_HIT, 1.0f, 0.8f);
+        target.getWorld().spawnParticle(Particle.SPLASH, target.getLocation().add(0, 1, 0), 40, 0.5, 0.5, 0.5, 0.25);
     }
 
     /** True during vanilla's spin attack, or inside a manually launched dry riptide. */

@@ -66,6 +66,7 @@ public final class DraconicItems {
                 meta.addEnchant(Enchants.BREACH, breachLevel, true);
             }
             meta.getPersistentDataContainer().set(Keys.DRACONIC_MACE, PersistentDataType.BYTE, (byte) 1);
+            Enchants.applyVanishing(meta);
             mace.setItemMeta(meta);
         }
         return mace;
