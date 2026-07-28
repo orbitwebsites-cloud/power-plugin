@@ -56,10 +56,7 @@ assignments:
   TechKnightGaming: techknight
   ahriahn: voidwalker
   disasterflames: disasterflames
-  # The Ghost's kit is fully built (Possession / Spectral Body / Astral Form) but nobody's
-  # IGN was given for it, so it is unassigned. Uncomment and fill in the real name to turn it on --
-  # no rebuild needed.
-  # <IGN HERE>: theghost
+  _glueman: theghost
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.
@@ -785,8 +782,7 @@ disasterflames:
     stack-size: 64
 
 # =====================================================================
-# The Ghost -- Possession / Spectral Body / Astral Form
-# IGN not given yet; see the commented assignment above.
+# The Ghost (_glueman) -- Possession / Spectral Body / Astral Form
 # =====================================================================
 theghost:
   possession:

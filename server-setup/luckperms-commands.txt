@@ -2,7 +2,7 @@
 # Paste these into console in order. Generated from kits.yml assignments.
 #
 # Creates a 'powersmp' group carrying the kit permission plus the NoCheatPlus
-# exemptions the kits need, then puts all 15 players in it.
+# exemptions the kits need, then puts all 16 players in it.
 
 lp creategroup powersmp
 
@@ -42,9 +42,7 @@ lp user MonkeyMan4167 parent add powersmp
 lp user TechKnightGaming parent add powersmp
 lp user ahriahn parent add powersmp
 lp user disasterflames parent add powersmp
-# The Ghost (Possession / Spectral Body / Astral Form) is built but no IGN
-# was given yet -- add a line here once kits.yml has a real name assigned:
-# lp user <IGN> parent add powersmp
+lp user _glueman parent add powersmp
 
 # Admins -- replace with whoever should run /powersmp.
 # lp user <you> permission set powersmp.admin true
