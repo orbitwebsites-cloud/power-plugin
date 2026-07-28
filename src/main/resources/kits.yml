@@ -678,6 +678,11 @@ techknight:
     knockup-power: 0.8             # ASSUMED -- minimum upward velocity applied to everyone caught
     cooldown-seconds: 25           # ASSUMED
 
+  # Passive, no cooldown, no toggle. Only fires with his own soulbound mace in hand.
+  shield-break:
+    enabled: true
+    chance: 0.5                    # half of blocked hits ignore the shield entirely
+
 # =====================================================================
 # Voidwalker (ahriahn) -- Shadow Step / Grasp of Eylis / Illusory Realm
 # =====================================================================

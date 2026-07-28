@@ -27,6 +27,7 @@ public final class Attributes {
     public static final Attribute KNOCKBACK_RESISTANCE =
             resolve("knockback_resistance", "generic.knockback_resistance");
     public static final Attribute ATTACK_SPEED = resolve("attack_speed", "generic.attack_speed");
+    public static final Attribute ATTACK_DAMAGE = resolve("attack_damage", "generic.attack_damage");
     public static final Attribute SCALE = resolve("scale", "generic.scale");
     public static final Attribute BLOCK_INTERACTION_RANGE =
             resolve("block_interaction_range", "player.block_interaction_range");
@@ -56,6 +57,7 @@ public final class Attributes {
         check(logger, ARMOR, "armor");
         check(logger, KNOCKBACK_RESISTANCE, "knockback_resistance");
         check(logger, ATTACK_SPEED, "attack_speed");
+        check(logger, ATTACK_DAMAGE, "attack_damage");
         check(logger, SCALE, "scale");
         check(logger, BLOCK_INTERACTION_RANGE, "block_interaction_range");
         check(logger, ENTITY_INTERACTION_RANGE, "entity_interaction_range");
