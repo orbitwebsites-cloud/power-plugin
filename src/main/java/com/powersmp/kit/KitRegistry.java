@@ -41,7 +41,7 @@ public class KitRegistry {
             Map.entry("monkeyman4167", "monkeyman"),
             Map.entry("techknightgaming", "techknight"),
             Map.entry("ahriahn", "voidwalker"),
-            Map.entry("disasterflames", "disasterflames"),
+            Map.entry("disasterflames", "returnbydeath"),
             Map.entry("_glueman", "theghost"));
 
     private final Plugin plugin;

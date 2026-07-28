@@ -55,7 +55,7 @@ assignments:
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
   ahriahn: voidwalker
-  disasterflames: disasterflames
+  disasterflames: returnbydeath
   _glueman: theghost
 
 # ---------------------------------------------------------------------
@@ -766,20 +766,27 @@ illusory-realm:
     weaving: 0
 
 # =====================================================================
-# disasterflames -- Sugar Rush
+# disasterflames -- Return by Death
+# All three powers are passive; there is no activated ability in this kit.
 # =====================================================================
-disasterflames:
-  sweet-vigor:
-    regen-amplifier: 4              # Regeneration V, as specified
+returnbydeath:
+  keep-inventory:
+    # "Keep inv" is read as items only -- XP is a separate vanilla concept
+    # servers commonly treat independently, so it defaults off.
+    keep-experience: false          # ASSUMED
+
+  return-by-death:
+    # The checkpoint re-anchors to wherever he is at an unpredictable moment,
+    # roughly once per this many seconds on average -- an exponential
+    # distribution (a per-tick dice roll), not a fixed timer, so the actual
+    # gap between saves is genuinely out of his control, per the spec.
+    average-interval-seconds: 300   # ASSUMED -- 5 minutes on average
+
+  second-wind:
+    # "Strength and speed 1" after respawning.
     strength-amplifier: 0           # Strength I
     speed-amplifier: 0              # Speed I
-
-  cookie-stash:
-    # Sneak + swap-hands (whatever key that is bound to client-side -- the
-    # server only ever sees the logical action, never the literal key, and
-    # swap-hands is the action most commonly rebound to C). No cooldown, same
-    # call as TechKnightGaming's infinite XP bottles.
-    stack-size: 64
+    buff-seconds: 30                # ASSUMED -- no duration was given
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form

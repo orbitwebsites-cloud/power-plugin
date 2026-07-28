@@ -40,7 +40,7 @@ from a common ability pool.
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
 | TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles, Earthbreaker |
 | ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
-| disasterflames | Sugar Rush | Sweet Vigor (Regen V, Strength I, Speed I), Cookie Stash |
+| disasterflames | Return by Death | Keep Inventory, Return by Death (random checkpoint), Second Wind |
 | _glueman | The Ghost | Possession, Spectral Body, Astral Form |
 
 ## Commands

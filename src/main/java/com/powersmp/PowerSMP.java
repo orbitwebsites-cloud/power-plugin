@@ -13,7 +13,7 @@ import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.NorthOfNowhereKit;
-import com.powersmp.kit.impl.DisasterFlamesKit;
+import com.powersmp.kit.impl.ReturnByDeathKit;
 import com.powersmp.kit.impl.DomanKit;
 import com.powersmp.kit.impl.TheGhostKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
@@ -90,7 +90,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
     private VoidwalkerKit voidwalker;
-    private DisasterFlamesKit disasterflames;
+    private ReturnByDeathKit returnByDeath;
     private TheGhostKit theghost;
 
     private int tickInterval = 20;
@@ -131,7 +131,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         voidwalker = new VoidwalkerKit(this);
-        disasterflames = new DisasterFlamesKit(this);
+        returnByDeath = new ReturnByDeathKit(this);
         theghost = new TheGhostKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
@@ -147,7 +147,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(monkeyman);
         kits.register(techknight);
         kits.register(voidwalker);
-        kits.register(disasterflames);
+        kits.register(returnByDeath);
         kits.register(theghost);
 
         cooldowns.attachStore(data);
@@ -177,7 +177,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
         Bukkit.getPluginManager().registerEvents(voidwalker, this);
-        Bukkit.getPluginManager().registerEvents(disasterflames, this);
+        Bukkit.getPluginManager().registerEvents(returnByDeath, this);
         Bukkit.getPluginManager().registerEvents(theghost, this);
 
         bind("stance", new StanceCommand(this));
@@ -264,7 +264,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
         voidwalker.reload(kitsConfig.getConfigurationSection("voidwalker"));
-        disasterflames.reload(kitsConfig.getConfigurationSection("disasterflames"));
+        returnByDeath.reload(kitsConfig.getConfigurationSection("returnbydeath"));
         theghost.reload(kitsConfig.getConfigurationSection("theghost"));
     }
 

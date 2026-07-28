@@ -86,11 +86,13 @@ public enum Power {
     GRASP_OF_EYLIS("grasp_of_eylis", "Grasp of Eylis", "voidwalker", Gate.ALWAYS),
     ILLUSORY_REALM("illusory_realm", "Illusory Realm", "voidwalker", Gate.ALWAYS),
 
-    // --- disasterflames ----------------------------------------------------
-    // No tiers were given, so both are simply part of the kit -- same call as
-    // LlamaChas and Voidwalker.
-    SWEET_VIGOR("sweet_vigor", "Sweet Vigor", "disasterflames", Gate.ALWAYS),
-    COOKIE_STASH("cookie_stash", "Cookie Stash", "disasterflames", Gate.ALWAYS),
+    // --- disasterflames (Return by Death) -----------------------------------
+    // Replaces the earlier Sugar Rush concept. No tiers were given, so all
+    // three are simply part of the kit -- same call as LlamaChas and
+    // Voidwalker. All three are passive; there is no activated ability here.
+    KEEP_INVENTORY("keep_inventory", "Keep Inventory", "returnbydeath", Gate.ALWAYS),
+    RANDOM_CHECKPOINT("random_checkpoint", "Return by Death", "returnbydeath", Gate.ALWAYS),
+    POST_RESPAWN_VIGOR("post_respawn_vigor", "Second Wind", "returnbydeath", Gate.ALWAYS),
 
     // --- The Ghost ---------------------------------------------------------
     // No tiers were given, so all three are simply part of the kit -- same call as
