@@ -819,3 +819,38 @@ theghost:
     scan-radius: 2
     # These stay solid even to him. Names must match a real Material.
     impassable-blocks: [OBSIDIAN, BEDROCK, REINFORCED_DEEPSLATE]
+
+# =====================================================================
+# Phantom -- permanent Speed, an invisibility toggle, and a full vanish
+# =====================================================================
+phantom:
+  speed-amplifier: 1                  # Speed II
+  # Full Vanish: hides the whole model (armour included), not just the
+  # plain Invisibility effect Phantom Cloak uses.
+  vanish-seconds: 30
+  vanish-cooldown-seconds: 300.0      # 5 minutes
+
+# =====================================================================
+# Lucky -- randomly becomes another kit for a while, then rerolls
+# =====================================================================
+lucky:
+  # How long each roll lasts before automatically rerolling.
+  roll-minutes: 20
+
+# =====================================================================
+# Life Stealer -- on-hit lifesteal, marks targets, doubles hostile drops
+# =====================================================================
+lifestealer:
+  lifesteal:
+    # Every Nth hit in a row on the same target (a 3s window, same as
+    # Ka-Chow's combo) steals a random amount of health instead of every
+    # single hit -- "steal a small amount of health with 5 hits".
+    combo-hits: 5
+    min-hearts: 1
+    max-hearts: 3
+  marked-prey:
+    # Every hit, not gated by the combo above -- outs the target's
+    # position for a few seconds.
+    glow-seconds: 5
+  double-drops:
+    multiplier: 2

@@ -50,6 +50,15 @@ public class KitRegistry {
     private final Map<String, String> nameAssignments = new ConcurrentHashMap<>();
     /** UUID -> kit id, both from config UUID keys and from name lookups resolved on join. */
     private final Map<UUID, String> uuidAssignments = new ConcurrentHashMap<>();
+    /**
+     * UUID -> kit id, in-memory only. Takes priority over the permanent assignment above when
+     * present. This is Lucky's whole mechanism: while an override is set, every lookup here --
+     * {@code kitOf}, {@code isOwner}, and therefore {@code UnlockManager.isUnlocked} and the shared
+     * kit tick/join/quit dispatch in {@code PowerSMP} -- resolves to the rolled kit instead, so the
+     * player genuinely becomes that kit for as long as the override lasts, with no other kit needing
+     * to know Lucky exists.
+     */
+    private final Map<UUID, String> overrides = new ConcurrentHashMap<>();
 
     public KitRegistry(Plugin plugin) {
         this.plugin = plugin;
@@ -89,11 +98,14 @@ public class KitRegistry {
 
     /** @return the player's kit, or null if they have none. */
     public PowerKit kitOf(Player player) {
-        String kitId = uuidAssignments.get(player.getUniqueId());
+        String kitId = overrides.get(player.getUniqueId());
         if (kitId == null) {
-            kitId = nameAssignments.get(player.getName().toLowerCase(Locale.ROOT));
-            if (kitId != null) {
-                uuidAssignments.put(player.getUniqueId(), kitId);
+            kitId = uuidAssignments.get(player.getUniqueId());
+            if (kitId == null) {
+                kitId = nameAssignments.get(player.getName().toLowerCase(Locale.ROOT));
+                if (kitId != null) {
+                    uuidAssignments.put(player.getUniqueId(), kitId);
+                }
             }
         }
         return kitId == null ? null : kitsById.get(kitId);
@@ -110,5 +122,19 @@ public class KitRegistry {
 
     public Collection<PowerKit> all() {
         return List.copyOf(kitsById.values());
+    }
+
+    /** Sets (or replaces) an in-memory kit override for this player. See {@link #overrides}. */
+    public void setOverride(UUID uuid, String kitId) {
+        overrides.put(uuid, kitId.toLowerCase(Locale.ROOT));
+    }
+
+    /** @return the overriding kit id, or null if this player has no active override. */
+    public String overrideOf(UUID uuid) {
+        return overrides.get(uuid);
+    }
+
+    public void clearOverride(UUID uuid) {
+        overrides.remove(uuid);
     }
 }

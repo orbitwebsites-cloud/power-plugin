@@ -111,7 +111,24 @@ public enum Power {
     // press a button for. Earthbreaker is that button, and its damage rides the same mace-kills
     // counter Density already does, so it grows alongside the rest of the kit instead of sitting
     // next to it as an unrelated bolt-on.
-    EARTHBREAKER("earthbreaker", "Earthbreaker", "techknight", Gate.ALWAYS);
+    EARTHBREAKER("earthbreaker", "Earthbreaker", "techknight", Gate.ALWAYS),
+
+    // --- Phantom -----------------------------------------------------------
+    // No tiers were given, so all three are simply part of the kit -- same call as
+    // LlamaChas, Voidwalker, disasterflames, and The Ghost.
+    PHANTOM_SPEED("phantom_speed", "Phantom Speed", "phantom", Gate.ALWAYS),
+    PHANTOM_CLOAK("phantom_cloak", "Phantom Cloak", "phantom", Gate.ALWAYS),
+    PHANTOM_VANISH("phantom_vanish", "Full Vanish", "phantom", Gate.ALWAYS),
+
+    // --- Lucky ---------------------------------------------------------------
+    // Just the one power -- there is nothing to tier.
+    LUCKY_ROLL("lucky_roll", "Lucky Roll", "lucky", Gate.ALWAYS),
+
+    // --- Life Stealer --------------------------------------------------------
+    // No tiers were given, so all three are simply part of the kit.
+    LIFESTEAL("lifesteal", "Lifesteal", "lifestealer", Gate.ALWAYS),
+    MARKED_PREY("marked_prey", "Marked Prey", "lifestealer", Gate.ALWAYS),
+    DOUBLE_DROPS("double_drops", "Double Drops", "lifestealer", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

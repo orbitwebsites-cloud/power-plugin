@@ -20,11 +20,14 @@ import com.powersmp.kit.impl.TheGhostKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
 import com.powersmp.kit.impl.JJLionKit;
 import com.powersmp.kit.impl.KornFlakisKit;
+import com.powersmp.kit.impl.LifeStealerKit;
 import com.powersmp.kit.impl.LlamaChasKit;
+import com.powersmp.kit.impl.LuckyKit;
 import com.powersmp.kit.impl.MarbKit;
 import com.powersmp.kit.impl.MavriccKit;
 import com.powersmp.kit.impl.MonkeyManKit;
 import com.powersmp.kit.impl.NightScarKit;
+import com.powersmp.kit.impl.PhantomKit;
 import com.powersmp.kit.impl.SparkKit;
 import com.powersmp.kit.impl.TechKnightKit;
 import com.powersmp.kit.impl.VoidwalkerKit;
@@ -96,6 +99,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private VoidwalkerKit voidwalker;
     private ReturnByDeathKit returnByDeath;
     private TheGhostKit theghost;
+    private PhantomKit phantom;
+    private LuckyKit lucky;
+    private LifeStealerKit lifestealer;
 
     private int tickInterval = 20;
 
@@ -139,6 +145,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         voidwalker = new VoidwalkerKit(this);
         returnByDeath = new ReturnByDeathKit(this);
         theghost = new TheGhostKit(this);
+        phantom = new PhantomKit(this);
+        lucky = new LuckyKit(this);
+        lifestealer = new LifeStealerKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -155,6 +164,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(voidwalker);
         kits.register(returnByDeath);
         kits.register(theghost);
+        kits.register(phantom);
+        kits.register(lucky);
+        kits.register(lifestealer);
 
         cooldowns.attachStore(data);
 
@@ -187,6 +199,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(voidwalker, this);
         Bukkit.getPluginManager().registerEvents(returnByDeath, this);
         Bukkit.getPluginManager().registerEvents(theghost, this);
+        Bukkit.getPluginManager().registerEvents(phantom, this);
+        Bukkit.getPluginManager().registerEvents(lucky, this);
+        Bukkit.getPluginManager().registerEvents(lifestealer, this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
@@ -274,6 +289,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         voidwalker.reload(kitsConfig.getConfigurationSection("voidwalker"));
         returnByDeath.reload(kitsConfig.getConfigurationSection("returnbydeath"));
         theghost.reload(kitsConfig.getConfigurationSection("theghost"));
+        phantom.reload(kitsConfig.getConfigurationSection("phantom"));
+        lucky.reload(kitsConfig.getConfigurationSection("lucky"));
+        lifestealer.reload(kitsConfig.getConfigurationSection("lifestealer"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */
