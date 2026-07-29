@@ -1,6 +1,7 @@
 package com.powersmp.domain;
 
 import com.powersmp.PowerSMP;
+import com.powersmp.progression.Power;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
@@ -334,7 +335,23 @@ public class IllusoryRealm implements Listener {
      * every {@code isUnlocked} check across all 14 kits goes false the moment someone is pulled in.
      */
     public boolean powersSuppressed(Player player) {
-        return disablePowers && isInside(player);
+        return powersSuppressed(player, null);
+    }
+
+    /**
+     * Returns whether this participant's higher-tier power should be blocked by another player's
+     * domain. The Voidwalker who opened the realm keeps their own powers; trapped players retain
+     * Tier 1 and lose only Grasp/Illusory-Realm tier abilities.
+     */
+    public boolean powersSuppressed(Player player, Power power) {
+        if (!disablePowers || player == null) {
+            return false;
+        }
+        Domain domain = byParticipant.get(player.getUniqueId());
+        if (domain == null || domain.owner.equals(player.getUniqueId())) {
+            return false;
+        }
+        return power == Power.GRASP_OF_EYLIS || power == Power.ILLUSORY_REALM;
     }
 
     /** True while this player's own domain is running -- used to stop him re-opening one. */
