@@ -77,6 +77,7 @@ public class TechKnightKit implements PowerKit, Listener {
     private static final String ABILITY_RESTOCK = "restock";
     private static final String ABILITY_LOADOUT = "loadout";
     private static final String ABILITY_XP = "xp";
+    private static final String ABILITY_STRENGTH = "strength";
     private static final String ABILITY_EARTHBREAKER = "earthbreaker";
     private static final String ABILITY_FORTIFY = "fortify";
     private static final String ABILITY_REFLECT = "reflect_shield";
@@ -110,6 +111,10 @@ public class TechKnightKit implements PowerKit, Listener {
 
     private boolean xpFillInventory = true;
     private int xpMaxStacks = 36;
+
+    private int strengthAmplifier = 2;
+    private int strengthDurationSeconds = 10;
+    private double strengthCooldown = 60.0d;
 
     private double earthbreakerLeapPower = 1.3d;
     private int earthbreakerDelayTicks = 12;
@@ -207,6 +212,13 @@ public class TechKnightKit implements PowerKit, Listener {
             xpMaxStacks = Math.max(1, xp.getInt("max-stacks", xpMaxStacks));
         }
 
+        ConfigurationSection strength = section.getConfigurationSection("strength");
+        if (strength != null) {
+            strengthAmplifier = strength.getInt("amplifier", strengthAmplifier);
+            strengthDurationSeconds = strength.getInt("duration-seconds", strengthDurationSeconds);
+            strengthCooldown = strength.getDouble("cooldown-seconds", strengthCooldown);
+        }
+
         ConfigurationSection earthbreaker = section.getConfigurationSection("earthbreaker");
         if (earthbreaker != null) {
             earthbreakerLeapPower = earthbreaker.getDouble("leap-power", earthbreakerLeapPower);
@@ -302,6 +314,7 @@ public class TechKnightKit implements PowerKit, Listener {
         plugin.cooldowns().registerLabel(ABILITY_RESTOCK, "Restock");
         // Five hours is far longer than a server uptime; without this a restart is a free use.
         plugin.cooldowns().registerPersistent(ABILITY_RESTOCK);
+        plugin.cooldowns().registerLabel(ABILITY_STRENGTH, "Strength");
         plugin.cooldowns().registerLabel(ABILITY_EARTHBREAKER, "Earthbreaker");
         plugin.cooldowns().registerLabel(ABILITY_FORTIFY, "Fortify");
         plugin.cooldowns().registerLabel(ABILITY_REFLECT, "Reflect Shield");
@@ -556,6 +569,25 @@ public class TechKnightKit implements PowerKit, Listener {
                 && MaceItem.isSoulbound(event.getOldCursor())) {
             event.setCancelled(true);
         }
+    }
+
+    // ---- Strength -------------------------------------------------------
+
+    private boolean strength(Player owner) {
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_STRENGTH, strengthCooldown)) {
+            return false;
+        }
+        owner.addPotionEffect(new org.bukkit.potion.PotionEffect(
+                org.bukkit.potion.PotionEffectType.STRENGTH,
+                (int) (strengthDurationSeconds * 20),
+                strengthAmplifier,
+                false,
+                true
+        ));
+        owner.playSound(owner.getLocation(), Sound.ENTITY_IRON_GOLEM_ATTACK, 1.0f, 1.2f);
+        owner.getWorld().spawnParticle(Particle.CRIT, owner.getLocation().add(0, 1, 0), 20, 0.3, 0.3, 0.3, 0.3);
+        Text.actionBar(owner, "<gold>Strength " + (strengthAmplifier + 1) + "</gold> <gray>for " + strengthDurationSeconds + "s</gray>");
+        return true;
     }
 
     // ---- Earthbreaker -----------------------------------------------------
@@ -1070,6 +1102,8 @@ public class TechKnightKit implements PowerKit, Listener {
                         "Choose what Restock gives you -- " + menu.slots() + " slots, anything you like."),
                 new Ability(ABILITY_XP, "XP Bottles",
                         "Fill your inventory with experience bottles. No cooldown."),
+                new Ability(ABILITY_STRENGTH, "Strength",
+                        "Gain Strength " + (strengthAmplifier + 1) + " for " + strengthDurationSeconds + "s. " + (int) strengthCooldown + "s cooldown."),
                 new Ability(ABILITY_EARTHBREAKER, "Earthbreaker",
                         "Leap up and slam down, damaging and launching everyone nearby."),
                 new Ability(ABILITY_FORTIFY, "Fortify",
@@ -1101,6 +1135,7 @@ public class TechKnightKit implements PowerKit, Listener {
             case ABILITY_RESTOCK -> restock(owner);
             case ABILITY_LOADOUT -> openLoadout(owner);
             case ABILITY_XP -> xpBottles(owner);
+            case ABILITY_STRENGTH -> strength(owner);
             case ABILITY_EARTHBREAKER -> earthbreaker(owner);
             case ABILITY_FORTIFY -> fortify(owner);
             case ABILITY_REFLECT -> reflectShield(owner);

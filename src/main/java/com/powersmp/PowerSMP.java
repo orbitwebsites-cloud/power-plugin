@@ -10,6 +10,7 @@ import com.powersmp.data.DataStore;
 import com.powersmp.domain.IllusoryRealm;
 import com.powersmp.food.MushroomHungerService;
 import com.powersmp.item.BoundItemListener;
+import com.powersmp.item.MaceRestrictionListener;
 import com.powersmp.item.ResourcePackItems;
 import com.powersmp.kit.AbilityTriggerListener;
 import com.powersmp.kit.KitRegistry;
@@ -97,6 +98,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private KeybindMenu keybindMenu;
     private AbilityTriggerListener abilityTriggers;
     private BoundItemListener boundItems;
+    private MaceRestrictionListener maceRestrictions;
 
     private MavriccKit mavricc;
     private NorthOfNowhereKit northOfNowhere;
@@ -148,6 +150,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         keybindMenu = new KeybindMenu(this);
         abilityTriggers = new AbilityTriggerListener(this);
         boundItems = new BoundItemListener(this);
+        maceRestrictions = new MaceRestrictionListener();
 
         mavricc = new MavriccKit(this);
         northOfNowhere = new NorthOfNowhereKit(this);
@@ -203,6 +206,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(keybindMenu, this);
         Bukkit.getPluginManager().registerEvents(abilityTriggers, this);
         Bukkit.getPluginManager().registerEvents(boundItems, this);
+        Bukkit.getPluginManager().registerEvents(maceRestrictions, this);
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(northOfNowhere, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
