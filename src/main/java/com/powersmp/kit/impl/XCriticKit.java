@@ -80,7 +80,6 @@ public class XCriticKit implements PowerKit, Listener {
     private final Map<Integer, double[]> spearTiers = new HashMap<>();
     private final Map<Integer, Integer> spearUpgradeKills = new HashMap<>();
     private double spearHitCooldown = 8.0d;
-    private boolean disableThrow = true;
     private boolean countPlayerKills = true;
     private boolean countMobKills = true;
     /** Spears pulled out of death drops, held until the owner respawns. */
@@ -150,7 +149,6 @@ public class XCriticKit implements PowerKit, Listener {
                 }
             }
             spearHitCooldown = spear.getDouble("hit-cooldown-seconds", spearHitCooldown);
-            disableThrow = spear.getBoolean("disable-throw", true);
             countPlayerKills = spear.getBoolean("count-player-kills", true);
             // Was always true with no way to turn it off -- mob kills were silently upgrading
             // Lunge tiers. Defaults to false now.
@@ -448,20 +446,6 @@ public class XCriticKit implements PowerKit, Listener {
         }
     }
 
-    /** Keeps the spear a melee weapon -- no trident throwing, no riptide. */
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onThrowAttempt(PlayerInteractEvent event) {
-        if (!disableThrow) {
-            return;
-        }
-        Action action = event.getAction();
-        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-        if (SpearItem.isSpear(event.getItem())) {
-            event.setCancelled(true);
-        }
-    }
 
     // ---- abilities ------------------------------------------------------
 

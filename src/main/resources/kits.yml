@@ -324,9 +324,10 @@ xcr1t1cx:
     infinite-saturation: true
 
   spear-master:
-    # 1.21.1 has no vanilla spear item, so this is a Trident tagged in its
-    # PersistentDataContainer. Lunge is not a vanilla enchant; the pull and
-    # stun below are entirely custom.
+    # Built on vanilla Iron Spear material (Material.IRON_SPEAR) from Minecraft 1.21.11.
+    # xCR1T1Cx's "Lunge" (pull + stun on hit with cooldown) is custom -- separate from
+    # vanilla's Lunge enchantment (which self-propels on jabs). The names collide but the
+    # mechanics are unrelated.
     tiers:                         # ASSUMED deltas (spec asks for exact numbers)
       3: { pull-strength: 0.8, stun-seconds: 3.0 }
       4: { pull-strength: 1.1, stun-seconds: 4.0 }
@@ -340,8 +341,6 @@ xcr1t1cx:
     # of a minute". This was briefly 0 under a blanket "no nerfs" pass; the
     # minute is his own number, not a nerf, so it is restored.
     hit-cooldown-seconds: 60
-    # Trident's own throwing is disabled so it stays a melee spear.
-    disable-throw: true
     # Player kills only -- was always true with no toggle before, so mob kills silently
     # upgraded Lunge tiers. Matches techknight's mace.
     count-player-kills: true

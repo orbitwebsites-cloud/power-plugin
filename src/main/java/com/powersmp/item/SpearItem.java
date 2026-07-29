@@ -13,11 +13,16 @@ import org.bukkit.persistence.PersistentDataType;
 /**
  * xCR1T1Cx's spear.
  *
- * <p>1.21 has no vanilla spear -- the Trial Chambers weapon is the Mace, and there is no Lunge
- * enchantment at all -- so this is a Trident carrying a tier in its
- * {@code PersistentDataContainer}. The tier is stored on the item rather than only on the player so
- * the weapon keeps its upgrades if it is dropped and picked back up, which is what "the spear
- * upgrades" implies. Player data mirrors it as the source of truth for re-issuing a lost spear.
+ * <p>Built on vanilla spear materials (e.g. {@code Material.IRON_SPEAR}) added in Minecraft 1.21.11
+ * Mounts of Mayhem. Stores a custom tier in its {@code PersistentDataContainer} to track upgrade
+ * level (Lunge I-V) separately from vanilla mechanics. The tier is stored on the item rather than
+ * only on the player so the weapon keeps its upgrades if it is dropped and picked back up, which
+ * is what "the spear upgrades" implies. Player data mirrors it as the source of truth for
+ * re-issuing a lost spear.
+ *
+ * <p>xCR1T1Cx's custom "Lunge" (pull + stun on hit with cooldown) is entirely separate from
+ * vanilla's Lunge enchantment (self-propel on jab). The names happen to collide but the mechanics
+ * are unrelated.
  */
 public final class SpearItem {
 
@@ -30,7 +35,7 @@ public final class SpearItem {
     }
 
     public static ItemStack create(UUID owner, int tier) {
-        ItemStack spear = new ItemStack(Material.TRIDENT);
+        ItemStack spear = new ItemStack(Material.IRON_SPEAR);
         applyTier(spear, tier);
         ItemMeta meta = spear.getItemMeta();
         meta.setUnbreakable(true);
@@ -42,7 +47,7 @@ public final class SpearItem {
     }
 
     public static boolean isSpear(ItemStack item) {
-        if (item == null || item.getType() != Material.TRIDENT) {
+        if (item == null || item.getType() != Material.IRON_SPEAR) {
             return false;
         }
         ItemMeta meta = item.getItemMeta();
@@ -61,7 +66,7 @@ public final class SpearItem {
 
     /** Writes the tier and refreshes the name and lore to match. */
     public static void applyTier(ItemStack item, int tier) {
-        if (item == null || item.getType() != Material.TRIDENT) {
+        if (item == null || item.getType() != Material.IRON_SPEAR) {
             return;
         }
         int clamped = clamp(tier);
