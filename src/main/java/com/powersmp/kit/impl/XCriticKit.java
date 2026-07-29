@@ -304,6 +304,14 @@ public class XCriticKit implements PowerKit, Listener {
         double pullStrength = values[0];
         double stunSeconds = values[1];
 
+        // Make the ability read as a true lunge for the wielder as well as a yank on the target.
+        // The old implementation only moved the victim, so a successful hit looked like a
+        // normal spear attack from the attacker's perspective.
+        Vector forward = player.getLocation().getDirection().normalize().multiply(0.72d);
+        forward.setY(Math.max(0.24d, forward.getY()));
+        player.setVelocity(forward);
+        player.setFallDistance(0.0f);
+
         Vector pull = player.getLocation().toVector()
                 .subtract(target.getLocation().toVector());
         if (pull.lengthSquared() > 1.0e-4) {
