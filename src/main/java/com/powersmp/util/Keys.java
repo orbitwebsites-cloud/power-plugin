@@ -26,6 +26,7 @@ public final class Keys {
     public static NamespacedKey TIDAL_ATTACK_SPEED;
     public static NamespacedKey SCAR_BONUS_HEALTH;
     public static NamespacedKey REALM_BONUS_HEALTH;
+    public static NamespacedKey TECH_FORTIFY_KNOCKBACK;
 
     // PersistentDataContainer keys.
     public static NamespacedKey FOOD_STAMP;
@@ -41,6 +42,10 @@ public final class Keys {
     public static NamespacedKey SCAR_MACE;
     public static NamespacedKey SHADOW_MARK;
     public static NamespacedKey BOUND_TRIDENT;
+    public static NamespacedKey ENERGY_CORE;
+    public static NamespacedKey MOVEMENT_EXEMPT;
+    public static NamespacedKey MOVEMENT_PREVIOUS_ALLOW_FLIGHT;
+    public static NamespacedKey MOVEMENT_PREVIOUS_FLYING;
 
     public static void init(Plugin plugin) {
         STANCE_ARMOR = new NamespacedKey(plugin, "stance_armor");
@@ -54,6 +59,7 @@ public final class Keys {
         TIDAL_ATTACK_SPEED = new NamespacedKey(plugin, "tidal_attack_speed");
         SCAR_BONUS_HEALTH = new NamespacedKey(plugin, "scar_bonus_health");
         REALM_BONUS_HEALTH = new NamespacedKey(plugin, "realm_bonus_health");
+        TECH_FORTIFY_KNOCKBACK = new NamespacedKey(plugin, "tech_fortify_knockback");
 
         FOOD_STAMP = new NamespacedKey(plugin, "food_stamp");
         SPEAR_TIER = new NamespacedKey(plugin, "spear_tier");
@@ -68,5 +74,9 @@ public final class Keys {
         SCAR_MACE = new NamespacedKey(plugin, "scar_mace");
         SHADOW_MARK = new NamespacedKey(plugin, "shadow_mark");
         BOUND_TRIDENT = new NamespacedKey(plugin, "bound_trident");
+        ENERGY_CORE = new NamespacedKey(plugin, "energy_core");
+        MOVEMENT_EXEMPT = new NamespacedKey(plugin, "movement_exempt");
+        MOVEMENT_PREVIOUS_ALLOW_FLIGHT = new NamespacedKey(plugin, "movement_previous_allow_flight");
+        MOVEMENT_PREVIOUS_FLYING = new NamespacedKey(plugin, "movement_previous_flying");
     }
 }

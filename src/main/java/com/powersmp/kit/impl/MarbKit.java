@@ -14,6 +14,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.block.Block;
+import org.bukkit.block.TileState;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
@@ -73,8 +74,8 @@ public class MarbKit implements PowerKit, Listener {
             if (miner != null) {
                 baseHaste = miner.getInt("haste-amplifier", baseHaste);
                 deepslateHaste = miner.getInt("deepslate-haste-amplifier", deepslateHaste);
-                deepslateMatch = miner.getString("deepslate-name-contains", "DEEPSLATE")
-                        .toUpperCase(Locale.ROOT);
+                String match = miner.getString("deepslate-name-contains", "DEEPSLATE");
+                deepslateMatch = (match == null ? "DEEPSLATE" : match).toUpperCase(Locale.ROOT);
                 lookRange = miner.getInt("look-range", lookRange);
             }
             ConfigurationSection ender = section.getConfigurationSection("ender-magic");
@@ -153,17 +154,44 @@ public class MarbKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(owner, Power.SHADOW_MASTER)) {
             return plugin.unlocks().denyLocked(owner, Power.SHADOW_MASTER);
         }
-        if (!plugin.cooldowns().tryUse(owner, ABILITY_PORTAL, portalCooldown)) {
-            return false;
-        }
 
-        Block base = owner.getLocation().getBlock();
+        // Put the bottom of the frame in the floor so the 2x3 interior starts at the player's
+        // feet. The old y=0 base put the first portal block one block above their feet, producing a
+        // floating/incomplete frame on normal ground.
+        Block base = owner.getLocation().getBlock().getRelative(0, -1, 0);
         float yaw = owner.getLocation().getYaw();
         // Face the portal across his line of sight so he can walk straight into it.
         boolean alongX = Math.abs(Math.cos(Math.toRadians(yaw))) < 0.5d;
 
         Orientable portalData = (Orientable) Bukkit.createBlockData(Material.NETHER_PORTAL);
         portalData.setAxis(alongX ? org.bukkit.Axis.X : org.bukkit.Axis.Z);
+
+        // Validate the whole placement before spending the cooldown or changing a single block.
+        // The four foundation blocks necessarily replace the ground; every other solid block is
+        // protected unless the admin explicitly enables replacement.
+        for (int across = 0; across < 4; across++) {
+            for (int up = 0; up < 5; up++) {
+                int dx = alongX ? across - 1 : 0;
+                int dz = alongX ? 0 : across - 1;
+                Block block = base.getRelative(dx, up, dz);
+                boolean edge = across == 0 || across == 3 || up == 0 || up == 4;
+                boolean foundation = up == 0;
+                boolean alreadyCompatible = edge
+                        ? block.getType() == Material.OBSIDIAN
+                        : block.getType() == Material.NETHER_PORTAL;
+                if (!alreadyCompatible && block.getState() instanceof TileState && !portalReplaceSolid) {
+                    Text.msg(owner, "<red>A protected block is in the portal's path.");
+                    return false;
+                }
+                if (!foundation && !alreadyCompatible && !block.isPassable() && !portalReplaceSolid) {
+                    Text.msg(owner, "<red>There is not enough clear space here for a portal.");
+                    return false;
+                }
+            }
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_PORTAL, portalCooldown)) {
+            return false;
+        }
 
         int placed = 0;
         for (int across = 0; across < 4; across++) {
@@ -172,12 +200,12 @@ public class MarbKit implements PowerKit, Listener {
                 int dz = alongX ? 0 : across - 1;
                 Block block = base.getRelative(dx, up, dz);
                 boolean edge = across == 0 || across == 3 || up == 0 || up == 4;
-                if (!edge) {
+                if (edge) {
+                    block.setType(Material.OBSIDIAN, false);
+                    placed++;
+                } else {
                     block.setType(Material.NETHER_PORTAL, false);
                     block.setBlockData(portalData, false);
-                    placed++;
-                } else if (portalReplaceSolid || block.getType().isAir()) {
-                    block.setType(Material.OBSIDIAN, false);
                     placed++;
                 }
             }

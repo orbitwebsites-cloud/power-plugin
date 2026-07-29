@@ -41,6 +41,10 @@ public interface PowerKit {
     default void onUnlock(Player owner, Power power) {
     }
 
+    /** Fired when an admin explicitly revokes a power, so persistent state can be removed now. */
+    default void onRevoke(Player owner, Power power) {
+    }
+
     /** Abilities the owner can fire with {@code /power use <id>}. */
     default List<Ability> abilities() {
         return List.of();

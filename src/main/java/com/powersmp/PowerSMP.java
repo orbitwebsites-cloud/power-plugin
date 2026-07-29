@@ -9,6 +9,8 @@ import com.powersmp.cooldown.CooldownManager;
 import com.powersmp.data.DataStore;
 import com.powersmp.domain.IllusoryRealm;
 import com.powersmp.food.MushroomHungerService;
+import com.powersmp.item.BoundItemListener;
+import com.powersmp.item.ResourcePackItems;
 import com.powersmp.kit.AbilityTriggerListener;
 import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
@@ -35,13 +37,22 @@ import com.powersmp.kit.impl.XCriticKit;
 import com.powersmp.menu.KeybindMenu;
 import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
+import com.powersmp.progression.Power;
 import com.powersmp.stance.StanceCommand;
 import com.powersmp.stance.StanceManager;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
+import com.powersmp.util.MovementExemption;
 import java.io.File;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
@@ -55,7 +66,10 @@ import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.inventory.ShapedRecipe;
+import org.bukkit.NamespacedKey;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Entry point: builds the shared services, registers the kits, and drives the one shared tick.
@@ -82,6 +96,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private PowerMenu powerMenu;
     private KeybindMenu keybindMenu;
     private AbilityTriggerListener abilityTriggers;
+    private BoundItemListener boundItems;
 
     private MavriccKit mavricc;
     private NorthOfNowhereKit northOfNowhere;
@@ -104,6 +119,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private LifeStealerKit lifestealer;
 
     private int tickInterval = 20;
+    private BukkitTask kitTickTask;
+    private BukkitTask autosaveTask;
+    private NamespacedKey energyRecipeKey;
 
     @Override
     public void onEnable() {
@@ -112,6 +130,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Enchants.warnMissing(getLogger());
 
         saveResource(KITS_FILE, false);
+        registerEnergyRecipe();
         kitsConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), KITS_FILE));
 
         data = new DataStore(this, "data.yml");
@@ -128,6 +147,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         powerMenu = new PowerMenu(this);
         keybindMenu = new KeybindMenu(this);
         abilityTriggers = new AbilityTriggerListener(this);
+        boundItems = new BoundItemListener(this);
 
         mavricc = new MavriccKit(this);
         northOfNowhere = new NorthOfNowhereKit(this);
@@ -182,6 +202,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(powerMenu, this);
         Bukkit.getPluginManager().registerEvents(keybindMenu, this);
         Bukkit.getPluginManager().registerEvents(abilityTriggers, this);
+        Bukkit.getPluginManager().registerEvents(boundItems, this);
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(northOfNowhere, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
@@ -229,6 +250,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     @Override
     public void onDisable() {
+        // A movement burst temporarily enables flight. Restore it before kit cleanup changes any
+        // legitimate flight state, and before cancelling the delayed task that would normally end
+        // the burst.
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            MovementExemption.restore(player);
+        }
         for (PowerKit kit : kits == null ? java.util.List.<PowerKit>of() : kits.all()) {
             kit.onDisable();
         }
@@ -245,6 +272,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
             cooldowns.shutdown();
         }
         Bukkit.getScheduler().cancelTasks(this);
+        if (energyRecipeKey != null) {
+            Bukkit.removeRecipe(energyRecipeKey);
+        }
         if (data != null) {
             data.markDirty();
             data.save();
@@ -296,20 +326,70 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */
     public void reloadKits() {
+        Map<UUID, List<PowerKit>> previousAssignments = new HashMap<>();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            previousAssignments.put(player.getUniqueId(), kits.assignedKitsOf(player));
+        }
+
         kitsConfig = YamlConfiguration.loadConfiguration(new File(getDataFolder(), KITS_FILE));
         applyConfig();
-        // Everything scheduled is torn down and rebuilt so a changed tick interval takes effect.
-        Bukkit.getScheduler().cancelTasks(this);
+
+        // Reconcile online players whose assignment changed. Without this, old infinite effects,
+        // attribute modifiers and visibility state survive the reload, while newly assigned kits
+        // never receive their signature items until the next relog.
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            List<PowerKit> before = previousAssignments.getOrDefault(player.getUniqueId(), List.of());
+            List<PowerKit> after = kits.assignedKitsOf(player);
+            Set<String> beforeIds = new HashSet<>();
+            Set<String> afterIds = new HashSet<>();
+            before.forEach(kit -> beforeIds.add(kit.id()));
+            after.forEach(kit -> afterIds.add(kit.id()));
+            // A Lucky override hides the permanent assignment from normal lookups. Tear it down
+            // explicitly if reload removed Lucky, otherwise the rolled kit would live forever.
+            if (beforeIds.contains(LuckyKit.ID) && !afterIds.contains(LuckyKit.ID)) {
+                lucky.onRevoke(player, Power.LUCKY_ROLL);
+            }
+            for (PowerKit kit : before) {
+                if (!afterIds.contains(kit.id())) {
+                    kit.onQuit(player);
+                }
+            }
+            for (PowerKit kit : after) {
+                if (!beforeIds.contains(kit.id())) {
+                    kit.onJoin(player);
+                }
+            }
+        }
+
+        // Only restart the recurring services whose cadence/config changed. cancelTasks(this)
+        // also kills in-flight cleanup (unhide, restore fake blocks, end movement exemptions,
+        // Lucky rerolls, realm supervision), leaving powers permanently stuck.
+        stopRecurringTasks();
         cooldowns.stopDisplay();
         freeze.start();
         respawnGuard.start();
+        realm.start();
         cooldowns.startDisplay(kitsConfig.getBoolean("general.cooldown-action-bar", true));
         startKitTick();
         startAutosave();
     }
 
+    private void registerEnergyRecipe() {
+        energyRecipeKey = new NamespacedKey(this, "energy_core");
+        Bukkit.removeRecipe(energyRecipeKey);
+        ShapedRecipe recipe = new ShapedRecipe(energyRecipeKey, ResourcePackItems.energyCore());
+        recipe.shape("ABA", "BCB", "ABA");
+        recipe.setIngredient('A', Material.EXPERIENCE_BOTTLE);
+        recipe.setIngredient('B', Material.WITHER_SKELETON_SKULL);
+        recipe.setIngredient('C', Material.NETHERITE_CHESTPLATE);
+        Bukkit.addRecipe(recipe);
+    }
+
     private void startKitTick() {
-        Bukkit.getScheduler().runTaskTimer(this, () -> {
+        if (kitTickTask != null) {
+            kitTickTask.cancel();
+        }
+        kitTickTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
                 for (PowerKit kit : kits.kitsOf(player)) {
                     try {
@@ -325,8 +405,23 @@ public class PowerSMP extends JavaPlugin implements Listener {
     }
 
     private void startAutosave() {
+        if (autosaveTask != null) {
+            autosaveTask.cancel();
+        }
         long seconds = Math.max(30, kitsConfig.getInt("general.autosave-seconds", 300));
-        Bukkit.getScheduler().runTaskTimer(this, () -> data.saveAsync(), seconds * 20L, seconds * 20L);
+        autosaveTask = Bukkit.getScheduler().runTaskTimer(
+                this, () -> data.saveAsync(), seconds * 20L, seconds * 20L);
+    }
+
+    private void stopRecurringTasks() {
+        if (kitTickTask != null) {
+            kitTickTask.cancel();
+            kitTickTask = null;
+        }
+        if (autosaveTask != null) {
+            autosaveTask.cancel();
+            autosaveTask = null;
+        }
     }
 
     // ---- player lifecycle ------------------------------------------------
@@ -337,6 +432,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     }
 
     private void handleJoin(Player player) {
+        MovementExemption.restore(player);
         data.get(player.getUniqueId()).lastKnownName(player.getName());
         data.markDirty();
         cooldowns.hydrate(player.getUniqueId());
@@ -405,5 +501,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     public KeybindMenu keybindMenu() {
         return keybindMenu;
+    }
+
+    public int kitTickIntervalTicks() {
+        return tickInterval;
     }
 }

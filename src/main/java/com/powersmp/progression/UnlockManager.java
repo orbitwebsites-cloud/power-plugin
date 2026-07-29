@@ -59,12 +59,16 @@ public class UnlockManager implements Listener {
         if (plugin.realm() != null && plugin.realm().powersSuppressed(player)) {
             return false;
         }
+        PlayerData data = plugin.data().get(player.getUniqueId());
+        if (data.isRevoked(power.id())) {
+            return false;
+        }
         return switch (power.gate()) {
             case ALWAYS -> true;
-            case TRIGGER -> plugin.data().get(player.getUniqueId()).hasUnlocked(power.id());
+            case TRIGGER -> data.hasUnlocked(power.id());
             case KILLS -> unlockAll
-                    || plugin.data().get(player.getUniqueId()).hasUnlocked(power.id())
-                    || plugin.data().get(player.getUniqueId()).kills() >= threshold(power);
+                    || data.hasUnlocked(power.id())
+                    || data.kills() >= threshold(power);
         };
     }
 
@@ -85,11 +89,30 @@ public class UnlockManager implements Listener {
     /** @return true if this call newly unlocked the power. */
     public boolean unlock(Player player, Power power) {
         PlayerData data = plugin.data().get(player.getUniqueId());
+        if (data.isRevoked(power.id())) {
+            return false;
+        }
         if (!data.unlock(power.id())) {
             return false;
         }
         plugin.data().markDirty();
 
+        announceUnlock(player, power);
+        return true;
+    }
+
+    /** Admin grant: clears an explicit revocation and grants regardless of the normal gate. */
+    public boolean grant(Player player, Power power) {
+        PlayerData data = plugin.data().get(player.getUniqueId());
+        if (!data.grant(power.id())) {
+            return false;
+        }
+        plugin.data().markDirty();
+        announceUnlock(player, power);
+        return true;
+    }
+
+    private void announceUnlock(Player player, Power power) {
         Text.msg(player, "<gradient:#ffd479:#ff7b7b><bold>POWER UNLOCKED</bold></gradient> <white>"
                 + Text.plain(power.displayName()) + "</white>");
         player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
@@ -102,7 +125,6 @@ public class UnlockManager implements Listener {
         if (kit != null) {
             kit.onUnlock(player, power);
         }
-        return true;
     }
 
     public boolean revoke(Player player, Power power) {
@@ -111,6 +133,10 @@ public class UnlockManager implements Listener {
             return false;
         }
         plugin.data().markDirty();
+        PowerKit kit = plugin.kits().byId(power.kitId());
+        if (kit != null) {
+            kit.onRevoke(player, power);
+        }
         return true;
     }
 
@@ -131,7 +157,9 @@ public class UnlockManager implements Listener {
             if (power.gate() != Power.Gate.KILLS || !plugin.kits().isOwner(player, power.kitId())) {
                 continue;
             }
-            if (!data.hasUnlocked(power.id()) && data.kills() >= threshold(power)) {
+            if (!data.isRevoked(power.id())
+                    && !data.hasUnlocked(power.id())
+                    && data.kills() >= threshold(power)) {
                 unlock(player, power);
             }
         }

@@ -1,0 +1,5 @@
+{
+  "parent":"minecraft:item/generated",
+  "textures":{"layer0":"minecraft:item/elytra"},
+  "overrides":[{"predicate":{"custom_model_data":27005},"model":"powersmp:item/ascended_wing"}]
+}

@@ -33,14 +33,14 @@ from a common ability pool.
 | xCR1T1Cx | Momentum | Ka-Chow, Overdrive, Spear Master |
 | KornFlakis | Execution | `/kill`, 7-day cooldown |
 | ItzMeTentx | Tidebound | Infinite Breathing & Dolphin's Grace, Faster Attack Speed, Trident God |
-| domanthegamer | Spider | Spider Passive (low), Web Strike (mid), Web Shooter (high) |
+| domanthegamer | Limit Break | Limit Break + Kamehameha (low), Ascended Flight (mid), Final Burst (high) |
 | Sparkkkkkkkk | The Atom | Creeper Harvest (low), Explosion (mid), Atom Bomb (high) |
 | Night_Scar3 | Mace Master | Permanent Strength (low), Dash (mid), Density Mace (high) |
 | Marb13_ | Portal and Shadow Master | Miner's Haven (low), Ender Magic (mid), Portal & Shadow (high) |
 | LlamaChas | Kryptonian | Flight, Heat Vision, X-Ray, Freeze Breath, Super Strength |
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
-| TechKnightGaming | Mace Massacre | Mace Massacre, Restock, Infinite XP Bottles, Earthbreaker |
+| TechKnightGaming | Tech Knight | Mace Massacre, Restock, XP Bottles, Earthbreaker, Fortify, Reflect Shield, Shockwave, Overload, Decoy, Grapple Shot |
 | ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
 | disasterflames | Return by Death | Keep Inventory, Return by Death (random checkpoint), Second Wind |
 | _glueman | The Ghost | Possession, Spectral Body, Astral Form |

@@ -69,6 +69,7 @@ public class DataStore {
             data.primaryAbility(section.getString("primary-ability", ""));
             data.realmReturn(section.getString("realm-return", ""));
             data.unlocked().addAll(section.getStringList("unlocked"));
+            data.revoked().addAll(section.getStringList("revoked"));
 
             // Items are stored as Base64 of ItemStack#serializeAsBytes rather than through YAML's
             // ConfigurationSerializable path, which loses newer data components.
@@ -145,6 +146,7 @@ public class DataStore {
             yaml.set(path + ".stance-consolidated", data.stanceConsolidated());
             yaml.set(path + ".omelet-granted", data.omeletGranted());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
+            yaml.set(path + ".revoked", new ArrayList<>(data.revoked()));
             if (!data.realmReturn().isBlank()) {
                 yaml.set(path + ".realm-return", data.realmReturn());
             }

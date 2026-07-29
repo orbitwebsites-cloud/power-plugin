@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.data.PlayerData;
 import com.powersmp.event.DraconicEvolutionEvent;
 import com.powersmp.item.DraconicItems;
+import com.powersmp.item.ResourcePackItems;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
@@ -156,8 +157,8 @@ public class MavriccKit implements PowerKit, Listener {
         draconicEnabled = mavricc.getBoolean("draconic-evolution.enabled", true);
         ConfigurationSection draconic = mavricc.getConfigurationSection("draconic-evolution");
         if (draconic != null) {
-            Material parsed = Material.matchMaterial(
-                    draconic.getString("omelet-material", "PUMPKIN_PIE"));
+            String materialName = draconic.getString("omelet-material", "PUMPKIN_PIE");
+            Material parsed = materialName == null ? null : Material.matchMaterial(materialName);
             if (parsed != null && parsed.isEdible()) {
                 omeletMaterial = parsed;
             } else if (parsed != null) {
@@ -180,6 +181,7 @@ public class MavriccKit implements PowerKit, Listener {
         // Attribute modifiers persist in player NBT, so wipe ours before re-deriving them.
         plugin.stances().clearAttributes(owner);
         clearAdaptation(owner);
+        Effects.remove(owner, org.bukkit.potion.PotionEffectType.HERO_OF_THE_VILLAGE);
         plugin.food().scanPlayer(owner);
         if (plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
             ensureElytra(owner);
@@ -193,7 +195,17 @@ public class MavriccKit implements PowerKit, Listener {
     public void onQuit(Player owner) {
         plugin.stances().clearAttributes(owner);
         clearAdaptation(owner);
+        Effects.remove(owner, org.bukkit.potion.PotionEffectType.HERO_OF_THE_VILLAGE);
         axeCrits.remove(owner.getUniqueId());
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.DIMENSIONAL_ADAPTATION) {
+            clearAdaptation(owner);
+        } else if (power == Power.SPORIC_MIND_CONTROL) {
+            Effects.remove(owner, org.bukkit.potion.PotionEffectType.HERO_OF_THE_VILLAGE);
+        }
     }
 
     @Override
@@ -202,6 +214,7 @@ public class MavriccKit implements PowerKit, Listener {
             if (plugin.kits().isOwner(player, ID)) {
                 plugin.stances().clearAttributes(player);
                 clearAdaptation(player);
+                Effects.remove(player, org.bukkit.potion.PotionEffectType.HERO_OF_THE_VILLAGE);
             }
         }
     }
@@ -233,6 +246,10 @@ public class MavriccKit implements PowerKit, Listener {
         }
         if (grantElytra && plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
             ensureElytra(owner);
+        }
+        if (reissueDraconicMace
+                && plugin.data().get(owner.getUniqueId()).stanceConsolidated()) {
+            grantDraconicMace(owner);
         }
     }
 
@@ -318,6 +335,7 @@ public class MavriccKit implements PowerKit, Listener {
         meta.getPersistentDataContainer().set(Keys.BOUND_ELYTRA, PersistentDataType.BYTE, (byte) 1);
         Enchants.applyVanishing(meta);
         elytra.setItemMeta(meta);
+        ResourcePackItems.apply(elytra, ResourcePackItems.ASCENDED_WING);
 
         if (chest == null || chest.getType().isAir()) {
             owner.getInventory().setChestplate(elytra);
@@ -388,7 +406,7 @@ public class MavriccKit implements PowerKit, Listener {
                 HashMap<Integer, ItemStack> leftover =
                         new HashMap<>(player.getInventory().addItem(item));
                 if (!leftover.isEmpty()) {
-                    player.getWorld().dropItemNaturally(player.getLocation(), item);
+                    Text.msg(player, "<yellow>A bound item is waiting -- free an inventory slot.");
                 }
             }
             Text.msg(player, "<gray>Your bound items came back with you.</gray>");
@@ -470,9 +488,9 @@ public class MavriccKit implements PowerKit, Listener {
         }
     }
 
-    // ---- Draconic Evolution (stub) --------------------------------------
+    // ---- Draconic Evolution ---------------------------------------------
 
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDragonEggPickup(EntityPickupItemEvent event) {
         if (!draconicEnabled || !(event.getEntity() instanceof Player player)) {
             return;
@@ -483,8 +501,22 @@ public class MavriccKit implements PowerKit, Listener {
         if (!plugin.kits().isOwner(player, ID)) {
             return;
         }
+        PlayerData data = plugin.data().get(player.getUniqueId());
+        if (data.omeletGranted() || data.stanceConsolidated()) {
+            return;
+        }
+        // The egg becomes the omelet; it must not also land in the inventory. Only consume one
+        // from a non-vanilla stacked drop and leave the rest on the ground.
+        event.setCancelled(true);
+        ItemStack eggs = event.getItem().getItemStack();
+        if (eggs.getAmount() <= 1) {
+            event.getItem().remove();
+        } else {
+            eggs.setAmount(eggs.getAmount() - 1);
+            event.getItem().setItemStack(eggs);
+        }
         org.bukkit.Bukkit.getPluginManager()
-                .callEvent(new DraconicEvolutionEvent(player, event.getItem().getItemStack()));
+                .callEvent(new DraconicEvolutionEvent(player, new ItemStack(Material.DRAGON_EGG)));
         plugin.unlocks().unlock(player, Power.DRACONIC_EVOLUTION);
         grantOmelet(player);
     }
@@ -541,9 +573,8 @@ public class MavriccKit implements PowerKit, Listener {
             }
         }
         ItemStack mace = DraconicItems.mace(draconicMaceBreach, draconicMaceUnbreakable);
-        if (!owner.getInventory().addItem(mace).isEmpty()) {
-            owner.getWorld().dropItemNaturally(owner.getLocation(), mace);
-        }
+        // Never drop a bound replacement: the next shared tick retries once room exists.
+        owner.getInventory().addItem(mace);
     }
 
     /**
@@ -553,7 +584,9 @@ public class MavriccKit implements PowerKit, Listener {
      */
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onDraconicMaceHit(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player)) {
+        if (!(event.getDamager() instanceof Player player)
+                || !plugin.kits().isOwner(player, ID)
+                || !plugin.data().get(player.getUniqueId()).stanceConsolidated()) {
             return;
         }
         if (!DraconicItems.isDraconicMace(player.getInventory().getItemInMainHand())) {

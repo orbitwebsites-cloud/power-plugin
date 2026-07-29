@@ -43,6 +43,7 @@ public final class MaceItem {
             Enchants.applyVanishing(meta);
             mace.setItemMeta(meta);
         }
+        ResourcePackItems.apply(mace, ResourcePackItems.TECH_GAUNTLET);
         apply(mace, kills, levels);
         return mace;
     }

@@ -43,6 +43,7 @@ public final class SpearItem {
                 .set(Keys.SPEAR_OWNER, PersistentDataType.STRING, owner.toString());
         Enchants.applyVanishing(meta);
         spear.setItemMeta(meta);
+        ResourcePackItems.apply(spear, ResourcePackItems.GRAPPLE_HOOK);
         return spear;
     }
 
@@ -62,6 +63,19 @@ public final class SpearItem {
         Integer tier = item.getItemMeta().getPersistentDataContainer()
                 .get(Keys.SPEAR_TIER, PersistentDataType.INTEGER);
         return tier == null ? MIN_TIER : clamp(tier);
+    }
+
+    public static UUID ownerOf(ItemStack item) {
+        if (!isSpear(item)) {
+            return null;
+        }
+        String raw = item.getItemMeta().getPersistentDataContainer()
+                .get(Keys.SPEAR_OWNER, PersistentDataType.STRING);
+        try {
+            return raw == null ? null : UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 
     /** Writes the tier and refreshes the name and lore to match. */

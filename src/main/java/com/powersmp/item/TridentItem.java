@@ -41,6 +41,7 @@ public final class TridentItem {
                 .set(Keys.BOUND_TRIDENT, PersistentDataType.STRING, owner.toString());
         Enchants.applyVanishing(meta);
         trident.setItemMeta(meta);
+        ResourcePackItems.apply(trident, ResourcePackItems.ENERGY_CORE);
         return trident;
     }
 
@@ -51,5 +52,18 @@ public final class TridentItem {
         ItemMeta meta = item.getItemMeta();
         return meta != null
                 && meta.getPersistentDataContainer().has(Keys.BOUND_TRIDENT, PersistentDataType.STRING);
+    }
+
+    public static UUID ownerOf(ItemStack item) {
+        if (!isBoundTrident(item)) {
+            return null;
+        }
+        String raw = item.getItemMeta().getPersistentDataContainer()
+                .get(Keys.BOUND_TRIDENT, PersistentDataType.STRING);
+        try {
+            return raw == null ? null : UUID.fromString(raw);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
     }
 }

@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [
+      {"threshold": 27003, "model": {"type": "minecraft:model", "model": "powersmp:item/tech_gauntlet"}},
+      {"threshold": 27004, "model": {"type": "minecraft:model", "model": "powersmp:item/final_orb"}},
+      {"threshold": 27006, "model": {"type": "minecraft:model", "model": "powersmp:item/tech_shield"}}
+    ],
+    "fallback": {"type": "minecraft:model", "model": "minecraft:item/mace"}
+  }
+}

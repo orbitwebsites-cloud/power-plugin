@@ -6,6 +6,7 @@ import com.powersmp.item.MaceItem;
 import com.powersmp.item.SpearItem;
 import com.powersmp.item.TridentItem;
 import com.powersmp.kit.PowerKit;
+import com.powersmp.progression.Power;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
@@ -44,10 +45,6 @@ import org.bukkit.scheduler.BukkitTask;
  * roll, and clears the override, so every join starts a fresh roll. Matches how the rest of this
  * plugin treats online-only ephemeral state (grapple tasks, climb progress, and so on).
  *
- * <p>Known limitation, shared with every other kit's one-off delayed tasks: {@code /powersmp reload}
- * calls {@code Bukkit.getScheduler().cancelTasks(this)}, which silently kills the in-flight reroll
- * timer along with everything else. A Lucky player online across a reload keeps whatever they were
- * last rolled until they relog, at which point {@link #onJoin} starts a fresh cycle normally.
  */
 public class LuckyKit implements PowerKit, Listener {
 
@@ -76,12 +73,14 @@ public class LuckyKit implements PowerKit, Listener {
 
     public void reload(ConfigurationSection section) {
         int minutes = section == null ? 20 : Math.max(1, section.getInt("roll-minutes", 20));
-        rollDurationTicks = minutes * 60 * 20;
+        rollDurationTicks = (int) Math.min(Integer.MAX_VALUE, minutes * 60L * 20L);
     }
 
     @Override
     public void onJoin(Player owner) {
-        roll(owner);
+        if (plugin.unlocks().isUnlocked(owner, Power.LUCKY_ROLL)) {
+            roll(owner);
+        }
     }
 
     private void roll(Player owner) {
@@ -166,7 +165,7 @@ public class LuckyKit implements PowerKit, Listener {
             return false;
         }
         if (TridentItem.isBoundTrident(item) || SpearItem.isSpear(item) || MaceItem.isSoulbound(item)
-                || DraconicItems.isDraconicMace(item) || DomanKit.isShooter(item) || MarbKit.isShadow(item)) {
+                || DraconicItems.isDraconicMace(item) || MarbKit.isShadow(item)) {
             return true;
         }
         ItemMeta meta = item.getItemMeta();
@@ -208,6 +207,19 @@ public class LuckyKit implements PowerKit, Listener {
                 plugin.kits().clearOverride(player.getUniqueId());
             }
         }
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power != Power.LUCKY_ROLL) {
+            return;
+        }
+        BukkitTask task = rerollTasks.remove(owner.getUniqueId());
+        if (task != null) {
+            task.cancel();
+        }
+        endCurrentRoll(owner);
+        plugin.kits().clearOverride(owner.getUniqueId());
     }
 
     @Override

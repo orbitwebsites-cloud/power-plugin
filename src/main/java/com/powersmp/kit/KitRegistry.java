@@ -123,7 +123,11 @@ public class KitRegistry {
             PowerKit overridden = kitsById.get(overrideId);
             return overridden == null ? List.of() : List.of(overridden);
         }
+        return assignedKitsOf(player);
+    }
 
+    /** Returns permanent assignments only, ignoring Lucky's temporary override. */
+    public List<PowerKit> assignedKitsOf(Player player) {
         List<String> kitIds = uuidAssignments.get(player.getUniqueId());
         if (kitIds == null) {
             kitIds = nameAssignments.get(player.getName().toLowerCase(Locale.ROOT));

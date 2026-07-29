@@ -169,7 +169,8 @@ public class IllusoryRealm implements Listener {
             interiorLight = arena.getBoolean("interior-light", interiorLight);
             terrainClusters = Math.max(0, arena.getInt("terrain-clusters", terrainClusters));
             floatingPlatforms = Math.max(0, arena.getInt("floating-platforms", floatingPlatforms));
-            Material shell = Material.matchMaterial(arena.getString("shell-block", ""));
+            String shellName = arena.getString("shell-block", "");
+            Material shell = shellName == null ? null : Material.matchMaterial(shellName);
             if (shell != null && shell.isBlock()) {
                 shellMaterial = shell;
             }

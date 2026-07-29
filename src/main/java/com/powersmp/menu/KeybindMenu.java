@@ -40,8 +40,9 @@ import org.jetbrains.annotations.NotNull;
  */
 public class KeybindMenu implements Listener {
 
-    private static final int SIZE = 27;
+    private static final int SIZE = 36;
     private static final int ABILITY_ROW_START = 18;
+    private static final int ABILITY_SLOTS = 18;
 
     private final PowerSMP plugin;
 
@@ -74,7 +75,7 @@ public class KeybindMenu implements Listener {
         List<Ability> abilities = allAbilities(kits);
         String chosen = plugin.data().get(player.getUniqueId()).primaryAbility();
         String effectiveDefault = kits.isEmpty() ? null : kits.get(0).primaryAbilityId();
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < ABILITY_SLOTS; i++) {
             int slot = ABILITY_ROW_START + i;
             if (i >= abilities.size()) {
                 inventory.setItem(slot, filler());
@@ -155,7 +156,7 @@ public class KeybindMenu implements Listener {
             redraw(player, event.getInventory());
             return;
         }
-        if (slot >= ABILITY_ROW_START && slot < ABILITY_ROW_START + 9) {
+        if (slot >= ABILITY_ROW_START && slot < ABILITY_ROW_START + ABILITY_SLOTS) {
             List<Ability> abilities = allAbilities(plugin.kits().kitsOf(player));
             int index = slot - ABILITY_ROW_START;
             if (index >= abilities.size()) {

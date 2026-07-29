@@ -8,6 +8,9 @@ import com.powersmp.kit.PowerKit;
 import com.powersmp.menu.RestockMenu;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Attributes;
+import com.powersmp.util.Effects;
+import com.powersmp.util.Keys;
+import com.powersmp.util.MovementExemption;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -15,16 +18,21 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -36,6 +44,11 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 /**
@@ -65,11 +78,24 @@ public class TechKnightKit implements PowerKit, Listener {
     private static final String ABILITY_LOADOUT = "loadout";
     private static final String ABILITY_XP = "xp";
     private static final String ABILITY_EARTHBREAKER = "earthbreaker";
+    private static final String ABILITY_FORTIFY = "fortify";
+    private static final String ABILITY_REFLECT = "reflect_shield";
+    private static final String ABILITY_SHOCKWAVE = "shockwave";
+    private static final String ABILITY_OVERLOAD = "overload";
+    private static final String ABILITY_DECOY = "decoy";
+    private static final String ABILITY_GRAPPLE = "grapple_shot";
 
     private final PowerSMP plugin;
     private final RestockMenu menu;
     /** Maces pulled out of death drops, held until the owner respawns. */
     private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
+    private final Set<UUID> activeEarthbreakers = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, FortifySession> fortifySessions = new ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> reflectTasks = new ConcurrentHashMap<>();
+    private final Set<UUID> reflectingDamage = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Long> overloadUntil = new ConcurrentHashMap<>();
+    private final Map<UUID, DecoySession> decoys = new ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> grapples = new ConcurrentHashMap<>();
 
     // Tuning
     private boolean ladderMode = true;
@@ -97,6 +123,36 @@ public class TechKnightKit implements PowerKit, Listener {
 
     private boolean shieldBreakEnabled = true;
     private double shieldBreakChance = 0.5d;
+
+    private int fortifyDurationTicks = 160;
+    private int fortifyResistanceAmplifier = 1;
+    private double fortifyKnockbackResistance = 0.75d;
+    private double fortifyCooldown = 30.0d;
+
+    private int reflectDurationTicks = 200;
+    private double reflectRatio = 0.5d;
+    private double reflectCooldown = 40.0d;
+
+    private double shockwaveRange = 10.0d;
+    private double shockwaveHalfAngleDegrees = 45.0d;
+    private double shockwaveDamage = 6.0d;
+    private double shockwaveKnockup = 0.9d;
+    private double shockwaveCooldown = 20.0d;
+
+    private int overloadWindowTicks = 400;
+    private double overloadDamageMultiplier = 2.0d;
+    private int overloadWitherTicks = 100;
+    private int overloadWitherAmplifier;
+    private double overloadCooldown = 45.0d;
+
+    private int decoyDurationTicks = 200;
+    private double decoyTauntRadius = 16.0d;
+    private double decoyCooldown = 30.0d;
+
+    private double grappleRange = 24.0d;
+    private double grapplePower = 1.35d;
+    private int grapplePulseTicks = 30;
+    private double grappleCooldown = 15.0d;
 
     public TechKnightKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -167,13 +223,92 @@ public class TechKnightKit implements PowerKit, Listener {
         ConfigurationSection shieldBreak = section.getConfigurationSection("shield-break");
         if (shieldBreak != null) {
             shieldBreakEnabled = shieldBreak.getBoolean("enabled", true);
-            shieldBreakChance = shieldBreak.getDouble("chance", shieldBreakChance);
+            shieldBreakChance = Math.max(0.0d, Math.min(1.0d,
+                    shieldBreak.getDouble("chance", shieldBreakChance)));
+        }
+
+        ConfigurationSection fortify = section.getConfigurationSection("fortify");
+        if (fortify != null) {
+            fortifyDurationTicks = Math.max(1,
+                    fortify.getInt("duration-seconds", fortifyDurationTicks / 20) * 20);
+            fortifyResistanceAmplifier = Math.max(0,
+                    fortify.getInt("resistance-amplifier", fortifyResistanceAmplifier));
+            fortifyKnockbackResistance = Math.max(0.0d, Math.min(1.0d,
+                    fortify.getDouble("knockback-resistance", fortifyKnockbackResistance)));
+            fortifyCooldown = Math.max(0.0d,
+                    fortify.getDouble("cooldown-seconds", fortifyCooldown));
+        }
+
+        ConfigurationSection reflect = section.getConfigurationSection("reflect-shield");
+        if (reflect != null) {
+            reflectDurationTicks = Math.max(1,
+                    reflect.getInt("duration-seconds", reflectDurationTicks / 20) * 20);
+            reflectRatio = Math.max(0.0d,
+                    reflect.getDouble("damage-ratio", reflectRatio));
+            reflectCooldown = Math.max(0.0d,
+                    reflect.getDouble("cooldown-seconds", reflectCooldown));
+        }
+
+        ConfigurationSection shockwave = section.getConfigurationSection("shockwave");
+        if (shockwave != null) {
+            shockwaveRange = Math.max(1.0d,
+                    shockwave.getDouble("range", shockwaveRange));
+            shockwaveHalfAngleDegrees = Math.max(1.0d, Math.min(180.0d,
+                    shockwave.getDouble("half-angle-degrees", shockwaveHalfAngleDegrees)));
+            shockwaveDamage = Math.max(0.0d,
+                    shockwave.getDouble("damage", shockwaveDamage));
+            shockwaveKnockup = Math.max(0.0d,
+                    shockwave.getDouble("knockup-power", shockwaveKnockup));
+            shockwaveCooldown = Math.max(0.0d,
+                    shockwave.getDouble("cooldown-seconds", shockwaveCooldown));
+        }
+
+        ConfigurationSection overload = section.getConfigurationSection("overload");
+        if (overload != null) {
+            overloadWindowTicks = Math.max(1,
+                    overload.getInt("window-seconds", overloadWindowTicks / 20) * 20);
+            overloadDamageMultiplier = Math.max(1.0d,
+                    overload.getDouble("damage-multiplier", overloadDamageMultiplier));
+            overloadWitherTicks = Math.max(0,
+                    overload.getInt("wither-seconds", overloadWitherTicks / 20) * 20);
+            overloadWitherAmplifier = Math.max(0,
+                    overload.getInt("wither-amplifier", overloadWitherAmplifier));
+            overloadCooldown = Math.max(0.0d,
+                    overload.getDouble("cooldown-seconds", overloadCooldown));
+        }
+
+        ConfigurationSection decoy = section.getConfigurationSection("decoy");
+        if (decoy != null) {
+            decoyDurationTicks = Math.max(1,
+                    decoy.getInt("duration-seconds", decoyDurationTicks / 20) * 20);
+            decoyTauntRadius = Math.max(1.0d,
+                    decoy.getDouble("taunt-radius", decoyTauntRadius));
+            decoyCooldown = Math.max(0.0d,
+                    decoy.getDouble("cooldown-seconds", decoyCooldown));
+        }
+
+        ConfigurationSection grapple = section.getConfigurationSection("grapple-shot");
+        if (grapple != null) {
+            grappleRange = Math.max(1.0d,
+                    grapple.getDouble("range", grappleRange));
+            grapplePower = Math.max(0.0d,
+                    grapple.getDouble("pull-power", grapplePower));
+            grapplePulseTicks = Math.max(1,
+                    grapple.getInt("pulse-ticks", grapplePulseTicks));
+            grappleCooldown = Math.max(0.0d,
+                    grapple.getDouble("cooldown-seconds", grappleCooldown));
         }
 
         plugin.cooldowns().registerLabel(ABILITY_RESTOCK, "Restock");
         // Five hours is far longer than a server uptime; without this a restart is a free use.
         plugin.cooldowns().registerPersistent(ABILITY_RESTOCK);
         plugin.cooldowns().registerLabel(ABILITY_EARTHBREAKER, "Earthbreaker");
+        plugin.cooldowns().registerLabel(ABILITY_FORTIFY, "Fortify");
+        plugin.cooldowns().registerLabel(ABILITY_REFLECT, "Reflect Shield");
+        plugin.cooldowns().registerLabel(ABILITY_SHOCKWAVE, "Shockwave");
+        plugin.cooldowns().registerLabel(ABILITY_OVERLOAD, "Overload");
+        plugin.cooldowns().registerLabel(ABILITY_DECOY, "Decoy");
+        plugin.cooldowns().registerLabel(ABILITY_GRAPPLE, "Grapple Shot");
     }
 
     /** Parses {@code "ENDER_PEARL:16"}. */
@@ -219,7 +354,7 @@ public class TechKnightKit implements PowerKit, Listener {
         int kills = data.maceKills();
 
         for (ItemStack item : owner.getInventory().getContents()) {
-            if (MaceItem.isSoulbound(item)) {
+            if (owner.getUniqueId().equals(MaceItem.ownerOf(item))) {
                 if (MaceItem.killsOf(item) != kills) {
                     MaceItem.apply(item, kills, levelsFor(kills));
                 }
@@ -227,10 +362,14 @@ public class TechKnightKit implements PowerKit, Listener {
             }
         }
         ItemStack mace = MaceItem.create(owner.getUniqueId(), kills, levelsFor(kills), maceUnbreakable);
-        Map<Integer, ItemStack> leftover = owner.getInventory().addItem(mace);
-        if (!leftover.isEmpty()) {
-            owner.getWorld().dropItemNaturally(owner.getLocation(), mace);
-            Text.msg(owner, "<yellow>Your mace was dropped at your feet -- your inventory is full.");
+        // Never drop a soulbound replacement: the next shared tick retries once room exists.
+        owner.getInventory().addItem(mace);
+    }
+
+    @Override
+    public void tick(Player owner) {
+        if (plugin.unlocks().isUnlocked(owner, Power.MACE_MASSACRE)) {
+            ensureMace(owner);
         }
     }
 
@@ -256,7 +395,7 @@ public class TechKnightKit implements PowerKit, Listener {
             return;
         }
         ItemStack held = killer.getInventory().getItemInMainHand();
-        if (requireMaceInHand && !MaceItem.isSoulbound(held)) {
+        if (requireMaceInHand && !killer.getUniqueId().equals(MaceItem.ownerOf(held))) {
             return;
         }
 
@@ -268,7 +407,7 @@ public class TechKnightKit implements PowerKit, Listener {
         MaceItem.Levels was = levelsFor(before);
         MaceItem.Levels now = levelsFor(data.maceKills());
 
-        ItemStack mace = MaceItem.isSoulbound(held) ? held : findMace(killer);
+        ItemStack mace = killer.getUniqueId().equals(MaceItem.ownerOf(held)) ? held : findMace(killer);
         if (mace != null) {
             MaceItem.apply(mace, data.maceKills(), now);
         }
@@ -305,7 +444,8 @@ public class TechKnightKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(killer, Power.MACE_MASSACRE)) {
             return;
         }
-        if (!MaceItem.isSoulbound(killer.getInventory().getItemInMainHand())) {
+        if (!killer.getUniqueId().equals(
+                MaceItem.ownerOf(killer.getInventory().getItemInMainHand()))) {
             return;
         }
         if (!(event.getEntity() instanceof Player victim) || !victim.isBlocking()) {
@@ -339,7 +479,7 @@ public class TechKnightKit implements PowerKit, Listener {
 
     private ItemStack findMace(Player owner) {
         for (ItemStack item : owner.getInventory().getContents()) {
-            if (MaceItem.isSoulbound(item)) {
+            if (owner.getUniqueId().equals(MaceItem.ownerOf(item))) {
                 return item;
             }
         }
@@ -385,7 +525,7 @@ public class TechKnightKit implements PowerKit, Listener {
             }
             Map<Integer, ItemStack> leftover = player.getInventory().addItem(stashed);
             if (!leftover.isEmpty()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+                Text.msg(player, "<yellow>Your mace is waiting -- free an inventory slot.");
             }
             Text.msg(player, "<gray>Your mace came back with you.</gray>");
         });
@@ -440,6 +580,7 @@ public class TechKnightKit implements PowerKit, Listener {
         // Vanilla's own movement check does not know the leap is deliberate and will snap him back
         // mid-air without this. Ends in slam(), which fires exactly when the leap's hang time ends.
         com.powersmp.util.MovementExemption.begin(owner);
+        activeEarthbreakers.add(owner.getUniqueId());
         owner.setVelocity(new Vector(0.0d, earthbreakerLeapPower, 0.0d));
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 0.6f);
@@ -449,8 +590,10 @@ public class TechKnightKit implements PowerKit, Listener {
     }
 
     private void slam(Player owner) {
+        activeEarthbreakers.remove(owner.getUniqueId());
         com.powersmp.util.MovementExemption.end(owner);
-        if (!owner.isOnline()) {
+        if (!owner.isOnline() || !plugin.kits().isOwner(owner, ID)
+                || !plugin.unlocks().isUnlocked(owner, Power.EARTHBREAKER)) {
             return;
         }
         int level = Math.min(earthbreakerScalingCap, plugin.data().get(owner.getUniqueId()).maceKills());
@@ -484,6 +627,438 @@ public class TechKnightKit implements PowerKit, Listener {
         Text.actionBar(owner, "<gold><bold>EARTHBREAKER</bold></gold>");
     }
 
+    // ---- Fortify --------------------------------------------------------
+
+    private boolean fortify(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.FORTIFY)) {
+            return plugin.unlocks().denyLocked(owner, Power.FORTIFY);
+        }
+        if (fortifySessions.containsKey(owner.getUniqueId())) {
+            Text.actionBar(owner, "<gray>Fortify is already active.</gray>");
+            return false;
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_FORTIFY, fortifyCooldown)) {
+            return false;
+        }
+        UUID id = owner.getUniqueId();
+        FortifySession session = new FortifySession(owner.getPotionEffect(PotionEffectType.RESISTANCE));
+        fortifySessions.put(id, session);
+        Effects.apply(owner, PotionEffectType.RESISTANCE,
+                fortifyDurationTicks + 5, fortifyResistanceAmplifier);
+        Attributes.set(owner, Attributes.KNOCKBACK_RESISTANCE,
+                Keys.TECH_FORTIFY_KNOCKBACK, fortifyKnockbackResistance);
+        owner.getWorld().spawnParticle(Particle.BLOCK, owner.getLocation().add(0.0d, 1.0d, 0.0d),
+                50, 0.5d, 0.8d, 0.5d, Material.IRON_BLOCK.createBlockData());
+        owner.playSound(owner.getLocation(), Sound.ITEM_ARMOR_EQUIP_NETHERITE, 1.0f, 0.7f);
+        Text.msg(owner, "<gray><bold>FORTIFY</bold></gray> <gray>-- armour systems locked.</gray>");
+        session.task = Bukkit.getScheduler().runTaskLater(plugin,
+                () -> finishFortify(owner), fortifyDurationTicks);
+        return true;
+    }
+
+    private void finishFortify(Player owner) {
+        FortifySession session = fortifySessions.remove(owner.getUniqueId());
+        if (session == null) {
+            return;
+        }
+        if (session.task != null && !session.task.isCancelled()) {
+            session.task.cancel();
+        }
+        Attributes.clear(owner, Attributes.KNOCKBACK_RESISTANCE, Keys.TECH_FORTIFY_KNOCKBACK);
+        owner.removePotionEffect(PotionEffectType.RESISTANCE);
+        if (session.previousResistance != null) {
+            owner.addPotionEffect(session.previousResistance);
+        }
+    }
+
+    // ---- Reflect Shield -------------------------------------------------
+
+    private boolean reflectShield(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.REFLECT_SHIELD)) {
+            return plugin.unlocks().denyLocked(owner, Power.REFLECT_SHIELD);
+        }
+        if (reflectTasks.containsKey(owner.getUniqueId())) {
+            Text.actionBar(owner, "<aqua>Reflect Shield is already active.</aqua>");
+            return false;
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_REFLECT, reflectCooldown)) {
+            return false;
+        }
+        UUID id = owner.getUniqueId();
+        owner.getWorld().spawnParticle(Particle.ENCHANT, owner.getLocation().add(0.0d, 1.0d, 0.0d),
+                50, 0.8d, 1.0d, 0.8d, 0.4d);
+        owner.playSound(owner.getLocation(), Sound.ITEM_SHIELD_BLOCK, 1.0f, 1.4f);
+        Text.msg(owner, "<aqua><bold>REFLECT SHIELD</bold></aqua> <gray>-- retaliation online.</gray>");
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(plugin,
+                () -> reflectTasks.remove(id), reflectDurationTicks);
+        reflectTasks.put(id, task);
+        return true;
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onReflectedDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getEntity() instanceof Player owner)
+                || reflectingDamage.contains(owner.getUniqueId())
+                || !plugin.kits().isOwner(owner, ID)
+                || !plugin.unlocks().isUnlocked(owner, Power.REFLECT_SHIELD)
+                || !reflectTasks.containsKey(owner.getUniqueId())) {
+            return;
+        }
+        LivingEntity attacker = damageSource(event.getDamager());
+        if (attacker == null || attacker.equals(owner)) {
+            return;
+        }
+        double reflected = event.getFinalDamage() * reflectRatio;
+        if (reflected <= 0.0d) {
+            return;
+        }
+        reflectingDamage.add(attacker.getUniqueId());
+        try {
+            attacker.damage(reflected, owner);
+        } finally {
+            reflectingDamage.remove(attacker.getUniqueId());
+        }
+        attacker.getWorld().spawnParticle(Particle.CRIT, attacker.getLocation().add(0.0d, 1.0d, 0.0d),
+                15, 0.3d, 0.5d, 0.3d, 0.2d);
+        owner.playSound(owner.getLocation(), Sound.ITEM_SHIELD_BLOCK, 0.7f, 1.8f);
+    }
+
+    private LivingEntity damageSource(Entity damager) {
+        if (damager instanceof LivingEntity living) {
+            return living;
+        }
+        if (damager instanceof Projectile projectile
+                && projectile.getShooter() instanceof LivingEntity living) {
+            return living;
+        }
+        return null;
+    }
+
+    // ---- Shockwave ------------------------------------------------------
+
+    private boolean shockwave(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.SHOCKWAVE)) {
+            return plugin.unlocks().denyLocked(owner, Power.SHOCKWAVE);
+        }
+        if (!owner.isOnGround()) {
+            Text.msg(owner, "<red>Shockwave must be fired from the ground.");
+            return false;
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_SHOCKWAVE, shockwaveCooldown)) {
+            return false;
+        }
+        Vector forward = owner.getEyeLocation().getDirection().setY(0.0d);
+        if (forward.lengthSquared() < 1.0e-4) {
+            forward = new Vector(0.0d, 0.0d, 1.0d);
+        }
+        forward.normalize();
+        double minimumDot = Math.cos(Math.toRadians(shockwaveHalfAngleDegrees));
+        int hit = 0;
+        for (Entity nearby : owner.getNearbyEntities(shockwaveRange, 4.0d, shockwaveRange)) {
+            if (!(nearby instanceof LivingEntity target) || target.equals(owner)
+                    || !owner.hasLineOfSight(target)) {
+                continue;
+            }
+            Vector toward = target.getLocation().toVector()
+                    .subtract(owner.getLocation().toVector()).setY(0.0d);
+            double distance = toward.length();
+            if (distance < 1.0e-4 || distance > shockwaveRange
+                    || toward.normalize().dot(forward) < minimumDot) {
+                continue;
+            }
+            target.damage(shockwaveDamage, owner);
+            Vector velocity = target.getVelocity();
+            velocity.setY(Math.max(shockwaveKnockup, velocity.getY()));
+            target.setVelocity(velocity);
+            exemptMovement(target, 15L);
+            hit++;
+        }
+        for (double distance = 1.0d; distance <= shockwaveRange; distance += 0.65d) {
+            Location point = owner.getLocation().add(forward.clone().multiply(distance));
+            owner.getWorld().spawnParticle(Particle.CLOUD, point.add(0.0d, 0.15d, 0.0d),
+                    4, distance * 0.05d, 0.08d, distance * 0.05d, 0.03d);
+        }
+        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.4f);
+        Text.actionBar(owner, "<gold><bold>SHOCKWAVE</bold></gold> <gray>" + hit + " hit</gray>");
+        return true;
+    }
+
+    // ---- Overload -------------------------------------------------------
+
+    private boolean overload(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.OVERLOAD)) {
+            return plugin.unlocks().denyLocked(owner, Power.OVERLOAD);
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_OVERLOAD, overloadCooldown)) {
+            return false;
+        }
+        overloadUntil.put(owner.getUniqueId(),
+                System.currentTimeMillis() + overloadWindowTicks * 50L);
+        owner.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
+                owner.getLocation().add(0.0d, 1.0d, 0.0d), 45,
+                0.5d, 0.8d, 0.5d, 0.08d);
+        owner.playSound(owner.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1.0f, 1.6f);
+        Text.msg(owner, "<yellow><bold>OVERLOAD</bold></yellow> <gray>-- next mace hit empowered.</gray>");
+        return true;
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onOverloadHit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player owner)
+                || !plugin.kits().isOwner(owner, ID)
+                || !plugin.unlocks().isUnlocked(owner, Power.OVERLOAD)
+                || !owner.getUniqueId().equals(
+                        MaceItem.ownerOf(owner.getInventory().getItemInMainHand()))
+                || !(event.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        Long until = overloadUntil.get(owner.getUniqueId());
+        if (until == null) {
+            return;
+        }
+        if (until < System.currentTimeMillis()) {
+            overloadUntil.remove(owner.getUniqueId());
+            return;
+        }
+        overloadUntil.remove(owner.getUniqueId());
+        event.setDamage(event.getDamage() * overloadDamageMultiplier);
+        Effects.apply(target, PotionEffectType.WITHER,
+                overloadWitherTicks, overloadWitherAmplifier);
+        target.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
+                target.getLocation().add(0.0d, 1.0d, 0.0d), 35,
+                0.4d, 0.7d, 0.4d, 0.12d);
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_LIGHTNING_BOLT_IMPACT, 0.8f, 1.6f);
+    }
+
+    // ---- Decoy ----------------------------------------------------------
+
+    private boolean decoy(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.DECOY)) {
+            return plugin.unlocks().denyLocked(owner, Power.DECOY);
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_DECOY, decoyCooldown)) {
+            return false;
+        }
+        removeDecoy(owner.getUniqueId());
+        ArmorStand stand = owner.getWorld().spawn(owner.getLocation(), ArmorStand.class, spawned -> {
+            spawned.setInvisible(true);
+            spawned.setInvulnerable(true);
+            spawned.setGravity(false);
+            spawned.setArms(true);
+            spawned.setBasePlate(false);
+            spawned.setCollidable(false);
+            spawned.customName(Text.mm("<aqua>Tech Decoy</aqua>"));
+            spawned.setCustomNameVisible(true);
+            spawned.getEquipment().setArmorContents(owner.getInventory().getArmorContents());
+            spawned.getEquipment().setItemInMainHand(
+                    owner.getInventory().getItemInMainHand().clone());
+        });
+        UUID ownerId = owner.getUniqueId();
+        DecoySession session = new DecoySession(stand);
+        decoys.put(ownerId, session);
+        session.task = new BukkitRunnable() {
+            private int elapsed;
+
+            @Override
+            public void run() {
+                if ((elapsed += 10) > decoyDurationTicks || !owner.isOnline()
+                        || !stand.isValid() || !plugin.kits().isOwner(owner, ID)
+                        || !plugin.unlocks().isUnlocked(owner, Power.DECOY)) {
+                    cancel();
+                    removeDecoy(ownerId);
+                    return;
+                }
+                for (Entity nearby : stand.getNearbyEntities(
+                        decoyTauntRadius, decoyTauntRadius, decoyTauntRadius)) {
+                    if (nearby instanceof Mob mob) {
+                        mob.setTarget(stand);
+                    }
+                }
+                stand.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
+                        stand.getLocation().add(0.0d, 1.0d, 0.0d),
+                        4, 0.25d, 0.5d, 0.25d, 0.02d);
+            }
+        }.runTaskTimer(plugin, 0L, 10L);
+        owner.playSound(owner.getLocation(), Sound.ENTITY_ARMOR_STAND_PLACE, 1.0f, 1.5f);
+        Text.msg(owner, "<aqua><bold>DECOY DEPLOYED</bold></aqua>");
+        return true;
+    }
+
+    private void removeDecoy(UUID ownerId) {
+        DecoySession session = decoys.remove(ownerId);
+        if (session == null) {
+            return;
+        }
+        if (session.task != null && !session.task.isCancelled()) {
+            session.task.cancel();
+        }
+        ArmorStand stand = session.stand;
+        if (stand.isValid()) {
+            for (Entity nearby : stand.getNearbyEntities(
+                    decoyTauntRadius, decoyTauntRadius, decoyTauntRadius)) {
+                if (nearby instanceof Mob mob && stand.equals(mob.getTarget())) {
+                    mob.setTarget(null);
+                }
+            }
+            stand.remove();
+        }
+    }
+
+    // ---- Grapple Shot ---------------------------------------------------
+
+    private boolean grappleShot(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.GRAPPLE_SHOT)) {
+            return plugin.unlocks().denyLocked(owner, Power.GRAPPLE_SHOT);
+        }
+        Location eye = owner.getEyeLocation();
+        Vector direction = eye.getDirection().normalize();
+        RayTraceResult entityTrace = owner.getWorld().rayTraceEntities(
+                eye, direction, grappleRange, 0.6d,
+                entity -> entity instanceof LivingEntity && !entity.equals(owner));
+        Entity target = entityTrace == null ? null : entityTrace.getHitEntity();
+        if (target != null && !owner.hasLineOfSight(target)) {
+            target = null;
+        }
+        Location anchor = null;
+        if (target == null) {
+            org.bukkit.block.Block block = owner.getTargetBlockExact((int) Math.ceil(grappleRange));
+            if (block != null) {
+                anchor = block.getLocation().add(0.5d, 0.5d, 0.5d);
+            }
+        }
+        if (target == null && anchor == null) {
+            Text.msg(owner, "<red>No grapple target in range.");
+            return false;
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_GRAPPLE, grappleCooldown)) {
+            return false;
+        }
+        UUID id = owner.getUniqueId();
+        BukkitTask previous = grapples.remove(id);
+        if (previous != null) {
+            previous.cancel();
+            MovementExemption.end(owner);
+        }
+        final Entity lockedTarget = target;
+        final Location fixedAnchor = anchor;
+        MovementExemption.begin(owner);
+        owner.playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 0.7f);
+        BukkitTask task = new BukkitRunnable() {
+            private int elapsed;
+
+            @Override
+            public void run() {
+                if (++elapsed > grapplePulseTicks || !owner.isOnline()
+                        || !plugin.kits().isOwner(owner, ID)
+                        || !plugin.unlocks().isUnlocked(owner, Power.GRAPPLE_SHOT)
+                        || (lockedTarget != null && !lockedTarget.isValid())) {
+                    stopGrapple(owner, this);
+                    return;
+                }
+                Location destination = lockedTarget == null
+                        ? fixedAnchor : lockedTarget.getLocation().add(0.0d, 1.0d, 0.0d);
+                Vector pull = destination.toVector().subtract(owner.getLocation().toVector());
+                if (pull.lengthSquared() < 2.25d) {
+                    stopGrapple(owner, this);
+                    return;
+                }
+                drawGrapple(owner.getEyeLocation(), destination);
+                owner.setVelocity(pull.normalize().multiply(grapplePower));
+                owner.setFallDistance(0.0f);
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+        grapples.put(id, task);
+        return true;
+    }
+
+    private void stopGrapple(Player owner, BukkitRunnable runnable) {
+        runnable.cancel();
+        grapples.remove(owner.getUniqueId());
+        MovementExemption.end(owner);
+    }
+
+    private void drawGrapple(Location from, Location to) {
+        Vector line = to.toVector().subtract(from.toVector());
+        double length = line.length();
+        if (length < 1.0e-4) {
+            return;
+        }
+        line.normalize();
+        for (double distance = 0.0d; distance <= length; distance += 0.65d) {
+            from.getWorld().spawnParticle(Particle.ELECTRIC_SPARK,
+                    from.clone().add(line.clone().multiply(distance)),
+                    1, 0.0d, 0.0d, 0.0d, 0.0d);
+        }
+    }
+
+    private void exemptMovement(LivingEntity entity, long ticks) {
+        if (entity instanceof Player player) {
+            MovementExemption.begin(player);
+            Bukkit.getScheduler().runTaskLater(plugin,
+                    () -> MovementExemption.end(player), ticks);
+        }
+    }
+
+    @Override
+    public void onQuit(Player owner) {
+        if (activeEarthbreakers.remove(owner.getUniqueId())) {
+            com.powersmp.util.MovementExemption.end(owner);
+        }
+        UUID id = owner.getUniqueId();
+        finishFortify(owner);
+        BukkitTask reflect = reflectTasks.remove(id);
+        if (reflect != null) {
+            reflect.cancel();
+        }
+        overloadUntil.remove(id);
+        removeDecoy(id);
+        BukkitTask grapple = grapples.remove(id);
+        if (grapple != null) {
+            grapple.cancel();
+            MovementExemption.end(owner);
+        }
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.EARTHBREAKER && activeEarthbreakers.remove(owner.getUniqueId())) {
+            com.powersmp.util.MovementExemption.end(owner);
+        } else if (power == Power.FORTIFY) {
+            finishFortify(owner);
+        } else if (power == Power.REFLECT_SHIELD) {
+            BukkitTask task = reflectTasks.remove(owner.getUniqueId());
+            if (task != null) {
+                task.cancel();
+            }
+        } else if (power == Power.OVERLOAD) {
+            overloadUntil.remove(owner.getUniqueId());
+        } else if (power == Power.DECOY) {
+            removeDecoy(owner.getUniqueId());
+        } else if (power == Power.GRAPPLE_SHOT) {
+            BukkitTask task = grapples.remove(owner.getUniqueId());
+            if (task != null) {
+                task.cancel();
+                MovementExemption.end(owner);
+            }
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (plugin.kits().isOwner(player, ID)) {
+                onQuit(player);
+            }
+        }
+        decoys.keySet().forEach(this::removeDecoy);
+        reflectTasks.values().forEach(BukkitTask::cancel);
+        grapples.values().forEach(BukkitTask::cancel);
+        fortifySessions.clear();
+        reflectTasks.clear();
+        grapples.clear();
+        overloadUntil.clear();
+    }
+
     // ---- abilities ------------------------------------------------------
 
     @Override
@@ -496,7 +1071,23 @@ public class TechKnightKit implements PowerKit, Listener {
                 new Ability(ABILITY_XP, "XP Bottles",
                         "Fill your inventory with experience bottles. No cooldown."),
                 new Ability(ABILITY_EARTHBREAKER, "Earthbreaker",
-                        "Leap up and slam down, damaging and launching everyone nearby."));
+                        "Leap up and slam down, damaging and launching everyone nearby."),
+                new Ability(ABILITY_FORTIFY, "Fortify",
+                        "Resistance II and heavy knockback resistance for "
+                                + fortifyDurationTicks / 20 + "s."),
+                new Ability(ABILITY_REFLECT, "Reflect Shield",
+                        "Reflect " + (int) Math.round(reflectRatio * 100.0d)
+                                + "% of incoming damage for " + reflectDurationTicks / 20 + "s."),
+                new Ability(ABILITY_SHOCKWAVE, "Shockwave",
+                        "Send a damaging, upward-launching wave in front of you."),
+                new Ability(ABILITY_OVERLOAD, "Overload",
+                        "Your next mace hit within " + overloadWindowTicks / 20
+                                + "s deals double damage and Wither I."),
+                new Ability(ABILITY_DECOY, "Decoy",
+                        "Deploy an armour hologram that taunts nearby mobs."),
+                new Ability(ABILITY_GRAPPLE, "Grapple Shot",
+                        "Pull yourself toward a block or entity up to "
+                                + (int) grappleRange + " blocks away."));
     }
 
     @Override
@@ -511,6 +1102,12 @@ public class TechKnightKit implements PowerKit, Listener {
             case ABILITY_LOADOUT -> openLoadout(owner);
             case ABILITY_XP -> xpBottles(owner);
             case ABILITY_EARTHBREAKER -> earthbreaker(owner);
+            case ABILITY_FORTIFY -> fortify(owner);
+            case ABILITY_REFLECT -> reflectShield(owner);
+            case ABILITY_SHOCKWAVE -> shockwave(owner);
+            case ABILITY_OVERLOAD -> overload(owner);
+            case ABILITY_DECOY -> decoy(owner);
+            case ABILITY_GRAPPLE -> grappleShot(owner);
             default -> false;
         };
     }
@@ -584,5 +1181,23 @@ public class TechKnightKit implements PowerKit, Listener {
         owner.getWorld().spawnParticle(Particle.ENCHANT, owner.getLocation().add(0, 1, 0), 40, 0.6, 0.6, 0.6, 1.0);
         Text.msg(owner, "<green>+" + stacks + "</green> <gray>stack(s) of experience bottles.</gray>");
         return true;
+    }
+
+    private static final class FortifySession {
+        private final PotionEffect previousResistance;
+        private BukkitTask task;
+
+        private FortifySession(PotionEffect previousResistance) {
+            this.previousResistance = previousResistance;
+        }
+    }
+
+    private static final class DecoySession {
+        private final ArmorStand stand;
+        private BukkitTask task;
+
+        private DecoySession(ArmorStand stand) {
+            this.stand = stand;
+        }
     }
 }

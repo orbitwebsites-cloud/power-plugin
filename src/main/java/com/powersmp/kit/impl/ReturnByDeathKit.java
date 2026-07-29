@@ -5,6 +5,9 @@ import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import org.bukkit.Location;
 import org.bukkit.Particle;
@@ -30,8 +33,8 @@ import org.bukkit.potion.PotionEffectType;
  * vanilla bed-spawn location, forced without a real bed via {@code setBedSpawnLocation}; the
  * "randomness" is an independent per-tick dice roll rather than a fixed timer, so the gap between
  * saves is exponentially distributed and genuinely unpredictable, not something he could learn to
- * read. One known edge case, left as-is rather than specially guarded against: a checkpoint saved
- * inside the Illusory Realm's temporary arena would be a bad respawn point after the domain closes.
+ * read. Checkpoints are suppressed inside the temporary Illusory Realm so its arena can never
+ * become a stale respawn point after the domain closes.
  *
  * <p>All three powers are passive -- there is nothing here to press a button for.
  */
@@ -40,6 +43,7 @@ public class ReturnByDeathKit implements PowerKit, Listener {
     public static final String ID = "returnbydeath";
 
     private final PowerSMP plugin;
+    private final Map<UUID, Long> lastCheckpointRollAt = new ConcurrentHashMap<>();
 
     // Keep Inventory
     private boolean keepExperience;
@@ -105,11 +109,24 @@ public class ReturnByDeathKit implements PowerKit, Listener {
     @Override
     public void tick(Player owner) {
         if (!plugin.unlocks().isUnlocked(owner, Power.RANDOM_CHECKPOINT)) {
+            lastCheckpointRollAt.remove(owner.getUniqueId());
             return;
         }
-        // Per-tick probability tuned so the *average* gap between saves is the configured interval,
-        // while actual timing stays unpredictable -- an exponential distribution, not a clock.
-        double perTickChance = 1.0d / Math.max(1.0d, checkpointAverageIntervalSeconds);
+        // Never anchor a return point inside the temporary arena; it may no longer exist by the
+        // time the player dies.
+        if (plugin.realm().isInside(owner)) {
+            lastCheckpointRollAt.put(owner.getUniqueId(), System.currentTimeMillis());
+            return;
+        }
+        long now = System.currentTimeMillis();
+        Long previous = lastCheckpointRollAt.put(owner.getUniqueId(), now);
+        double elapsedSeconds = previous == null
+                ? plugin.kitTickIntervalTicks() / 20.0d
+                : Math.max(0.0d, (now - previous) / 1000.0d);
+        // Correct exponential probability for the actual elapsed time. The old 1/seconds formula
+        // assumed one call per second, so the configured 40-tick scheduler doubled every interval.
+        double average = Math.max(1.0d, checkpointAverageIntervalSeconds);
+        double perTickChance = 1.0d - Math.exp(-elapsedSeconds / average);
         if (ThreadLocalRandom.current().nextDouble() >= perTickChance) {
             return;
         }
@@ -119,6 +136,11 @@ public class ReturnByDeathKit implements PowerKit, Listener {
         owner.getWorld().spawnParticle(Particle.END_ROD, here.clone().add(0.0, 1.0, 0.0),
                 12, 0.3, 0.4, 0.3, 0.02);
         Text.actionBar(owner, "<dark_purple><italic>...a memory anchors itself here.</italic></dark_purple>");
+    }
+
+    @Override
+    public void onQuit(Player owner) {
+        lastCheckpointRollAt.remove(owner.getUniqueId());
     }
 
     // ---- Power 3: Second Wind -----------------------------------------------

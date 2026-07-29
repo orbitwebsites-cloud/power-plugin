@@ -1,0 +1,8 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [{"threshold": 27002, "model": {"type": "minecraft:model", "model": "powersmp:item/grapple_hook"}}],
+    "fallback": {"type": "minecraft:model", "model": "minecraft:item/iron_spear"}
+  }
+}

@@ -277,7 +277,9 @@ public class NorthOfNowhereKit implements PowerKit, Listener {
         }
         final int[] elapsed = {0};
         Bukkit.getScheduler().runTaskTimer(plugin, taskHandle -> {
-            if (elapsed[0] >= ticks || !owner.isOnline()) {
+            if (elapsed[0] >= ticks || !owner.isOnline()
+                    || !plugin.kits().isOwner(owner, ID)
+                    || !plugin.unlocks().isUnlocked(owner, Power.MADE_IN_HEAVEN)) {
                 taskHandle.cancel();
                 return;
             }
@@ -358,6 +360,16 @@ public class NorthOfNowhereKit implements PowerKit, Listener {
         noFallDamage.remove(owner.getUniqueId());
         invulnerable.remove(owner.getUniqueId());
         Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.MIH_ATTACK_SPEED);
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.MADE_IN_HEAVEN) {
+            noFallDamage.remove(owner.getUniqueId());
+            Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.MIH_ATTACK_SPEED);
+        } else if (power == Power.REQUIEM) {
+            invulnerable.remove(owner.getUniqueId());
+        }
     }
 
     @Override

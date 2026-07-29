@@ -98,9 +98,9 @@ progression:
     fat_tank: 4
     greedy_heal: 8
     # domanthegamer's low / mid / high tiers.
-    spider_passive: 0
-    web_strike: 4
-    web_shooter: 8
+    limit_break: 0
+    ascended_flight: 4
+    final_burst: 8
     # Sparkkkkkkkk's low / mid / high tiers.
     gunpowder: 0
     explosion: 4
@@ -404,46 +404,41 @@ jjlionjxi:
     cooldown-seconds: 90           # ASSUMED -- no cooldown was given
 
 # =====================================================================
-# domanthegamer -- spider powers
+# domanthegamer -- Limit Break
 # =====================================================================
 domanthegamer:
-  # LOW TIER (passive)
-  spider-passive:
-    resistance-amplifier: 0        # Resistance I
-    # WEAVING was tried here first, but it is the Bogged debuff that spawns cobwebs
-    # around whoever it hits -- the opposite of "unhindered" and actively harmful
-    # self-applied. Cobweb slow is friction with no potion/attribute counter, so this
-    # instead pushes back against it every tick a cobweb overlaps the hitbox.
-    web-immunity-velocity-multiplier: 5.0
-    # His form reads "aslong as no fall dmg", which is ambiguous. Built as a
-    # third passive: spiders do not take fall damage. Flip to false if he
-    # meant something else. He also offered to have this "reduced if too op".
-    no-fall-damage: true
+  # Passive: permanent Strength I, Speed I, no fall damage, and a meter filled
+  # by hitting other players. Five hits fills the default meter.
+  limit-break:
+    strength-amplifier: 0
+    speed-amplifier: 0
+    energy-maximum: 100.0
+    energy-per-player-hit: 20.0
 
-  # MID TIER
-  web-strike:
-    duration-seconds: 60
-    range: 32.0
-    cooldown-seconds: 60           # ASSUMED -- no cooldown was given
-    climb-limit-blocks: 20
-    # How fast he ascends per tick while climbing, vanilla-ladder-ish. Applied every
-    # tick while sneaking against a wall -- see DomanKit#onMove for why this can't
-    # be a once-a-second nudge (it used to be, and it read as "climbing does nothing").
-    climb-speed: 0.2               # ASSUMED
+  # Main ability. Two-second charge, then a piercing blue beam.
+  kamehameha:
+    charge-ticks: 40
+    range: 35.0
+    damage: 16.0                   # 8 hearts before armour
+    knockback: 2.4
+    hit-radius: 0.9
+    cooldown-seconds: 35
 
-  # HIGH TIER
-  web-shooter:
-    # Left click. No cooldown, per his form. Pulls every tick toward the aimed block
-    # rather than a single launch -- a one-shot impulse cannot reliably cross 20
-    # blocks against gravity, which is why the range used to feel like ~3 blocks.
-    grapple-range: 32.0
-    grapple-power: 1.4             # ASSUMED
-    grapple-pulse-ticks: 40        # ASSUMED -- 2s is enough to cross the full range
-    # Right click.
-    pull-range: 24.0
-    pull-cooldown-seconds: 10
-    pull-power: 1.2                # ASSUMED
-    pull-pulse-ticks: 8            # ASSUMED -- repeats the pull so ground friction can't eat it
+  ascended-flight:
+    duration-seconds: 10
+    speed-amplifier: 2             # Speed III
+    fly-speed: 0.18
+    dash-power: 2.0
+    dash-cooldown-seconds: 1.0
+    cooldown-seconds: 25
+
+  final-burst:
+    charge-ticks: 60               # 3 seconds
+    radius: 9.0
+    damage: 18.0                   # 9 hearts before armour
+    knockback: 2.8
+    resistance-amplifier: 2        # Resistance III during charge
+    cooldown-seconds: 90
 
 # =====================================================================
 # Sparkkkkkkkk -- The Atom
@@ -690,6 +685,42 @@ techknight:
   shield-break:
     enabled: true
     chance: 0.5                    # half of blocked hits ignore the shield entirely
+
+  fortify:
+    duration-seconds: 8
+    resistance-amplifier: 1        # Resistance II
+    knockback-resistance: 0.75
+    cooldown-seconds: 30
+
+  reflect-shield:
+    duration-seconds: 10
+    damage-ratio: 0.5              # returns half of post-mitigation incoming damage
+    cooldown-seconds: 40
+
+  shockwave:
+    range: 10.0
+    half-angle-degrees: 45.0       # 90-degree cone in front
+    damage: 6.0
+    knockup-power: 0.9
+    cooldown-seconds: 20
+
+  overload:
+    window-seconds: 20
+    damage-multiplier: 2.0
+    wither-seconds: 5
+    wither-amplifier: 0             # Wither I
+    cooldown-seconds: 45
+
+  decoy:
+    duration-seconds: 10
+    taunt-radius: 16.0
+    cooldown-seconds: 30
+
+  grapple-shot:
+    range: 24.0
+    pull-power: 1.35
+    pulse-ticks: 30
+    cooldown-seconds: 15
 
 # =====================================================================
 # Voidwalker (ahriahn) -- Shadow Step / Grasp of Eylis / Illusory Realm

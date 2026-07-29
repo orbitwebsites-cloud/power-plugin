@@ -4,6 +4,8 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.entity.Player;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.persistence.PersistentDataType;
 
 /**
  * Vanilla's own server-side sanity check ("Player moved wrongly!" / "moved too quickly!") has no
@@ -40,6 +42,12 @@ public final class MovementExemption {
         int count = depth.merge(id, 1, Integer::sum);
         if (count == 1) {
             saved.put(id, new boolean[]{player.getAllowFlight(), player.isFlying()});
+            PersistentDataContainer data = player.getPersistentDataContainer();
+            data.set(Keys.MOVEMENT_EXEMPT, PersistentDataType.BYTE, (byte) 1);
+            data.set(Keys.MOVEMENT_PREVIOUS_ALLOW_FLIGHT, PersistentDataType.BYTE,
+                    player.getAllowFlight() ? (byte) 1 : (byte) 0);
+            data.set(Keys.MOVEMENT_PREVIOUS_FLYING, PersistentDataType.BYTE,
+                    player.isFlying() ? (byte) 1 : (byte) 0);
         }
         if (!player.getAllowFlight()) {
             player.setAllowFlight(true);
@@ -62,15 +70,51 @@ public final class MovementExemption {
             return;
         }
         depth.remove(id);
-        boolean[] previous = saved.remove(id);
-        if (previous == null || !player.isOnline()) {
+        if (!player.isOnline()) {
+            // The flight flags are player data and survive a disconnect. Keep the persisted
+            // restoration marker so handleJoin() can repair them before any kit is reapplied.
             return;
         }
-        if (player.isFlying() != previous[1]) {
-            player.setFlying(previous[1]);
+        restore(player);
+    }
+
+    /**
+     * Restores the exact flight flags saved by the first {@link #begin} call. The marker lives in
+     * the player's PDC, so this also repairs an exemption interrupted by a crash or server restart.
+     */
+    public static void restore(Player player) {
+        UUID id = player.getUniqueId();
+        depth.remove(id);
+        boolean[] cached = saved.remove(id);
+        PersistentDataContainer data = player.getPersistentDataContainer();
+        if (!data.has(Keys.MOVEMENT_EXEMPT, PersistentDataType.BYTE) && cached == null) {
+            return;
         }
-        if (player.getAllowFlight() != previous[0]) {
-            player.setAllowFlight(previous[0]);
+        Byte allow = data.get(Keys.MOVEMENT_PREVIOUS_ALLOW_FLIGHT, PersistentDataType.BYTE);
+        Byte flying = data.get(Keys.MOVEMENT_PREVIOUS_FLYING, PersistentDataType.BYTE);
+        boolean previousAllow = allow == null
+                ? cached != null && cached[0]
+                : allow != 0;
+        boolean previousFlying = flying == null
+                ? cached != null && cached[1]
+                : flying != 0;
+        data.remove(Keys.MOVEMENT_EXEMPT);
+        data.remove(Keys.MOVEMENT_PREVIOUS_ALLOW_FLIGHT);
+        data.remove(Keys.MOVEMENT_PREVIOUS_FLYING);
+        if (!player.isOnline()) {
+            return;
+        }
+        // Bukkit refuses setFlying(true) unless allowFlight is already true, and refuses taking
+        // allowFlight away cleanly while the player is still flying. Apply in the safe order for
+        // both directions.
+        if (previousAllow && !player.getAllowFlight()) {
+            player.setAllowFlight(true);
+        }
+        if (player.isFlying() != previousFlying) {
+            player.setFlying(previousFlying);
+        }
+        if (!previousAllow && player.getAllowFlight()) {
+            player.setAllowFlight(previousAllow);
         }
     }
 }

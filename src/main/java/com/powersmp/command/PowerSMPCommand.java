@@ -103,7 +103,7 @@ public class PowerSMPCommand implements CommandExecutor, TabCompleter {
             return;
         }
         boolean changed = grant
-                ? plugin.unlocks().unlock(target, power)
+                ? plugin.unlocks().grant(target, power)
                 : plugin.unlocks().revoke(target, power);
         Text.msg(sender, changed
                 ? "<green>" + (grant ? "Granted" : "Revoked") + " <white>" + Text.plain(power.displayName())

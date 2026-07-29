@@ -5,100 +5,90 @@ import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Effects;
-import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.MovementExemption;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.block.Block;
+import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.entity.PlayerDeathEvent;
-import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.inventory.InventoryDragEvent;
-import org.bukkit.event.inventory.InventoryType;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerMoveEvent;
-import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
 /**
- * domanthegamer: spider powers.
+ * domanthegamer: Limit Break.
  *
- * <p>Low tier is passive (Resistance, unimpeded by cobwebs, no fall damage). Mid tier is Web Strike,
- * which encases a target in cobwebs and lets him climb walls. High tier is the web shooter -- a
- * soulbound harpoon gun that grapples on left click and reels players in on right click.
- *
- * <p>Web Strike restores whatever it replaced. Every block it overwrites is recorded and put back
- * when the webs expire, so the ability cannot be used to permanently grief terrain, and a target
- * webbed inside their own base does not lose a wall.
+ * <p>Combat fills an energy meter used by Kamehameha. Ascended Flight is a short flight window
+ * with a reusable midair dash, while Final Burst trades a long charge and cooldown for a large
+ * point-blank blast.
  */
 public class DomanKit implements PowerKit, Listener {
 
     public static final String ID = "domanthegamer";
 
-    private static final String ABILITY_WEB_STRIKE = "webstrike";
-    private static final String ABILITY_SHOOTER = "webshooter";
-    private static final String COOLDOWN_PULL = "web_pull";
+    private static final String ABILITY_KAMEHAMEHA = "kamehameha";
+    private static final String ABILITY_ASCENDED_FLIGHT = "ascended_flight";
+    private static final String ABILITY_FINAL_BURST = "final_burst";
 
     private final PowerSMP plugin;
-    /** Y at which the current unbroken climb started, so climb-limit-blocks means what it says. */
-    private final Map<UUID, Double> climbStartY = new ConcurrentHashMap<>();
-    /** In-flight grapple pulls, so re-firing retargets instead of stacking pulls on top of each other. */
-    private final Map<UUID, BukkitTask> activeGrapples = new ConcurrentHashMap<>();
-    /** Web shooters pulled out of death drops, held until the owner respawns. */
-    private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
+    private final Map<UUID, Double> energy = new ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> kamehamehaCharges = new ConcurrentHashMap<>();
+    private final Map<UUID, FlightSession> flightSessions = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> lastFlightDash = new ConcurrentHashMap<>();
+    private final Map<UUID, BukkitTask> finalBurstCharges = new ConcurrentHashMap<>();
+    private final Map<UUID, PotionEffect> previousResistance = new ConcurrentHashMap<>();
+    private final Set<UUID> hadNoResistance = ConcurrentHashMap.newKeySet();
 
-    // Low tier
-    private int resistanceAmplifier;
-    private boolean noFallDamage = true;
-    /**
-     * Cobweb slow is friction applied every tick a hitbox overlaps a cobweb block -- there is no
-     * potion effect or attribute that removes it (WEAVING does not; it is the Bogged debuff that
-     * spawns cobwebs around whoever it hits, the opposite of what was wanted, and was actively
-     * harmful when self-applied). The only way to cancel friction the server already applied is to
-     * push back against it, every tick, for as long as the block underneath is still a cobweb.
-     */
-    private double webImmunityVelocityMultiplier = 5.0d;
-    // Mid tier
-    private int webDurationSeconds = 60;
-    private double webRange = 32.0d;
-    private double webStrikeCooldown = 60.0d;
-    private int climbLimit = 20;
-    private double climbSpeed = 0.2d;
-    // High tier
-    private double grappleRange = 32.0d;
-    private double grapplePower = 1.4d;
-    private int grapplePulseTicks = 40;
-    private double pullRange = 24.0d;
-    private double pullCooldown = 10.0d;
-    private double pullPower = 1.2d;
-    private int pullPulseTicks = 8;
+    private int strengthAmplifier;
+    private int speedAmplifier;
+    private double energyMaximum = 100.0d;
+    private double energyPerPlayerHit = 20.0d;
+
+    private int kamehamehaChargeTicks = 40;
+    private double kamehamehaRange = 35.0d;
+    private double kamehamehaDamage = 16.0d;
+    private double kamehamehaKnockback = 2.4d;
+    private double kamehamehaHitRadius = 0.9d;
+    private double kamehamehaCooldown = 35.0d;
+
+    private int flightDurationTicks = 200;
+    private int flightSpeedAmplifier = 2;
+    private float flightSpeed = 0.18f;
+    private double flightDashPower = 2.0d;
+    private double flightDashCooldown = 1.0d;
+    private double flightCooldown = 25.0d;
+
+    private int finalBurstChargeTicks = 60;
+    private double finalBurstRadius = 9.0d;
+    private double finalBurstDamage = 18.0d;
+    private double finalBurstKnockback = 2.8d;
+    private int finalBurstResistanceAmplifier = 2;
+    private double finalBurstCooldown = 90.0d;
 
     public DomanKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -111,535 +101,535 @@ public class DomanKit implements PowerKit, Listener {
 
     @Override
     public String displayName() {
-        return "Spider";
+        return "Limit Break";
     }
 
     public void reload(ConfigurationSection section) {
         if (section != null) {
-            ConfigurationSection passive = section.getConfigurationSection("spider-passive");
+            ConfigurationSection passive = section.getConfigurationSection("limit-break");
             if (passive != null) {
-                resistanceAmplifier = passive.getInt("resistance-amplifier", 0);
-                webImmunityVelocityMultiplier =
-                        passive.getDouble("web-immunity-velocity-multiplier", webImmunityVelocityMultiplier);
-                noFallDamage = passive.getBoolean("no-fall-damage", true);
+                strengthAmplifier = Math.max(0,
+                        passive.getInt("strength-amplifier", strengthAmplifier));
+                speedAmplifier = Math.max(0, passive.getInt("speed-amplifier", speedAmplifier));
+                energyMaximum = Math.max(1.0d,
+                        passive.getDouble("energy-maximum", energyMaximum));
+                energyPerPlayerHit = Math.max(0.0d,
+                        passive.getDouble("energy-per-player-hit", energyPerPlayerHit));
             }
-            ConfigurationSection web = section.getConfigurationSection("web-strike");
-            if (web != null) {
-                webDurationSeconds = web.getInt("duration-seconds", webDurationSeconds);
-                webRange = web.getDouble("range", webRange);
-                webStrikeCooldown = web.getDouble("cooldown-seconds", webStrikeCooldown);
-                climbLimit = web.getInt("climb-limit-blocks", climbLimit);
-                climbSpeed = web.getDouble("climb-speed", climbSpeed);
+            ConfigurationSection beam = section.getConfigurationSection("kamehameha");
+            if (beam != null) {
+                kamehamehaChargeTicks = Math.max(1,
+                        beam.getInt("charge-ticks", kamehamehaChargeTicks));
+                kamehamehaRange = Math.max(1.0d, beam.getDouble("range", kamehamehaRange));
+                kamehamehaDamage = Math.max(0.0d, beam.getDouble("damage", kamehamehaDamage));
+                kamehamehaKnockback = Math.max(0.0d,
+                        beam.getDouble("knockback", kamehamehaKnockback));
+                kamehamehaHitRadius = Math.max(0.2d,
+                        beam.getDouble("hit-radius", kamehamehaHitRadius));
+                kamehamehaCooldown = Math.max(0.0d,
+                        beam.getDouble("cooldown-seconds", kamehamehaCooldown));
             }
-            ConfigurationSection shooter = section.getConfigurationSection("web-shooter");
-            if (shooter != null) {
-                grappleRange = shooter.getDouble("grapple-range", grappleRange);
-                grapplePower = shooter.getDouble("grapple-power", grapplePower);
-                grapplePulseTicks = shooter.getInt("grapple-pulse-ticks", grapplePulseTicks);
-                pullRange = shooter.getDouble("pull-range", pullRange);
-                pullCooldown = shooter.getDouble("pull-cooldown-seconds", pullCooldown);
-                pullPower = shooter.getDouble("pull-power", pullPower);
-                pullPulseTicks = shooter.getInt("pull-pulse-ticks", pullPulseTicks);
+            ConfigurationSection flight = section.getConfigurationSection("ascended-flight");
+            if (flight != null) {
+                flightDurationTicks = Math.max(1,
+                        flight.getInt("duration-seconds", flightDurationTicks / 20) * 20);
+                flightSpeedAmplifier = Math.max(0,
+                        flight.getInt("speed-amplifier", flightSpeedAmplifier));
+                flightSpeed = (float) Math.max(0.0d, Math.min(1.0d,
+                        flight.getDouble("fly-speed", flightSpeed)));
+                flightDashPower = Math.max(0.0d,
+                        flight.getDouble("dash-power", flightDashPower));
+                flightDashCooldown = Math.max(0.0d,
+                        flight.getDouble("dash-cooldown-seconds", flightDashCooldown));
+                flightCooldown = Math.max(0.0d,
+                        flight.getDouble("cooldown-seconds", flightCooldown));
+            }
+            ConfigurationSection burst = section.getConfigurationSection("final-burst");
+            if (burst != null) {
+                finalBurstChargeTicks = Math.max(1,
+                        burst.getInt("charge-ticks", finalBurstChargeTicks));
+                finalBurstRadius = Math.max(1.0d,
+                        burst.getDouble("radius", finalBurstRadius));
+                finalBurstDamage = Math.max(0.0d,
+                        burst.getDouble("damage", finalBurstDamage));
+                finalBurstKnockback = Math.max(0.0d,
+                        burst.getDouble("knockback", finalBurstKnockback));
+                finalBurstResistanceAmplifier = Math.max(0,
+                        burst.getInt("resistance-amplifier", finalBurstResistanceAmplifier));
+                finalBurstCooldown = Math.max(0.0d,
+                        burst.getDouble("cooldown-seconds", finalBurstCooldown));
             }
         }
-        plugin.cooldowns().registerLabel(ABILITY_WEB_STRIKE, "Web Strike");
-        plugin.cooldowns().registerLabel(COOLDOWN_PULL, "Web Pull");
+        plugin.cooldowns().registerLabel(ABILITY_KAMEHAMEHA, "Kamehameha");
+        plugin.cooldowns().registerLabel(ABILITY_ASCENDED_FLIGHT, "Ascended Flight");
+        plugin.cooldowns().registerLabel(ABILITY_FINAL_BURST, "Final Burst");
     }
-
-    // ---- low tier: passives ---------------------------------------------
 
     @Override
     public void tick(Player owner) {
-        if (!plugin.unlocks().isUnlocked(owner, Power.SPIDER_PASSIVE)) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.LIMIT_BREAK)) {
+            Effects.remove(owner, PotionEffectType.STRENGTH);
+            Effects.remove(owner, PotionEffectType.SPEED);
             return;
         }
-        Effects.refresh(owner, org.bukkit.potion.PotionEffectType.RESISTANCE, resistanceAmplifier);
+        Effects.applyInfinite(owner, PotionEffectType.STRENGTH, strengthAmplifier);
+        Effects.applyInfinite(owner, PotionEffectType.SPEED, speedAmplifier);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onFall(EntityDamageEvent event) {
-        if (event.getCause() != EntityDamageEvent.DamageCause.FALL || !noFallDamage) {
-            return;
-        }
-        if (event.getEntity() instanceof Player player
+        if (event.getCause() == EntityDamageEvent.DamageCause.FALL
+                && event.getEntity() instanceof Player player
                 && plugin.kits().isOwner(player, ID)
-                && plugin.unlocks().isUnlocked(player, Power.SPIDER_PASSIVE)) {
+                && plugin.unlocks().isUnlocked(player, Power.LIMIT_BREAK)) {
             event.setCancelled(true);
         }
     }
 
-    /**
-     * Wall climbing: hold sneak against a solid block to scale it, up to {@code climb-limit-blocks}
-     * of net height per unbroken climb.
-     *
-     * <p>This has to run on every {@link PlayerMoveEvent}, not the shared once-a-second kit tick --
-     * a single small velocity nudge applied once a second gets eaten by gravity before the next one
-     * lands, which is why this used to feel like it barely worked at all. A ladder-style constant
-     * upward velocity, reapplied every tick the conditions hold, is what actually scales a wall.
-     */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onMove(PlayerMoveEvent event) {
-        Player owner = event.getPlayer();
-        if (!plugin.kits().isOwner(owner, ID)) {
+    public void onPlayerHit(EntityDamageByEntityEvent event) {
+        Player attacker = attacker(event.getDamager());
+        if (attacker == null || !(event.getEntity() instanceof Player)
+                || !plugin.kits().isOwner(attacker, ID)
+                || !plugin.unlocks().isUnlocked(attacker, Power.LIMIT_BREAK)) {
             return;
         }
-        if (plugin.unlocks().isUnlocked(owner, Power.SPIDER_PASSIVE)) {
-            cancelWebSlow(owner);
+        UUID id = attacker.getUniqueId();
+        double filled = Math.min(energyMaximum,
+                energy.getOrDefault(id, 0.0d) + energyPerPlayerHit);
+        energy.put(id, filled);
+        int percent = (int) Math.round(filled / energyMaximum * 100.0d);
+        Text.actionBar(attacker, "<aqua>Energy Charge</aqua> <white>" + meter(percent)
+                + "</white> <aqua>" + percent + "%</aqua>");
+        if (filled >= energyMaximum) {
+            attacker.playSound(attacker.getLocation(), Sound.BLOCK_BEACON_ACTIVATE, 0.7f, 1.8f);
         }
-        if (!plugin.unlocks().isUnlocked(owner, Power.WEB_STRIKE)) {
-            return;
+    }
+
+    private Player attacker(Entity damager) {
+        if (damager instanceof Player player) {
+            return player;
         }
+        if (damager instanceof Projectile projectile && projectile.getShooter() instanceof Player player) {
+            return player;
+        }
+        return null;
+    }
+
+    private String meter(int percent) {
+        int filled = Math.max(0, Math.min(10, percent / 10));
+        return "▰".repeat(filled) + "<dark_gray>" + "▱".repeat(10 - filled) + "</dark_gray>";
+    }
+
+    private boolean kamehameha(Player owner) {
         UUID id = owner.getUniqueId();
-        if (!owner.isSneaking() || !againstWall(owner)) {
-            if (climbStartY.remove(id) != null) {
-                // Vanilla's own movement check does not know a climb is a deliberate server-driven
-                // ability -- without this it silently snaps the player back mid-climb, which reads
-                // as "the ability barely works" even though the velocity was applied correctly.
-                MovementExemption.end(owner);
-            }
-            return;
+        if (!plugin.unlocks().isUnlocked(owner, Power.LIMIT_BREAK)) {
+            return plugin.unlocks().denyLocked(owner, Power.LIMIT_BREAK);
         }
-        boolean startingClimb = !climbStartY.containsKey(id);
-        double startY = climbStartY.computeIfAbsent(id, k -> owner.getLocation().getY());
-        if (owner.getLocation().getY() - startY >= climbLimit) {
-            climbStartY.remove(id);
-            if (!startingClimb) {
-                MovementExemption.end(owner);
-            }
-            return;
-        }
-        // begin() is reference-counted against a single matching end() above -- call it once, when
-        // the climb starts, not on every tick the climb continues, or the count never comes back
-        // down to zero and the player is left permanently exempted from the movement check.
-        if (startingClimb) {
-            MovementExemption.begin(owner);
-        }
-        Vector velocity = owner.getVelocity();
-        owner.setVelocity(new Vector(velocity.getX(), climbSpeed, velocity.getZ()));
-        owner.setFallDistance(0.0f);
-    }
-
-    private boolean againstWall(Player owner) {
-        Block at = owner.getLocation().getBlock();
-        int[][] around = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] offset : around) {
-            Block side = at.getRelative(offset[0], 0, offset[1]);
-            if (!side.isPassable()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Pushes back against whatever cobweb friction the server just applied. Checks feet and head so
-     * a cobweb anywhere in the hitbox counts, not only the block exactly at the player's feet.
-     */
-    private void cancelWebSlow(Player owner) {
-        Location at = owner.getLocation();
-        boolean inWeb = at.getBlock().getType() == Material.COBWEB
-                || at.clone().add(0, 1, 0).getBlock().getType() == Material.COBWEB;
-        if (!inWeb) {
-            return;
-        }
-        owner.setVelocity(owner.getVelocity().multiply(webImmunityVelocityMultiplier));
-    }
-
-    // ---- mid tier: Web Strike -------------------------------------------
-
-    /**
-     * Encases the looked-at player in a 2x2x2 cobweb box. Replaced blocks are remembered and put
-     * back when it expires, so this traps without permanently rewriting anyone's build.
-     */
-    private boolean webStrike(Player owner) {
-        if (!plugin.unlocks().isUnlocked(owner, Power.WEB_STRIKE)) {
-            return plugin.unlocks().denyLocked(owner, Power.WEB_STRIKE);
-        }
-        Player target = nearestLookedAt(owner, webRange);
-        if (target == null) {
-            Text.msg(owner, "<red>No player in your sights within " + (int) webRange + " blocks.");
+        if (kamehamehaCharges.containsKey(id)) {
+            Text.actionBar(owner, "<aqua>Kamehameha is already charging.</aqua>");
             return false;
         }
-        if (!plugin.cooldowns().tryUse(owner, ABILITY_WEB_STRIKE, webStrikeCooldown)) {
+        double currentEnergy = energy.getOrDefault(id, 0.0d);
+        if (currentEnergy < energyMaximum) {
+            int percent = (int) Math.round(currentEnergy / energyMaximum * 100.0d);
+            Text.msg(owner, "<red>Your Energy Charge is only " + percent
+                    + "%. Fill it by hitting players.");
+            return false;
+        }
+        if (!plugin.cooldowns().isReady(id, ABILITY_KAMEHAMEHA)) {
+            Text.msg(owner, "<red>Kamehameha is on cooldown for another <white>"
+                    + Text.duration(plugin.cooldowns().remainingMillis(id, ABILITY_KAMEHAMEHA))
+                    + "</white>.");
             return false;
         }
 
-        List<Block> replaced = new ArrayList<>();
-        List<Material> previous = new ArrayList<>();
-        Block base = target.getLocation().getBlock();
-        for (int x = 0; x < 2; x++) {
-            for (int y = 0; y < 2; y++) {
-                for (int z = 0; z < 2; z++) {
-                    Block block = base.getRelative(x, y, z);
-                    if (block.getType() == Material.COBWEB) {
-                        continue;
-                    }
-                    replaced.add(block);
-                    previous.add(block.getType());
-                    block.setType(Material.COBWEB);
-                }
-            }
-        }
-        Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            for (int i = 0; i < replaced.size(); i++) {
-                // Only revert blocks still webbed; anything mined out in the meantime is left alone.
-                if (replaced.get(i).getType() == Material.COBWEB) {
-                    replaced.get(i).setType(previous.get(i));
-                }
-            }
-        }, webDurationSeconds * 20L);
+        Text.msg(owner, "<aqua><bold>KAMEHAMEHA</bold></aqua> <gray>-- charging...</gray>");
+        owner.playSound(owner.getLocation(), Sound.BLOCK_BEACON_POWER_SELECT, 1.0f, 0.6f);
+        BukkitTask task = new BukkitRunnable() {
+            private int elapsed;
 
-        target.getWorld().playSound(target.getLocation(), Sound.BLOCK_WOOL_PLACE, 1.0f, 0.7f);
-        target.getWorld().spawnParticle(Particle.ITEM_COBWEB, target.getLocation().add(0, 1, 0), 40, 0.6, 0.6, 0.6, 0.05);
-        Text.msg(owner, "<gray>Web Strike</gray> <dark_gray>--</dark_gray> <white>"
-                + Text.plain(target.getName()) + "</white> <gray>webbed for " + webDurationSeconds + "s.</gray>");
-        Text.msg(target, "<gray>You are caught in webs.</gray>");
+            @Override
+            public void run() {
+                if (!owner.isOnline() || !plugin.kits().isOwner(owner, ID)
+                        || !plugin.unlocks().isUnlocked(owner, Power.LIMIT_BREAK)) {
+                    cancel();
+                    kamehamehaCharges.remove(id);
+                    return;
+                }
+                chargeParticles(owner, elapsed, kamehamehaChargeTicks, Color.AQUA);
+                if (++elapsed < kamehamehaChargeTicks) {
+                    return;
+                }
+                cancel();
+                kamehamehaCharges.remove(id);
+                fireKamehameha(owner);
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+        kamehamehaCharges.put(id, task);
         return true;
     }
 
-    private Player nearestLookedAt(Player owner, double range) {
-        Vector look = owner.getLocation().getDirection().normalize();
-        Location eye = owner.getLocation().add(0, 1.6d, 0);
-        Player best = null;
-        double bestDot = 0.96d; // roughly a 16-degree cone
-        for (Entity entity : owner.getNearbyEntities(range, range, range)) {
-            if (!(entity instanceof Player candidate) || candidate.equals(owner)) {
-                continue;
-            }
-            Vector to = candidate.getLocation().toVector().subtract(eye.toVector());
-            if (to.lengthSquared() < 1.0e-4) {
-                continue;
-            }
-            double dot = to.normalize().dot(look);
-            if (dot > bestDot) {
-                bestDot = dot;
-                best = candidate;
-            }
-        }
-        return best;
-    }
+    private void fireKamehameha(Player owner) {
+        UUID id = owner.getUniqueId();
+        energy.put(id, 0.0d);
+        plugin.cooldowns().setSeconds(id, ABILITY_KAMEHAMEHA, kamehamehaCooldown);
+        Location origin = owner.getEyeLocation().add(owner.getEyeLocation().getDirection().multiply(0.8d));
+        Vector direction = origin.getDirection().normalize();
+        World world = owner.getWorld();
+        Particle.DustOptions blue = new Particle.DustOptions(Color.fromRGB(40, 155, 255), 2.2f);
+        Set<UUID> hit = new HashSet<>();
 
-    // ---- high tier: the web shooter -------------------------------------
-
-    private ItemStack shooter() {
-        ItemStack gun = new ItemStack(Material.CROSSBOW);
-        ItemMeta meta = gun.getItemMeta();
-        if (meta != null) {
-            meta.displayName(Text.mm("<gray><bold>Web Shooter</bold></gray>"));
-            meta.lore(List.of(
-                    Text.mm("<gray>Left click: grapple to a block.</gray>"),
-                    Text.mm("<gray>Right click: reel a player in.</gray>"),
-                    Text.mm("<dark_gray>Bound -- kept on death.</dark_gray>")));
-            meta.setUnbreakable(true);
-            meta.getPersistentDataContainer().set(Keys.WEB_SHOOTER, PersistentDataType.BYTE, (byte) 1);
-            Enchants.applyVanishing(meta);
-            gun.setItemMeta(meta);
-        }
-        return gun;
-    }
-
-    public static boolean isShooter(ItemStack item) {
-        if (item == null || item.getType() != Material.CROSSBOW) {
-            return false;
-        }
-        ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer()
-                .has(Keys.WEB_SHOOTER, PersistentDataType.BYTE);
-    }
-
-    /** "Always in my inv even when I die" -- re-issued whenever it is missing. */
-    private void ensureShooter(Player owner) {
-        for (ItemStack item : owner.getInventory().getContents()) {
-            if (isShooter(item)) {
-                return;
-            }
-        }
-        owner.getInventory().addItem(shooter());
-    }
-
-    @Override
-    public void onJoin(Player owner) {
-        // One-time cleanup for anyone who was already stuck by the wall-climb reference-count bug
-        // fixed above: a leftover allowFlight/flying=true survives a relog via the player's own NBT,
-        // and neither flag is ever legitimately true in Survival/Adventure on its own.
-        if ((owner.getGameMode() == org.bukkit.GameMode.SURVIVAL
-                || owner.getGameMode() == org.bukkit.GameMode.ADVENTURE)
-                && owner.getAllowFlight()) {
-            owner.setFlying(false);
-            owner.setAllowFlight(false);
-        }
-        if (plugin.unlocks().isUnlocked(owner, Power.WEB_SHOOTER)) {
-            ensureShooter(owner);
-        }
-    }
-
-    @Override
-    public void onUnlock(Player owner, Power power) {
-        if (power == Power.WEB_SHOOTER) {
-            ensureShooter(owner);
-        }
-    }
-
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onDrop(PlayerDropItemEvent event) {
-        if (isShooter(event.getItemDrop().getItemStack())) {
-            event.setCancelled(true);
-            Text.actionBar(event.getPlayer(), "<red>The web shooter stays with you.</red>");
-        }
-    }
-
-    // ---- "kept on death", for real this time ----------------------------
-    // The lore already claimed this, but only onDrop existed -- death and chest storage were
-    // both unprotected, so the shooter dropped on death like any other item and ensureShooter()
-    // would then hand out a second one on rejoin. Mirrors techknight's mace.
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onDeath(PlayerDeathEvent event) {
-        Player player = event.getEntity();
-        if (!plugin.kits().isOwner(player, ID)) {
-            return;
-        }
-        for (Iterator<ItemStack> it = event.getDrops().iterator(); it.hasNext(); ) {
-            ItemStack drop = it.next();
-            if (isShooter(drop)) {
-                deathStash.put(player.getUniqueId(), drop.clone());
-                it.remove();
+        for (double distance = 0.0d; distance <= kamehamehaRange; distance += 0.45d) {
+            Location point = origin.clone().add(direction.clone().multiply(distance));
+            if (!point.getBlock().isPassable()) {
+                world.spawnParticle(Particle.EXPLOSION, point, 1);
                 break;
             }
-        }
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onRespawn(PlayerRespawnEvent event) {
-        Player player = event.getPlayer();
-        ItemStack stashed = deathStash.remove(player.getUniqueId());
-        // Curse of Vanishing means there is usually nothing to restore -- ensureShooter() is the
-        // fallback that actually hands it back in that case.
-        Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
-            if (!player.isOnline()) {
-                return;
-            }
-            if (stashed == null) {
-                if (plugin.unlocks().isUnlocked(player, Power.WEB_SHOOTER)) {
-                    ensureShooter(player);
+            world.spawnParticle(Particle.DUST, point, 3,
+                    0.14d, 0.14d, 0.14d, 0.0d, blue);
+            world.spawnParticle(Particle.END_ROD, point, 1,
+                    0.04d, 0.04d, 0.04d, 0.0d);
+            for (Entity nearby : world.getNearbyEntities(point, kamehamehaHitRadius,
+                    kamehamehaHitRadius, kamehamehaHitRadius)) {
+                if (!(nearby instanceof Player target) || target.equals(owner)
+                        || !hit.add(target.getUniqueId())) {
+                    continue;
                 }
-                return;
+                target.damage(kamehamehaDamage, owner);
+                Vector launch = direction.clone().multiply(kamehamehaKnockback);
+                launch.setY(Math.max(0.45d, launch.getY()));
+                target.setVelocity(launch);
+                MovementExemption.begin(target);
+                Bukkit.getScheduler().runTaskLater(plugin,
+                        () -> MovementExemption.end(target), 15L);
             }
-            HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
-            if (!leftover.isEmpty()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
-            }
-            Text.msg(player, "<gray>Your web shooter came back with you.</gray>");
-        });
+        }
+        world.playSound(owner.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 1.5f, 1.2f);
+        world.playSound(owner.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 1.5f);
+        Text.actionBar(owner, "<aqua><bold>KAMEHAMEHA!</bold></aqua> <gray>"
+                + hit.size() + " hit</gray>");
     }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onInventoryClick(InventoryClickEvent event) {
-        if (event.getInventory().getType() == InventoryType.CRAFTING) {
-            return;
+    private boolean ascendedFlight(Player owner) {
+        UUID id = owner.getUniqueId();
+        if (!plugin.unlocks().isUnlocked(owner, Power.ASCENDED_FLIGHT)) {
+            return plugin.unlocks().denyLocked(owner, Power.ASCENDED_FLIGHT);
         }
-        if (isShooter(event.getCurrentItem()) || isShooter(event.getCursor())) {
-            event.setCancelled(true);
+        if (flightSessions.containsKey(id)) {
+            return flightDash(owner);
         }
-    }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_ASCENDED_FLIGHT, flightCooldown)) {
+            return false;
+        }
 
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getInventory().getType() != InventoryType.CRAFTING && isShooter(event.getOldCursor())) {
-            event.setCancelled(true);
+        FlightSession session = new FlightSession(
+                owner.getAllowFlight(), owner.isFlying(), owner.getFlySpeed());
+        flightSessions.put(id, session);
+        owner.setFallDistance(0.0f);
+        Vector stopped = owner.getVelocity();
+        if (stopped.getY() < 0.0d) {
+            stopped.setY(0.0d);
+            owner.setVelocity(stopped);
         }
-    }
+        owner.setAllowFlight(true);
+        owner.setFlying(true);
+        owner.setFlySpeed(flightSpeed);
+        owner.playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 1.0f, 1.5f);
+        Text.msg(owner, "<yellow><bold>ASCENDED FLIGHT</bold></yellow> <gray>-- break your limits. "
+                + "Activate again to dash.</gray>");
 
-    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
-    public void onUse(PlayerInteractEvent event) {
-        Player player = event.getPlayer();
-        if (!isShooter(event.getItem()) || !plugin.kits().isOwner(player, ID)) {
-            return;
-        }
-        if (!plugin.unlocks().isUnlocked(player, Power.WEB_SHOOTER)) {
-            return;
-        }
-        // Stop the crossbow behaving like a crossbow.
-        event.setCancelled(true);
+        session.task = new BukkitRunnable() {
+            private int elapsed;
 
-        Action action = event.getAction();
-        if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
-            grapple(player);
-        } else if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-            reelIn(player);
-        }
-    }
-
-    /**
-     * No cooldown, per the spec -- the range limit is the only constraint.
-     *
-     * <p>A single one-off velocity impulse cannot reliably cross 20 blocks -- gravity eats most of
-     * it before it gets there, which read as "the range is really about 3 blocks" even though the
-     * target-finding itself was working out to the full range. Pulling every tick toward a fixed
-     * anchor, like an actual hookshot, is what makes the full range usable, and it comes with a
-     * visible line for free since the anchor point is already being recomputed every tick anyway.
-     *
-     * <p>If a player is in his sights, the grapple locks onto <em>them</em> and follows them every
-     * pulse -- {@code getTargetBlockExact} only ever sees blocks, so aiming at someone standing on a
-     * hill used to grapple to the hill under their feet instead of the person. Only when nobody is
-     * in his sights does it fall back to a fixed block.
-     */
-    private void grapple(Player owner) {
-        Player targetPlayer = nearestLookedAt(owner, grappleRange);
-        Location fixedAnchor = null;
-        if (targetPlayer == null) {
-            Block block = owner.getTargetBlockExact((int) grappleRange);
-            if (block == null) {
-                Text.actionBar(owner, "<gray>Nothing in range to grapple to.</gray>");
-                return;
-            }
-            fixedAnchor = block.getLocation().add(0.5d, 0.5d, 0.5d);
-        }
-        final Location anchor = fixedAnchor;
-        final Player target = targetPlayer;
-
-        BukkitTask previous = activeGrapples.remove(owner.getUniqueId());
-        if (previous != null) {
-            previous.cancel();
-        }
-        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_THROW, 1.0f, 1.4f);
-        // Without this, vanilla's own movement check eventually snaps the puller back mid-flight --
-        // exactly the "the grapple barely pulls me anywhere" symptom this was built to fix.
-        MovementExemption.begin(owner);
-
-        int[] elapsed = {0};
-        // Bukkit's scheduler only takes a plain Runnable -- there is no self-referencing lambda
-        // overload -- so a task that needs to cancel itself has to be a BukkitRunnable subclass.
-        BukkitTask task = new BukkitRunnable() {
             @Override
             public void run() {
-                if (elapsed[0]++ >= grapplePulseTicks || !owner.isOnline()
-                        || (target != null && (!target.isOnline() || target.isDead()))) {
+                if (++elapsed > flightDurationTicks || !owner.isOnline()
+                        || !plugin.kits().isOwner(owner, ID)
+                        || !plugin.unlocks().isUnlocked(owner, Power.ASCENDED_FLIGHT)) {
                     cancel();
-                    activeGrapples.remove(owner.getUniqueId());
-                    MovementExemption.end(owner);
+                    endFlight(owner);
                     return;
                 }
-                Location currentAnchor = target != null ? target.getEyeLocation() : anchor;
-                Location from = owner.getEyeLocation();
-                Vector to = currentAnchor.toVector().subtract(from.toVector());
-                double distance = to.length();
-                drawLine(from, currentAnchor, Particle.SMOKE);
-                if (distance < 1.5d) {
-                    cancel();
-                    activeGrapples.remove(owner.getUniqueId());
-                    MovementExemption.end(owner);
-                    return;
-                }
-                owner.setVelocity(to.normalize().multiply(grapplePower));
+                // Limit Break already grants infinite Speed I, so a transient refresh would
+                // deliberately preserve that infinite effect and never apply Speed III.
+                Effects.applyInfinite(owner, PotionEffectType.SPEED, flightSpeedAmplifier);
                 owner.setFallDistance(0.0f);
+                Location trail = owner.getLocation().add(0.0d, 0.8d, 0.0d);
+                owner.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, trail,
+                        3, 0.18d, 0.25d, 0.18d, 0.02d);
+                owner.getWorld().spawnParticle(Particle.END_ROD, trail,
+                        1, 0.1d, 0.15d, 0.1d, 0.0d);
             }
         }.runTaskTimer(plugin, 0L, 1L);
-        activeGrapples.put(owner.getUniqueId(), task);
+        return true;
     }
 
-    /**
-     * Same pulsed-pull fix as {@link #grapple}: one packet is too easy for friction to cancel out.
-     *
-     * <p>Previously grabbed <em>every</em> player in {@code pullRange}, which is not "click on the
-     * player" at all -- it pulled bystanders through walls and gave no way to choose a target. Now
-     * uses the same crosshair lock {@link #nearestLookedAt} already gives the grapple.
-     */
-    private void reelIn(Player owner) {
-        Player target = nearestLookedAt(owner, pullRange);
-        if (target == null) {
-            Text.actionBar(owner, "<gray>No player in your sights to reel in.</gray>");
+    private boolean flightDash(Player owner) {
+        UUID id = owner.getUniqueId();
+        long now = System.currentTimeMillis();
+        long cooldownMillis = Math.round(flightDashCooldown * 1000.0d);
+        long last = lastFlightDash.getOrDefault(id, 0L);
+        if (now - last < cooldownMillis) {
+            Text.actionBar(owner, "<gray>Midair dash is recharging.</gray>");
+            return false;
+        }
+        lastFlightDash.put(id, now);
+        Vector dash = owner.getEyeLocation().getDirection().normalize().multiply(flightDashPower);
+        dash.setY(Math.max(-0.2d, dash.getY()));
+        owner.setVelocity(dash);
+        owner.setFallDistance(0.0f);
+        MovementExemption.begin(owner);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> MovementExemption.end(owner), 12L);
+        owner.getWorld().spawnParticle(Particle.FLASH, owner.getLocation(), 1);
+        owner.getWorld().playSound(owner.getLocation(),
+                Sound.ENTITY_FIREWORK_ROCKET_LAUNCH, 0.8f, 1.7f);
+        return true;
+    }
+
+    private void endFlight(Player owner) {
+        UUID id = owner.getUniqueId();
+        FlightSession session = flightSessions.remove(id);
+        lastFlightDash.remove(id);
+        if (session == null) {
             return;
         }
-        if (!plugin.cooldowns().tryUse(owner, COOLDOWN_PULL, pullCooldown)) {
-            return;
+        if (session.task != null && !session.task.isCancelled()) {
+            session.task.cancel();
         }
-        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_FISHING_BOBBER_RETRIEVE, 1.0f, 0.8f);
-        Text.actionBar(owner, "<gray>Reeling in " + Text.plain(target.getName()) + "</gray>");
+        if (session.previousAllowFlight && !owner.getAllowFlight()) {
+            owner.setAllowFlight(true);
+        }
+        if (owner.isFlying() != session.previousFlying) {
+            owner.setFlying(session.previousFlying);
+        }
+        if (!session.previousAllowFlight && owner.getAllowFlight()) {
+            owner.setAllowFlight(false);
+        }
+        owner.setFlySpeed(session.previousFlySpeed);
+        Effects.remove(owner, PotionEffectType.SPEED);
+        if (plugin.unlocks().isUnlocked(owner, Power.LIMIT_BREAK)) {
+            Effects.applyInfinite(owner, PotionEffectType.SPEED, speedAmplifier);
+        }
+        owner.setFallDistance(0.0f);
+        Text.actionBar(owner, "<gray>Ascended Flight ended.</gray>");
+    }
 
-        // The exemption belongs to the person being pulled, not the caster -- it is the target's
-        // client whose reported movement would otherwise get flagged and snapped back mid-pull.
-        MovementExemption.begin(target);
+    private boolean finalBurst(Player owner) {
+        UUID id = owner.getUniqueId();
+        if (!plugin.unlocks().isUnlocked(owner, Power.FINAL_BURST)) {
+            return plugin.unlocks().denyLocked(owner, Power.FINAL_BURST);
+        }
+        if (finalBurstCharges.containsKey(id)) {
+            Text.actionBar(owner, "<gold>Final Burst is already charging.</gold>");
+            return false;
+        }
+        if (!plugin.cooldowns().tryUse(owner, ABILITY_FINAL_BURST, finalBurstCooldown)) {
+            return false;
+        }
 
-        int[] elapsed = {0};
-        // Single locked target, not everyone in range: reelIn() used to pull every player within
-        // pullRange indiscriminately, which is not "click on the player" at all. The scheduler only
-        // takes a plain Runnable, so a self-cancelling task has to be a BukkitRunnable subclass.
-        new BukkitRunnable() {
+        PotionEffect resistance = owner.getPotionEffect(PotionEffectType.RESISTANCE);
+        if (resistance == null) {
+            hadNoResistance.add(id);
+        } else {
+            previousResistance.put(id, resistance);
+        }
+        Effects.apply(owner, PotionEffectType.RESISTANCE,
+                finalBurstChargeTicks + 5, finalBurstResistanceAmplifier);
+        Text.msg(owner, "<gold><bold>FINAL BURST</bold></gold> <gray>-- releasing everything...</gray>");
+        owner.playSound(owner.getLocation(), Sound.BLOCK_RESPAWN_ANCHOR_CHARGE, 1.2f, 0.5f);
+
+        BukkitTask task = new BukkitRunnable() {
+            private int elapsed;
+
             @Override
             public void run() {
-                if (elapsed[0]++ >= pullPulseTicks || !owner.isOnline()
-                        || !target.isOnline() || target.isDead()) {
+                if (!owner.isOnline() || !plugin.kits().isOwner(owner, ID)
+                        || !plugin.unlocks().isUnlocked(owner, Power.FINAL_BURST)) {
                     cancel();
-                    MovementExemption.end(target);
+                    finalBurstCharges.remove(id);
+                    restoreResistance(owner);
                     return;
                 }
-                Vector to = owner.getLocation().toVector().subtract(target.getLocation().toVector());
-                if (to.lengthSquared() < 1.0d) {
-                    cancel();
-                    MovementExemption.end(target);
+                chargeParticles(owner, elapsed, finalBurstChargeTicks, Color.YELLOW);
+                if (++elapsed < finalBurstChargeTicks) {
                     return;
                 }
-                drawLine(target.getEyeLocation(), owner.getEyeLocation(), Particle.SMOKE);
-                Vector pull = to.normalize().multiply(pullPower);
-                pull.setY(Math.max(0.3d, pull.getY()));
-                target.setVelocity(pull);
+                cancel();
+                finalBurstCharges.remove(id);
+                releaseFinalBurst(owner);
+                restoreResistance(owner);
             }
         }.runTaskTimer(plugin, 0L, 1L);
+        finalBurstCharges.put(id, task);
+        return true;
     }
 
-    /** Traces a thin line of particles between two points -- the visible "web line" on a grapple. */
-    private void drawLine(Location from, Location to, Particle particle) {
-        Vector direction = to.toVector().subtract(from.toVector());
-        double length = direction.length();
-        if (length < 1.0e-4 || from.getWorld() == null) {
+    private void releaseFinalBurst(Player owner) {
+        Location center = owner.getLocation().add(0.0d, 1.0d, 0.0d);
+        List<Player> hit = new ArrayList<>();
+        for (Entity entity : owner.getNearbyEntities(
+                finalBurstRadius, finalBurstRadius, finalBurstRadius)) {
+            if (!(entity instanceof Player target) || target.equals(owner)) {
+                continue;
+            }
+            Vector away = target.getLocation().toVector().subtract(owner.getLocation().toVector());
+            if (away.lengthSquared() < 1.0e-4) {
+                away = new Vector(0.0d, 1.0d, 0.0d);
+            }
+            target.damage(finalBurstDamage, owner);
+            away.normalize().multiply(finalBurstKnockback);
+            away.setY(Math.max(0.8d, away.getY()));
+            target.setVelocity(away);
+            MovementExemption.begin(target);
+            Bukkit.getScheduler().runTaskLater(plugin,
+                    () -> MovementExemption.end(target), 18L);
+            hit.add(target);
+        }
+        World world = owner.getWorld();
+        world.spawnParticle(Particle.EXPLOSION, center, 18,
+                finalBurstRadius / 3.0d, 1.5d, finalBurstRadius / 3.0d, 0.0d);
+        world.spawnParticle(Particle.FLASH, center, 1);
+        world.spawnParticle(Particle.END_ROD, center, 180,
+                finalBurstRadius / 2.0d, 2.0d, finalBurstRadius / 2.0d, 0.35d);
+        world.playSound(center, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.6f);
+        world.playSound(center, Sound.ENTITY_WARDEN_ROAR, 1.0f, 1.5f);
+        Text.actionBar(owner, "<gold><bold>FINAL BURST!</bold></gold> <gray>"
+                + hit.size() + " hit</gray>");
+    }
+
+    private void chargeParticles(Player owner, int elapsed, int total, Color color) {
+        double progress = Math.min(1.0d, elapsed / (double) total);
+        double radius = 1.8d - progress * 1.4d;
+        Particle.DustOptions dust = new Particle.DustOptions(color, 1.4f);
+        for (int i = 0; i < 6; i++) {
+            double angle = elapsed * 0.22d + i * Math.PI * 2.0d / 6.0d;
+            Location point = owner.getLocation().add(
+                    Math.cos(angle) * radius,
+                    0.5d + i * 0.25d,
+                    Math.sin(angle) * radius);
+            owner.getWorld().spawnParticle(Particle.DUST, point, 1,
+                    0.0d, 0.0d, 0.0d, 0.0d, dust);
+        }
+    }
+
+    private void restoreResistance(Player owner) {
+        UUID id = owner.getUniqueId();
+        PotionEffect previous = previousResistance.remove(id);
+        boolean remove = hadNoResistance.remove(id);
+        if (!owner.isOnline()) {
             return;
         }
-        direction.normalize();
-        for (double d = 0.0d; d <= length; d += 0.5d) {
-            Location point = from.clone().add(direction.clone().multiply(d));
-            from.getWorld().spawnParticle(particle, point, 1, 0.0, 0.0, 0.0, 0.0);
+        if (remove) {
+            owner.removePotionEffect(PotionEffectType.RESISTANCE);
+        } else if (previous != null) {
+            owner.addPotionEffect(previous);
         }
     }
-
-    // ---- abilities ------------------------------------------------------
 
     @Override
     public List<Ability> abilities() {
         return List.of(
-                new Ability(ABILITY_WEB_STRIKE, "Web Strike",
-                        "Web the player you are looking at for " + webDurationSeconds + "s."),
-                new Ability(ABILITY_SHOOTER, "Web Shooter",
-                        "Reclaim your web shooter if it has gone missing."));
+                new Ability(ABILITY_KAMEHAMEHA, "Kamehameha",
+                        "Spend a full combat-energy meter on a 35-block piercing beam."),
+                new Ability(ABILITY_ASCENDED_FLIGHT, "Ascended Flight",
+                        "Fly for " + flightDurationTicks / 20
+                                + "s. Activate again while flying to dash."),
+                new Ability(ABILITY_FINAL_BURST, "Final Burst",
+                        "Charge for " + finalBurstChargeTicks / 20
+                                + "s, then blast everyone nearby."));
     }
 
     @Override
     public String primaryAbilityId() {
-        return ABILITY_WEB_STRIKE;
+        return ABILITY_KAMEHAMEHA;
     }
 
     @Override
     public boolean activate(Player owner, String abilityId) {
         return switch (abilityId.toLowerCase(Locale.ROOT)) {
-            case ABILITY_WEB_STRIKE -> webStrike(owner);
-            case ABILITY_SHOOTER -> {
-                if (!plugin.unlocks().isUnlocked(owner, Power.WEB_SHOOTER)) {
-                    yield plugin.unlocks().denyLocked(owner, Power.WEB_SHOOTER);
-                }
-                ensureShooter(owner);
-                yield true;
-            }
+            case ABILITY_KAMEHAMEHA -> kamehameha(owner);
+            case ABILITY_ASCENDED_FLIGHT -> ascendedFlight(owner);
+            case ABILITY_FINAL_BURST -> finalBurst(owner);
             default -> false;
         };
     }
 
     @Override
+    public void onJoin(Player owner) {
+        // One-time migration from the replaced spider kit: old web shooters are inert now and
+        // should not occupy inventory space forever after an upgrade.
+        ItemStack[] contents = owner.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemMeta meta = contents[slot] == null ? null : contents[slot].getItemMeta();
+            if (meta != null && meta.getPersistentDataContainer()
+                    .has(Keys.WEB_SHOOTER, PersistentDataType.BYTE)) {
+                owner.getInventory().setItem(slot, null);
+            }
+        }
+        Effects.remove(owner, PotionEffectType.STRENGTH);
+        Effects.remove(owner, PotionEffectType.SPEED);
+    }
+
+    @Override
     public void onQuit(Player owner) {
-        climbStartY.remove(owner.getUniqueId());
-        BukkitTask task = activeGrapples.remove(owner.getUniqueId());
+        UUID id = owner.getUniqueId();
+        cancel(kamehamehaCharges.remove(id));
+        cancel(finalBurstCharges.remove(id));
+        endFlight(owner);
+        restoreResistance(owner);
+        energy.remove(id);
+        Effects.remove(owner, PotionEffectType.STRENGTH);
+        Effects.remove(owner, PotionEffectType.SPEED);
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        UUID id = owner.getUniqueId();
+        if (power == Power.LIMIT_BREAK) {
+            cancel(kamehamehaCharges.remove(id));
+            energy.remove(id);
+            Effects.remove(owner, PotionEffectType.STRENGTH);
+            Effects.remove(owner, PotionEffectType.SPEED);
+        } else if (power == Power.ASCENDED_FLIGHT) {
+            endFlight(owner);
+        } else if (power == Power.FINAL_BURST) {
+            cancel(finalBurstCharges.remove(id));
+            restoreResistance(owner);
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (plugin.kits().isOwner(player, ID)) {
+                onQuit(player);
+            }
+        }
+        kamehamehaCharges.values().forEach(BukkitTask::cancel);
+        finalBurstCharges.values().forEach(BukkitTask::cancel);
+        kamehamehaCharges.clear();
+        finalBurstCharges.clear();
+        flightSessions.clear();
+        energy.clear();
+    }
+
+    private void cancel(BukkitTask task) {
         if (task != null) {
             task.cancel();
         }
-        MovementExemption.end(owner);
+    }
+
+    private static final class FlightSession {
+        private final boolean previousAllowFlight;
+        private final boolean previousFlying;
+        private final float previousFlySpeed;
+        private BukkitTask task;
+
+        private FlightSession(boolean previousAllowFlight, boolean previousFlying, float previousFlySpeed) {
+            this.previousAllowFlight = previousAllowFlight;
+            this.previousFlying = previousFlying;
+            this.previousFlySpeed = previousFlySpeed;
+        }
     }
 }

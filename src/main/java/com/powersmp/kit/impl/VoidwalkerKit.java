@@ -174,12 +174,20 @@ public class VoidwalkerKit implements PowerKit, Listener {
                 && !plugin.cooldowns().tryUse(owner, ABILITY_SHADOW_STEP, shadowStepCooldown)) {
             return false;
         }
-        shadowStepArmed.remove(owner.getUniqueId());
 
         Location targetLoc = target.getLocation();
         Vector behind = targetLoc.getDirection().normalize().multiply(-shadowStepDistance);
-        Location destination = new Location(targetLoc.getWorld(),
+        Location requested = new Location(targetLoc.getWorld(),
                 targetLoc.getX() + behind.getX(), targetLoc.getY(), targetLoc.getZ() + behind.getZ());
+        Location destination = safeDestination(requested);
+        if (destination == null) {
+            if (shadowStepCooldown > 0.0d) {
+                plugin.cooldowns().clear(owner.getUniqueId(), ABILITY_SHADOW_STEP);
+            }
+            Text.msg(owner, "<red>There is no safe space behind your target.");
+            return false;
+        }
+        shadowStepArmed.remove(owner.getUniqueId());
         destination.setDirection(targetLoc.toVector().subtract(destination.toVector()));
         if (destination.getWorld() != null) {
             destination.getWorld().spawnParticle(Particle.SMOKE, owner.getLocation(), 20, 0.3, 0.5, 0.3, 0.02);
@@ -194,6 +202,21 @@ public class VoidwalkerKit implements PowerKit, Listener {
         Effects.apply(target, PotionEffectType.SLOWNESS, shadowStepSlownessTicks, shadowStepSlownessAmplifier);
         Text.actionBar(owner, "<dark_purple>Shadow Step</dark_purple>");
         return true;
+    }
+
+    private Location safeDestination(Location requested) {
+        if (requested.getWorld() == null) {
+            return null;
+        }
+        for (int offset : new int[]{0, 1, -1, 2, -2}) {
+            Location candidate = requested.clone().add(0.0d, offset, 0.0d);
+            if (candidate.getBlock().isPassable()
+                    && candidate.clone().add(0.0d, 1.0d, 0.0d).getBlock().isPassable()
+                    && !candidate.clone().add(0.0d, -1.0d, 0.0d).getBlock().isPassable()) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     // ---- Grasp of Eylis ------------------------------------------------
@@ -240,6 +263,10 @@ public class VoidwalkerKit implements PowerKit, Listener {
             Text.msg(owner, "<red>Your Illusory Realm is already open.");
             return false;
         }
+        if (plugin.realm().isInside(owner)) {
+            Text.msg(owner, "<red>You cannot open a realm from inside another realm.");
+            return false;
+        }
         if (!plugin.cooldowns().isReady(owner.getUniqueId(), COOLDOWN_REALM)) {
             Text.msg(owner, "<red>Illusory Realm is on cooldown for another <white>"
                     + Text.duration(plugin.cooldowns().remainingMillis(owner.getUniqueId(), COOLDOWN_REALM))
@@ -251,7 +278,8 @@ public class VoidwalkerKit implements PowerKit, Listener {
         participants.add(owner);
         for (Entity nearby : owner.getNearbyEntities(
                 plugin.realm().gatherRadius(), plugin.realm().gatherRadius(), plugin.realm().gatherRadius())) {
-            if (nearby instanceof Player other && !other.equals(owner)) {
+            if (nearby instanceof Player other && !other.equals(owner)
+                    && !plugin.realm().isInside(other)) {
                 participants.add(other);
             }
         }
@@ -272,12 +300,17 @@ public class VoidwalkerKit implements PowerKit, Listener {
         // "Only starts counting when the domain ends" -- the timer is armed as the onClose
         // callback here, not started now.
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!owner.isOnline()) {
+            if (!owner.isOnline() || plugin.realm().isInside(owner)
+                    || !plugin.kits().isOwner(owner, ID)
+                    || !plugin.unlocks().isUnlocked(owner, Power.ILLUSORY_REALM)) {
                 return;
             }
             List<Player> stillHere = new ArrayList<>();
             for (Player player : participants) {
-                if (player.isOnline() && player.getLocation().distanceSquared(owner.getLocation())
+                if (player.isOnline()
+                        && !plugin.realm().isInside(player)
+                        && player.getWorld().equals(owner.getWorld())
+                        && player.getLocation().distanceSquared(owner.getLocation())
                         <= plugin.realm().gatherRadius() * plugin.realm().gatherRadius() * 4) {
                     stillHere.add(player);
                 }

@@ -70,22 +70,31 @@ public class JJLionKit implements PowerKit, Listener {
         if (section != null) {
             ConfigurationSection wind = section.getConfigurationSection("wind-god");
             if (wind != null) {
-                windChargeStack = Math.max(1, wind.getInt("stack-size", windChargeStack));
+                windChargeStack = Math.max(1, Math.min(Material.WIND_CHARGE.getMaxStackSize(),
+                        wind.getInt("stack-size", windChargeStack)));
             }
             ConfigurationSection tank = section.getConfigurationSection("fat-tank");
             if (tank != null) {
-                resistanceAmplifier = tank.getInt("resistance-amplifier", resistanceAmplifier);
-                fatTankSeconds = tank.getInt("duration-seconds", fatTankSeconds);
-                fatTankCooldown = tank.getDouble("cooldown-seconds", fatTankCooldown);
+                resistanceAmplifier = Math.max(0,
+                        tank.getInt("resistance-amplifier", resistanceAmplifier));
+                fatTankSeconds = Math.max(0, tank.getInt("duration-seconds", fatTankSeconds));
+                fatTankCooldown = Math.max(0.0d,
+                        tank.getDouble("cooldown-seconds", fatTankCooldown));
             }
             ConfigurationSection heal = section.getConfigurationSection("greedy-heal");
             if (heal != null) {
-                instantHealthAmplifier = heal.getInt("instant-health-amplifier", instantHealthAmplifier);
-                regenerationAmplifier = heal.getInt("regeneration-amplifier", regenerationAmplifier);
-                regenerationSeconds = heal.getInt("regeneration-seconds", regenerationSeconds);
-                absorptionAmplifier = heal.getInt("absorption-amplifier", absorptionAmplifier);
-                absorptionSeconds = heal.getInt("absorption-seconds", absorptionSeconds);
-                greedyHealCooldown = heal.getDouble("cooldown-seconds", greedyHealCooldown);
+                instantHealthAmplifier = Math.max(0,
+                        heal.getInt("instant-health-amplifier", instantHealthAmplifier));
+                regenerationAmplifier = Math.max(0,
+                        heal.getInt("regeneration-amplifier", regenerationAmplifier));
+                regenerationSeconds = Math.max(0,
+                        heal.getInt("regeneration-seconds", regenerationSeconds));
+                absorptionAmplifier = Math.max(0,
+                        heal.getInt("absorption-amplifier", absorptionAmplifier));
+                absorptionSeconds = Math.max(0,
+                        heal.getInt("absorption-seconds", absorptionSeconds));
+                greedyHealCooldown = Math.max(0.0d,
+                        heal.getDouble("cooldown-seconds", greedyHealCooldown));
             }
         }
         plugin.cooldowns().registerLabel(ABILITY_FAT_TANK, "Fat Tank");

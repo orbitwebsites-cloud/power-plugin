@@ -103,7 +103,8 @@ public class LlamaChasKit implements PowerKit, Listener {
 
     public void reload(ConfigurationSection section) {
         if (section != null) {
-            flySpeed = (float) section.getDouble("flight.speed", flySpeed);
+            flySpeed = (float) Math.max(0.0d,
+                    Math.min(1.0d, section.getDouble("flight.speed", flySpeed)));
 
             ConfigurationSection heat = section.getConfigurationSection("heat-vision");
             if (heat != null) {
@@ -196,9 +197,28 @@ public class LlamaChasKit implements PowerKit, Listener {
     }
 
     @Override
+    public void onJoin(Player owner) {
+        // Infinite effects persist in player data across restarts. Clear stale state first; the
+        // shared tick immediately re-applies powers that are still granted.
+        Effects.remove(owner, PotionEffectType.STRENGTH);
+    }
+
+    @Override
     public void onQuit(Player owner) {
         revokeFlight(owner);
         restoreBlocks(owner);
+        Effects.remove(owner, PotionEffectType.STRENGTH);
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.FLIGHT) {
+            revokeFlight(owner);
+        } else if (power == Power.SUPER_STRENGTH) {
+            Effects.remove(owner, PotionEffectType.STRENGTH);
+        } else if (power == Power.XRAY) {
+            restoreBlocks(owner);
+        }
     }
 
     @Override
@@ -207,6 +227,7 @@ public class LlamaChasKit implements PowerKit, Listener {
             if (plugin.kits().isOwner(player, ID)) {
                 revokeFlight(player);
                 restoreBlocks(player);
+                Effects.remove(player, PotionEffectType.STRENGTH);
             }
         }
     }
@@ -349,6 +370,9 @@ public class LlamaChasKit implements PowerKit, Listener {
 
         for (Entity nearby : owner.getNearbyEntities(freezeRange, freezeRange, freezeRange)) {
             if (!(nearby instanceof LivingEntity target) || target.equals(owner)) {
+                continue;
+            }
+            if (!owner.hasLineOfSight(target)) {
                 continue;
             }
             Vector to = target.getLocation().toVector().subtract(eye.toVector());

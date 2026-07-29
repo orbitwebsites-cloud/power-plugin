@@ -18,6 +18,8 @@ public class PlayerData {
     private final UUID uuid;
     private String stance = "NONE";
     private final Set<String> unlocked = new LinkedHashSet<>();
+    /** Admin overrides that keep a normally automatic power disabled until it is granted again. */
+    private final Set<String> revoked = new LinkedHashSet<>();
     private int kills;
     private int spearKills;
     private int spearTier = 3;
@@ -69,13 +71,27 @@ public class PlayerData {
         return unlocked.contains(powerId);
     }
 
+    public Set<String> revoked() {
+        return revoked;
+    }
+
+    public boolean isRevoked(String powerId) {
+        return revoked.contains(powerId);
+    }
+
     /** @return true if this call actually unlocked something new. */
     public boolean unlock(String powerId) {
         return unlocked.add(powerId);
     }
 
     public boolean revoke(String powerId) {
-        return unlocked.remove(powerId);
+        boolean changed = unlocked.remove(powerId);
+        return revoked.add(powerId) || changed;
+    }
+
+    public boolean grant(String powerId) {
+        boolean changed = revoked.remove(powerId);
+        return unlocked.add(powerId) || changed;
     }
 
     public int kills() {

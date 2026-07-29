@@ -63,13 +63,13 @@ public class LifeStealerKit implements PowerKit, Listener {
         }
         ConfigurationSection lifesteal = section.getConfigurationSection("lifesteal");
         if (lifesteal != null) {
-            stealComboHits = lifesteal.getInt("combo-hits", stealComboHits);
-            stealMinHearts = lifesteal.getInt("min-hearts", stealMinHearts);
+            stealComboHits = Math.max(1, lifesteal.getInt("combo-hits", stealComboHits));
+            stealMinHearts = Math.max(0, lifesteal.getInt("min-hearts", stealMinHearts));
             stealMaxHearts = Math.max(stealMinHearts, lifesteal.getInt("max-hearts", stealMaxHearts));
         }
         ConfigurationSection marked = section.getConfigurationSection("marked-prey");
         if (marked != null) {
-            markGlowSeconds = marked.getInt("glow-seconds", markGlowSeconds);
+            markGlowSeconds = Math.max(0, marked.getInt("glow-seconds", markGlowSeconds));
         }
         ConfigurationSection drops = section.getConfigurationSection("double-drops");
         if (drops != null) {
@@ -104,17 +104,31 @@ public class LifeStealerKit implements PowerKit, Listener {
 
         int hearts = stealMinHearts + random.nextInt(stealMaxHearts - stealMinHearts + 1);
         double amount = hearts * 2.0d;
-        double stolen = Math.min(amount, target.getHealth());
-        if (stolen <= 0.0d) {
-            return;
-        }
-        target.setHealth(Math.max(0.0d, target.getHealth() - stolen));
-
-        double max = Attributes.valueOf(player, Attributes.MAX_HEALTH, 20.0d);
-        player.setHealth(Math.min(max, player.getHealth() + stolen));
-
-        Text.actionBar(player, "<dark_red>Stole " + hearts + " heart" + (hearts == 1 ? "" : "s")
-                + " from " + Text.plain(target.getName()) + "</dark_red>");
+        // Let the hit that triggered the combo finish first. Mutating health inside the damage
+        // event can kill the target before Bukkit applies the original hit, producing broken death
+        // attribution and event ordering.
+        org.bukkit.Bukkit.getScheduler().runTask(plugin, () -> {
+            if (target.isDead() || !target.isValid() || !plugin.kits().isOwner(player, ID)
+                    || !plugin.unlocks().isUnlocked(player, Power.LIFESTEAL)) {
+                return;
+            }
+            double stolen = Math.min(amount, target.getHealth());
+            if (stolen <= 0.0d) {
+                return;
+            }
+            if (stolen >= target.getHealth()) {
+                target.setKiller(player);
+            }
+            target.setHealth(Math.max(0.0d, target.getHealth() - stolen));
+            if (player.isOnline() && !player.isDead()) {
+                double max = Attributes.valueOf(player, Attributes.MAX_HEALTH, 20.0d);
+                player.setHealth(Math.min(max, player.getHealth() + stolen));
+                double stolenHearts = stolen / 2.0d;
+                Text.actionBar(player, "<dark_red>Stole " + stolenHearts + " heart"
+                        + (Math.abs(stolenHearts - 1.0d) < 1.0e-9 ? "" : "s") + " from "
+                        + Text.plain(target.getName()) + "</dark_red>");
+            }
+        });
     }
 
     // ---- Double Drops ------------------------------------------------------
@@ -137,5 +151,10 @@ public class LifeStealerKit implements PowerKit, Listener {
                 drops.add(item.clone());
             }
         }
+    }
+
+    @Override
+    public void onQuit(Player owner) {
+        combos.reset(owner.getUniqueId());
     }
 }

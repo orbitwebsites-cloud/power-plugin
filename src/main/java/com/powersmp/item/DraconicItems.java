@@ -69,6 +69,7 @@ public final class DraconicItems {
             Enchants.applyVanishing(meta);
             mace.setItemMeta(meta);
         }
+        ResourcePackItems.apply(mace, ResourcePackItems.FINAL_ORB);
         return mace;
     }
 

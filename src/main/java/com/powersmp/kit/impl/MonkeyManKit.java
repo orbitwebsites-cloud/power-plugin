@@ -110,7 +110,21 @@ public class MonkeyManKit implements PowerKit, Listener {
                     mirage.getDouble("drift-blocks-per-second", 0.6d),
                     mirage.getBoolean("wear-owner-armor", true));
 
-            mirageProvider = resolveProvider(mirage.getString("provider", "PROTOCOLLIB"));
+            String requested = mirage.getString("provider", "PROTOCOLLIB");
+            MirageProvider next;
+            if ("ARMOR_STAND".equalsIgnoreCase(requested)) {
+                next = armorStandProvider;
+            } else if (mirageProvider != armorStandProvider && !protocolProviderDied()) {
+                // Reuse the live packet backend. Constructing another one on every config reload
+                // registers another USE_ENTITY packet listener and leaks the old listener.
+                next = mirageProvider;
+            } else {
+                next = resolveProvider(requested);
+            }
+            if (next != mirageProvider) {
+                shutdownProvider(mirageProvider);
+                mirageProvider = next;
+            }
         }
 
         plugin.cooldowns().registerLabel(ABILITY_MIRAGE, "Mirage");
@@ -292,10 +306,14 @@ public class MonkeyManKit implements PowerKit, Listener {
 
     @Override
     public void onDisable() {
-        mirageProvider.despawnAll();
+        shutdownProvider(mirageProvider);
+    }
+
+    private void shutdownProvider(MirageProvider provider) {
+        provider.despawnAll();
         // The ProtocolLib backend also holds a packet listener that must be handed back.
         try {
-            mirageProvider.getClass().getMethod("shutdown").invoke(mirageProvider);
+            provider.getClass().getMethod("shutdown").invoke(provider);
         } catch (NoSuchMethodException expected) {
             // The armour-stand backend has nothing extra to release.
         } catch (Throwable ex) {

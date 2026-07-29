@@ -86,6 +86,8 @@ public class TheGhostKit implements PowerKit, Listener {
     private final Map<UUID, UUID> possessedMob = new ConcurrentHashMap<>();
     /** mob -> ghost, the reverse lookup, so a mob cannot be possessed twice at once. */
     private final Set<UUID> possessedMobIds = ConcurrentHashMap.newKeySet();
+    private final Map<UUID, Boolean> possessedMobHadAi = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> possessedMobTargets = new ConcurrentHashMap<>();
     private final Map<UUID, PossessionMemory> possessionMemory = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> possessionTasks = new ConcurrentHashMap<>();
 
@@ -175,6 +177,10 @@ public class TheGhostKit implements PowerKit, Listener {
         possessionMemory.put(ownerId, new PossessionMemory(owner.getGameMode(), owner.getLocation().clone()));
         possessedMob.put(ownerId, target.getUniqueId());
         possessedMobIds.add(target.getUniqueId());
+        possessedMobHadAi.put(target.getUniqueId(), target.hasAI());
+        if (target.getTarget() != null) {
+            possessedMobTargets.put(target.getUniqueId(), target.getTarget().getUniqueId());
+        }
 
         target.setAI(false);
         target.setTarget(null);
@@ -215,8 +221,15 @@ public class TheGhostKit implements PowerKit, Listener {
         if (mobId != null) {
             possessedMobIds.remove(mobId);
             if (Bukkit.getEntity(mobId) instanceof Mob mob) {
-                mob.setAI(true);
+                mob.setAI(possessedMobHadAi.getOrDefault(mobId, true));
+                UUID targetId = possessedMobTargets.remove(mobId);
+                if (targetId != null && Bukkit.getEntity(targetId) instanceof LivingEntity target
+                        && target.isValid() && !target.isDead()) {
+                    mob.setTarget(target);
+                }
             }
+            possessedMobHadAi.remove(mobId);
+            possessedMobTargets.remove(mobId);
         }
         BukkitTask task = possessionTasks.remove(ownerId);
         if (task != null) {
@@ -243,7 +256,8 @@ public class TheGhostKit implements PowerKit, Listener {
         LivingEntity victim = null;
         double closest = possessAttackRange * possessAttackRange;
         for (Entity nearby : mob.getNearbyEntities(possessAttackRange, possessAttackRange, possessAttackRange)) {
-            if (nearby.equals(mob) || nearby.equals(owner) || !(nearby instanceof LivingEntity candidate)) {
+            if (nearby.equals(mob) || nearby.equals(owner) || !(nearby instanceof LivingEntity candidate)
+                    || !mob.hasLineOfSight(candidate)) {
                 continue;
             }
             double distanceSquared = candidate.getLocation().distanceSquared(mob.getLocation());
@@ -267,7 +281,7 @@ public class TheGhostKit implements PowerKit, Listener {
         Mob best = null;
         double bestDot = 0.9d;
         for (Entity entity : owner.getNearbyEntities(range, range, range)) {
-            if (!(entity instanceof Mob candidate)) {
+            if (!(entity instanceof Mob candidate) || !owner.hasLineOfSight(candidate)) {
                 continue;
             }
             Vector to = candidate.getLocation().toVector().subtract(eye.toVector());
@@ -491,12 +505,36 @@ public class TheGhostKit implements PowerKit, Listener {
     }
 
     @Override
+    public void onJoin(Player owner) {
+        // Astral state is intentionally session-only, but the vanilla effect is persistent.
+        astralActive.remove(owner.getUniqueId());
+        setMutualVisibility(owner, true);
+        Effects.remove(owner, PotionEffectType.INVISIBILITY);
+        restorePhaseBubble(owner);
+    }
+
+    @Override
     public void onQuit(Player owner) {
         if (possessedMob.containsKey(owner.getUniqueId())) {
             release(owner, null);
         }
-        astralActive.remove(owner.getUniqueId());
-        fakedBlocks.remove(owner.getUniqueId());
+        if (astralActive.remove(owner.getUniqueId())) {
+            setMutualVisibility(owner, true);
+            Effects.remove(owner, PotionEffectType.INVISIBILITY);
+        }
+        restorePhaseBubble(owner);
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.POSSESSION && possessedMob.containsKey(owner.getUniqueId())) {
+            release(owner, "<gray>The possession ends.</gray>");
+        } else if (power == Power.SPECTRAL_BODY) {
+            restorePhaseBubble(owner);
+        } else if (power == Power.ASTRAL_FORM && astralActive.remove(owner.getUniqueId())) {
+            setMutualVisibility(owner, true);
+            Effects.remove(owner, PotionEffectType.INVISIBILITY);
+        }
     }
 
     @Override

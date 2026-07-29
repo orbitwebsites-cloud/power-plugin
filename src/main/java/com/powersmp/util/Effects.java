@@ -52,6 +52,9 @@ public final class Effects {
             return;
         }
         PotionEffect existing = entity.getPotionEffect(type);
+        if (existing != null && existing.getAmplifier() > amplifier) {
+            return;
+        }
         if (existing != null && existing.getAmplifier() == amplifier
                 && existing.getDuration() == PotionEffect.INFINITE_DURATION) {
             return;

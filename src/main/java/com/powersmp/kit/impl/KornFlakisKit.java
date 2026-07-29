@@ -126,6 +126,19 @@ public class KornFlakisKit implements PowerKit, Listener {
             target.damage(1000.0d, owner);
         }
 
+        // With protections enabled a totem or another plugin may keep the target alive. Do not
+        // leave the pending death-message marker behind to rewrite an unrelated death minutes
+        // later, and do not announce an execution that did not happen.
+        boolean killed = target.isDead() || target.getHealth() <= 0.0d;
+        if (!killed) {
+            pendingExecutions.remove(target.getUniqueId());
+            Text.msg(owner, "<yellow>" + Text.plain(target.getName())
+                    + " survived the execution attempt.</yellow>");
+            Text.msg(target, "<yellow>You survived " + Text.plain(owner.getName())
+                    + "'s execution attempt.</yellow>");
+            return true;
+        }
+
         if (broadcast) {
             Bukkit.broadcast(Text.mm(Text.PREFIX + "<dark_red><bold>EXECUTED</bold></dark_red> <white>"
                     + Text.plain(target.getName()) + "</white> <gray>by</gray> <white>"

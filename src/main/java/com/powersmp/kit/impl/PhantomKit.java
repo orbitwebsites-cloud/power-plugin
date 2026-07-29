@@ -105,6 +105,10 @@ public class PhantomKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(owner, Power.PHANTOM_VANISH)) {
             return plugin.unlocks().denyLocked(owner, Power.PHANTOM_VANISH);
         }
+        if (vanished.contains(owner.getUniqueId())) {
+            Text.actionBar(owner, "<gray>You are already fully vanished.</gray>");
+            return false;
+        }
         if (!plugin.cooldowns().tryUse(owner, ABILITY_VANISH, vanishCooldownSeconds)) {
             return false;
         }
@@ -195,9 +199,33 @@ public class PhantomKit implements PowerKit, Listener {
     }
 
     @Override
+    public void onJoin(Player owner) {
+        UUID id = owner.getUniqueId();
+        cloaked.remove(id);
+        if (vanished.remove(id)) {
+            setVisibility(owner, true);
+        }
+        Effects.remove(owner, PotionEffectType.INVISIBILITY);
+    }
+
+    @Override
     public void onQuit(Player owner) {
-        cloaked.remove(owner.getUniqueId());
-        vanished.remove(owner.getUniqueId());
+        UUID id = owner.getUniqueId();
+        boolean wasHidden = vanished.remove(id);
+        boolean hadEffect = cloaked.remove(id) || wasHidden;
+        if (wasHidden) {
+            setVisibility(owner, true);
+        }
+        if (hadEffect) {
+            Effects.remove(owner, PotionEffectType.INVISIBILITY);
+        }
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.PHANTOM_CLOAK || power == Power.PHANTOM_VANISH) {
+            onQuit(owner);
+        }
     }
 
     @Override
@@ -206,10 +234,12 @@ public class PhantomKit implements PowerKit, Listener {
             if (!plugin.kits().isOwner(player, ID)) {
                 continue;
             }
-            if (vanished.remove(player.getUniqueId())) {
+            boolean wasHidden = vanished.remove(player.getUniqueId());
+            boolean hadEffect = cloaked.remove(player.getUniqueId()) || wasHidden;
+            if (wasHidden) {
                 setVisibility(player, true);
             }
-            if (cloaked.remove(player.getUniqueId())) {
+            if (hadEffect) {
                 Effects.remove(player, PotionEffectType.INVISIBILITY);
             }
         }

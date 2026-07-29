@@ -125,6 +125,9 @@ public class ItzMeTentxKit implements PowerKit, Listener {
 
     @Override
     public void tick(Player owner) {
+        if (plugin.unlocks().isUnlocked(owner, Power.TRIDENT_GOD)) {
+            ensureTrident(owner);
+        }
         if (plugin.unlocks().isUnlocked(owner, Power.AQUATIC_GRACE)) {
             // Water Breathing stops the air bar draining outright, so this alone means never
             // drowning; the damage cancel below is belt and braces.
@@ -197,7 +200,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
             return;
         }
         ItemStack item = event.getItem();
-        if (item == null || item.getType() != Material.TRIDENT) {
+        if (item == null || item.getType() != Material.TRIDENT
+                || !player.getUniqueId().equals(TridentItem.ownerOf(item))) {
             return;
         }
         if (Enchants.RIPTIDE == null) {
@@ -278,16 +282,13 @@ public class ItzMeTentxKit implements PowerKit, Listener {
             return;
         }
         for (ItemStack item : owner.getInventory().getContents()) {
-            if (TridentItem.isBoundTrident(item)) {
+            if (owner.getUniqueId().equals(TridentItem.ownerOf(item))) {
                 return;
             }
         }
         ItemStack trident = TridentItem.create(owner.getUniqueId());
-        Map<Integer, ItemStack> leftover = owner.getInventory().addItem(trident);
-        if (!leftover.isEmpty()) {
-            owner.getWorld().dropItemNaturally(owner.getLocation(), trident);
-            Text.msg(owner, "<yellow>Your trident was dropped at your feet -- your inventory is full.");
-        }
+        // Never drop a soulbound replacement: the next shared tick retries once room exists.
+        owner.getInventory().addItem(trident);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -322,7 +323,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
             }
             HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
             if (!leftover.isEmpty()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+                Text.msg(player, "<yellow>Your trident is waiting -- free an inventory slot.");
             }
             Text.msg(player, "<gray>Your trident came back with you.</gray>");
         });
@@ -360,6 +361,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     public void onJoin(Player owner) {
         // Attribute modifiers survive in player NBT; clear ours before re-deriving.
         Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
+        Effects.remove(owner, PotionEffectType.WATER_BREATHING);
+        Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
         appliedAttackSpeed.remove(owner.getUniqueId());
         ensureTrident(owner);
     }
@@ -367,8 +370,21 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     @Override
     public void onQuit(Player owner) {
         Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
+        Effects.remove(owner, PotionEffectType.WATER_BREATHING);
+        Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
         appliedAttackSpeed.remove(owner.getUniqueId());
         manualRiptide.remove(owner.getUniqueId());
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.AQUATIC_GRACE) {
+            Effects.remove(owner, PotionEffectType.WATER_BREATHING);
+            Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
+        } else if (power == Power.TIDAL_SPEED) {
+            Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
+            appliedAttackSpeed.remove(owner.getUniqueId());
+        }
     }
 
     @Override
@@ -376,6 +392,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         for (Player player : Bukkit.getOnlinePlayers()) {
             if (plugin.kits().isOwner(player, ID)) {
                 Attributes.clear(player, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
+                Effects.remove(player, PotionEffectType.WATER_BREATHING);
+                Effects.remove(player, PotionEffectType.DOLPHINS_GRACE);
             }
         }
         appliedAttackSpeed.clear();

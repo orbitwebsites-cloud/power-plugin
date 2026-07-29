@@ -47,6 +47,9 @@ public class RespawnGuard implements Listener {
 
     /** Polls once a second for windows that just ran out, purely to send the "protection ended" line. */
     public void start() {
+        if (expiryTask != null) {
+            expiryTask.cancel();
+        }
         expiryTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             long now = System.currentTimeMillis();
             for (Map.Entry<UUID, Long> entry : protectedUntil.entrySet()) {

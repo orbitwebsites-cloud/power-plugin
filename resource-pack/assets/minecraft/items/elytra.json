@@ -1,0 +1,8 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [{"threshold": 27005, "model": {"type": "minecraft:model", "model": "powersmp:item/ascended_wing"}}],
+    "fallback": {"type": "minecraft:model", "model": "minecraft:item/elytra"}
+  }
+}

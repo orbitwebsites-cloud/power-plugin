@@ -51,9 +51,9 @@ public enum Power {
     GREEDY_HEAL("greedy_heal", "Greedy Heal", "jjlionjxi", Gate.KILLS),
 
     // --- domanthegamer ---------------------------------------------------
-    SPIDER_PASSIVE("spider_passive", "Spider Passive", "domanthegamer", Gate.KILLS),
-    WEB_STRIKE("web_strike", "Web Strike", "domanthegamer", Gate.KILLS),
-    WEB_SHOOTER("web_shooter", "Web Shooter", "domanthegamer", Gate.KILLS),
+    LIMIT_BREAK("limit_break", "Limit Break", "domanthegamer", Gate.KILLS),
+    ASCENDED_FLIGHT("ascended_flight", "Ascended Flight", "domanthegamer", Gate.KILLS),
+    FINAL_BURST("final_burst", "Final Burst", "domanthegamer", Gate.KILLS),
 
     // --- Sparkkkkkkkk ----------------------------------------------------
     GUNPOWDER("gunpowder", "Creeper Harvest", "sparkkkkkkkk", Gate.KILLS),
@@ -112,6 +112,12 @@ public enum Power {
     // counter Density already does, so it grows alongside the rest of the kit instead of sitting
     // next to it as an unrelated bolt-on.
     EARTHBREAKER("earthbreaker", "Earthbreaker", "techknight", Gate.ALWAYS),
+    FORTIFY("fortify", "Fortify", "techknight", Gate.ALWAYS),
+    REFLECT_SHIELD("reflect_shield", "Reflect Shield", "techknight", Gate.ALWAYS),
+    SHOCKWAVE("shockwave", "Shockwave", "techknight", Gate.ALWAYS),
+    OVERLOAD("overload", "Overload", "techknight", Gate.ALWAYS),
+    DECOY("decoy", "Decoy", "techknight", Gate.ALWAYS),
+    GRAPPLE_SHOT("grapple_shot", "Grapple Shot", "techknight", Gate.ALWAYS),
 
     // --- Phantom -----------------------------------------------------------
     // No tiers were given, so all three are simply part of the kit -- same call as

@@ -70,22 +70,25 @@ public class SparkKit implements PowerKit, Listener {
         if (section != null) {
             ConfigurationSection powder = section.getConfigurationSection("gunpowder");
             if (powder != null) {
-                bonusGunpowder = powder.getInt("bonus-per-creeper", bonusGunpowder);
+                bonusGunpowder = Math.max(0,
+                        powder.getInt("bonus-per-creeper", bonusGunpowder));
             }
             ConfigurationSection blast = section.getConfigurationSection("explosion");
             if (blast != null) {
-                blastPower = (float) blast.getDouble("power", blastPower);
+                blastPower = (float) Math.max(0.0d, blast.getDouble("power", blastPower));
                 blastBreaksBlocks = blast.getBoolean("break-blocks", false);
                 blastSetsFire = blast.getBoolean("set-fire", false);
-                blastCooldown = blast.getDouble("cooldown-seconds", blastCooldown);
+                blastCooldown = Math.max(0.0d,
+                        blast.getDouble("cooldown-seconds", blastCooldown));
             }
             ConfigurationSection atom = section.getConfigurationSection("atom-bomb");
             if (atom != null) {
-                atomPower = (float) atom.getDouble("power", atomPower);
+                atomPower = (float) Math.max(0.0d, atom.getDouble("power", atomPower));
                 atomBreaksBlocks = atom.getBoolean("break-blocks", false);
                 atomSetsFire = atom.getBoolean("set-fire", false);
-                atomRange = atom.getDouble("range", atomRange);
-                atomCooldown = atom.getDouble("cooldown-seconds", atomCooldown);
+                atomRange = Math.max(1.0d, atom.getDouble("range", atomRange));
+                atomCooldown = Math.max(0.0d,
+                        atom.getDouble("cooldown-seconds", atomCooldown));
             }
         }
         plugin.cooldowns().registerLabel(ABILITY_BLAST, "Explosion");

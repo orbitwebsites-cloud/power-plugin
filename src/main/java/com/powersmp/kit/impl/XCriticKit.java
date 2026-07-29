@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
@@ -57,10 +58,13 @@ public class XCriticKit implements PowerKit, Listener {
 
     private final PowerSMP plugin;
     private final ComboTracker combos = new ComboTracker(3.0d);
-    /** Consecutive seconds of sprinting without taking a hit. */
-    private final Map<UUID, Integer> sprintStreak = new ConcurrentHashMap<>();
+    /** When the current uninterrupted sprint began. */
+    private final Map<UUID, Long> sprintStartedAt = new ConcurrentHashMap<>();
+    private final Set<UUID> tier1Announced = ConcurrentHashMap.newKeySet();
     /** Whether the tier-2 payout has already fired for the current streak. */
     private final Map<UUID, Boolean> tier2Granted = new ConcurrentHashMap<>();
+    /** Tier-2 Strength effects currently owned by this kit, including after the sprint ends. */
+    private final Set<UUID> activeTier2 = ConcurrentHashMap.newKeySet();
 
     // Tuning
     private int kaChowHits = 3;
@@ -171,8 +175,11 @@ public class XCriticKit implements PowerKit, Listener {
 
     @Override
     public void tick(Player owner) {
+        if (plugin.unlocks().isUnlocked(owner, Power.SPEAR_MASTER)) {
+            ensureSpear(owner);
+        }
         if (!plugin.unlocks().isUnlocked(owner, Power.OVERDRIVE)) {
-            sprintStreak.remove(owner.getUniqueId());
+            resetStreak(owner.getUniqueId());
             return;
         }
         UUID id = owner.getUniqueId();
@@ -188,21 +195,26 @@ public class XCriticKit implements PowerKit, Listener {
             resetStreak(id);
             return;
         }
-        int streak = sprintStreak.merge(id, 1, Integer::sum);
+        long now = System.currentTimeMillis();
+        long started = sprintStartedAt.computeIfAbsent(id, ignored -> now);
+        double streakSeconds = (now - started) / 1000.0d;
 
-        if (streak >= tier1Seconds) {
+        if (streakSeconds >= tier1Seconds) {
             // Refreshed each tick, so it lapses on its own the moment the streak breaks.
             Effects.refresh(owner, PotionEffectType.SPEED, tier1Speed);
-            if (streak == tier1Seconds) {
+            if (tier1Announced.add(id)) {
                 Text.actionBar(owner, "<yellow><bold>OVERDRIVE</bold></yellow> <gray>engaged</gray>");
                 owner.playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_FLAP, 0.6f, 1.6f);
                 owner.getWorld().spawnParticle(Particle.CLOUD, owner.getLocation(), 30, 0.3, 0.1, 0.3, 0.1);
             }
         }
-        if (streak >= tier2Seconds && !tier2Granted.getOrDefault(id, false)) {
+        if (streakSeconds >= tier2Seconds && !tier2Granted.getOrDefault(id, false)) {
             tier2Granted.put(id, true);
+            activeTier2.add(id);
             // A real timed effect, not a refreshed one: it is meant to outlive the streak.
             Effects.apply(owner, PotionEffectType.STRENGTH, tier2Duration * 20, tier2Strength);
+            Bukkit.getScheduler().runTaskLater(plugin,
+                    () -> activeTier2.remove(id), Math.max(1L, tier2Duration * 20L));
             Text.msg(owner, "<gold><bold>OVERDRIVE II</bold></gold> <gray>-- Strength for "
                     + tier2Duration + "s.</gray>");
             owner.playSound(owner.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.7f, 1.2f);
@@ -211,7 +223,8 @@ public class XCriticKit implements PowerKit, Listener {
     }
 
     private void resetStreak(UUID id) {
-        sprintStreak.remove(id);
+        sprintStartedAt.remove(id);
+        tier1Announced.remove(id);
         tier2Granted.remove(id);
     }
 
@@ -230,7 +243,9 @@ public class XCriticKit implements PowerKit, Listener {
         // potion xCR1T1Cx drank himself.
         Effects.removeIfTransient(player, PotionEffectType.SPEED);
         if (damageStripsTier2) {
-            Effects.removeIfTransient(player, PotionEffectType.STRENGTH);
+            if (activeTier2.remove(player.getUniqueId())) {
+                Effects.remove(player, PotionEffectType.STRENGTH);
+            }
         }
     }
 
@@ -245,7 +260,8 @@ public class XCriticKit implements PowerKit, Listener {
             return;
         }
         ItemStack weapon = player.getInventory().getItemInMainHand();
-        if (SpearItem.isSpear(weapon) && plugin.unlocks().isUnlocked(player, Power.SPEAR_MASTER)) {
+        if (player.getUniqueId().equals(SpearItem.ownerOf(weapon))
+                && plugin.unlocks().isUnlocked(player, Power.SPEAR_MASTER)) {
             lunge(player, target, SpearItem.tierOf(weapon));
         }
         if (plugin.unlocks().isUnlocked(player, Power.KA_CHOW)) {
@@ -324,7 +340,7 @@ public class XCriticKit implements PowerKit, Listener {
             return;
         }
         ItemStack weapon = killer.getInventory().getItemInMainHand();
-        if (!SpearItem.isSpear(weapon)) {
+        if (!killer.getUniqueId().equals(SpearItem.ownerOf(weapon))) {
             return;
         }
         boolean victimIsPlayer = event.getEntity() instanceof Player;
@@ -370,17 +386,14 @@ public class XCriticKit implements PowerKit, Listener {
             return;
         }
         for (ItemStack item : owner.getInventory().getContents()) {
-            if (SpearItem.isSpear(item)) {
+            if (owner.getUniqueId().equals(SpearItem.ownerOf(item))) {
                 return;
             }
         }
         PlayerData data = plugin.data().get(owner.getUniqueId());
         ItemStack spear = SpearItem.create(owner.getUniqueId(), data.spearTier());
-        Map<Integer, ItemStack> leftover = owner.getInventory().addItem(spear);
-        if (!leftover.isEmpty()) {
-            owner.getWorld().dropItemNaturally(owner.getLocation(), spear);
-            Text.msg(owner, "<yellow>Your spear was dropped at your feet -- your inventory is full.");
-        }
+        // Never drop a soulbound replacement: the next shared tick retries once room exists.
+        owner.getInventory().addItem(spear);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -415,7 +428,7 @@ public class XCriticKit implements PowerKit, Listener {
             }
             HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
             if (!leftover.isEmpty()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+                Text.msg(player, "<yellow>Your spear is waiting -- free an inventory slot.");
             }
             Text.msg(player, "<gray>Your spear came back with you.</gray>");
         });
@@ -469,7 +482,7 @@ public class XCriticKit implements PowerKit, Listener {
             return plugin.unlocks().denyLocked(owner, Power.SPEAR_MASTER);
         }
         for (ItemStack item : owner.getInventory().getContents()) {
-            if (SpearItem.isSpear(item)) {
+            if (owner.getUniqueId().equals(SpearItem.ownerOf(item))) {
                 Text.msg(owner, "<red>You already have your spear.");
                 return false;
             }
@@ -490,5 +503,20 @@ public class XCriticKit implements PowerKit, Listener {
     public void onQuit(Player owner) {
         resetStreak(owner.getUniqueId());
         combos.reset(owner.getUniqueId());
+        Effects.removeIfTransient(owner, PotionEffectType.SPEED);
+        if (activeTier2.remove(owner.getUniqueId())) {
+            Effects.remove(owner, PotionEffectType.STRENGTH);
+        }
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.OVERDRIVE) {
+            resetStreak(owner.getUniqueId());
+            Effects.removeIfTransient(owner, PotionEffectType.SPEED);
+            if (activeTier2.remove(owner.getUniqueId())) {
+                Effects.remove(owner, PotionEffectType.STRENGTH);
+            }
+        }
     }
 }

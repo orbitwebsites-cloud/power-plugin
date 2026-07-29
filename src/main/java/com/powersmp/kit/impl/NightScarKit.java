@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.data.PlayerData;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
+import com.powersmp.item.ResourcePackItems;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
@@ -202,6 +203,7 @@ public class NightScarKit implements PowerKit, Listener {
             Enchants.applyVanishing(meta);
             mace.setItemMeta(meta);
         }
+        ResourcePackItems.apply(mace, ResourcePackItems.TECH_SHIELD);
         return mace;
     }
 
@@ -235,6 +237,7 @@ public class NightScarKit implements PowerKit, Listener {
     @Override
     public void onJoin(Player owner) {
         Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
+        Effects.remove(owner, PotionEffectType.STRENGTH);
         if (plugin.unlocks().isUnlocked(owner, Power.DENSITY_MACE)) {
             applyBonusHealth(owner);
             ensureMace(owner);
@@ -326,7 +329,7 @@ public class NightScarKit implements PowerKit, Listener {
             }
             HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
             if (!leftover.isEmpty()) {
-                player.getWorld().dropItemNaturally(player.getLocation(), stashed);
+                Text.msg(player, "<yellow>Your mace is waiting -- free an inventory slot.");
             }
             Text.msg(player, "<gray>Your mace came back with you.</gray>");
         });
@@ -378,8 +381,18 @@ public class NightScarKit implements PowerKit, Listener {
     @Override
     public void onQuit(Player owner) {
         Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
+        Effects.remove(owner, PotionEffectType.STRENGTH);
         dashesUsed.remove(owner.getUniqueId());
         lastDashRecharge.remove(owner.getUniqueId());
+    }
+
+    @Override
+    public void onRevoke(Player owner, Power power) {
+        if (power == Power.PERMANENT_STRENGTH) {
+            Effects.remove(owner, PotionEffectType.STRENGTH);
+        } else if (power == Power.DENSITY_MACE) {
+            Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
+        }
     }
 
     @Override
@@ -387,6 +400,7 @@ public class NightScarKit implements PowerKit, Listener {
         for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
             if (plugin.kits().isOwner(player, ID)) {
                 Attributes.clear(player, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
+                Effects.remove(player, PotionEffectType.STRENGTH);
             }
         }
     }
