@@ -42,7 +42,7 @@ from a common ability pool.
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
 | TechKnightGaming | Tech Knight | Mace Massacre, Restock, XP Bottles, Earthbreaker, Fortify, Reflect Shield, Shockwave, Overload, Decoy, Grapple Shot |
 | ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
-| disasterflames | Return by Death | Keep Inventory, Return by Death (random checkpoint), Second Wind |
+| disasterflames | Disasterflames | Instant Exchange, Brother Bond, Swap Surge |
 | _glueman | The Ghost | Possession, Spectral Body, Astral Form |
 | JustSoopTBH | Phantom | Phantom Speed, Phantom Cloak, Full Vanish |
 

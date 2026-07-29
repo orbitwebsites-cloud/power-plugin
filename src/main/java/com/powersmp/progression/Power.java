@@ -86,13 +86,11 @@ public enum Power {
     GRASP_OF_EYLIS("grasp_of_eylis", "Grasp of Eylis", "voidwalker", Gate.ALWAYS),
     ILLUSORY_REALM("illusory_realm", "Illusory Realm", "voidwalker", Gate.ALWAYS),
 
-    // --- disasterflames (Return by Death) -----------------------------------
-    // Replaces the earlier Sugar Rush concept. No tiers were given, so all
-    // three are simply part of the kit -- same call as LlamaChas and
-    // Voidwalker. All three are passive; there is no activated ability here.
-    KEEP_INVENTORY("keep_inventory", "Keep Inventory", "returnbydeath", Gate.ALWAYS),
-    RANDOM_CHECKPOINT("random_checkpoint", "Return by Death", "returnbydeath", Gate.ALWAYS),
-    POST_RESPAWN_VIGOR("post_respawn_vigor", "Second Wind", "returnbydeath", Gate.ALWAYS),
+    // --- disasterflames -----------------------------------------------------
+    // No tiers were given, so all three are part of the kit immediately.
+    SWAP_POSITIONS("swap_positions", "Instant Exchange", "disasterflames", Gate.ALWAYS),
+    BROTHER_BOND("brother_bond", "Brother Bond", "disasterflames", Gate.ALWAYS),
+    SWAP_SURGE("swap_surge", "Swap Surge", "disasterflames", Gate.ALWAYS),
 
     // --- The Ghost ---------------------------------------------------------
     // No tiers were given, so all three are simply part of the kit -- same call as
@@ -134,7 +132,21 @@ public enum Power {
     // No tiers were given, so all three are simply part of the kit.
     LIFESTEAL("lifesteal", "Lifesteal", "lifestealer", Gate.ALWAYS),
     MARKED_PREY("marked_prey", "Marked Prey", "lifestealer", Gate.ALWAYS),
-    DOUBLE_DROPS("double_drops", "Double Drops", "lifestealer", Gate.ALWAYS);
+    DOUBLE_DROPS("double_drops", "Double Drops", "lifestealer", Gate.ALWAYS),
+
+    // --- crazyTNT2cool (The Honored One) -----------------------------------
+    // This request was explicitly "full on everything", so the complete kit is available at once.
+    SIX_EYES("six_eyes", "Six Eyes", "crazytnt2cool", Gate.ALWAYS),
+    INFINITY("infinity", "Infinity", "crazytnt2cool", Gate.ALWAYS),
+    CURSED_TECHNIQUE_BLUE(
+            "cursed_technique_blue", "Cursed Technique Lapse: Blue", "crazytnt2cool", Gate.ALWAYS),
+    CURSED_TECHNIQUE_RED(
+            "cursed_technique_red", "Cursed Technique Reversal: Red", "crazytnt2cool", Gate.ALWAYS),
+    HOLLOW_PURPLE("hollow_purple", "Hollow Purple", "crazytnt2cool", Gate.ALWAYS),
+    LIMITLESS_WARP("limitless_warp", "Limitless Warp", "crazytnt2cool", Gate.ALWAYS),
+    REVERSE_CURSED_TECHNIQUE(
+            "reverse_cursed_technique", "Reverse Cursed Technique", "crazytnt2cool", Gate.ALWAYS),
+    UNLIMITED_VOID("unlimited_void", "Domain Expansion: Unlimited Void", "crazytnt2cool", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

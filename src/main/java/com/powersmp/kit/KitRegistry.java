@@ -48,8 +48,9 @@ public class KitRegistry {
             Map.entry("monkeyman4167", List.of("monkeyman")),
             Map.entry("techknightgaming", List.of("techknight")),
             Map.entry("ahriahn", List.of("voidwalker")),
-            Map.entry("disasterflames", List.of("returnbydeath")),
+            Map.entry("disasterflames", List.of("disasterflames")),
             Map.entry("_glueman", List.of("theghost")),
+            Map.entry("crazytnt2cool", List.of("crazytnt2cool")),
             // Phantom + Life Stealer run all the time; Lucky's own reroll timer overrides both
             // (see #overrides) with a single rolled kit for its duration, then reverts to all three.
             Map.entry("justsooptbh", List.of("phantom", "lifestealer", "lucky")));

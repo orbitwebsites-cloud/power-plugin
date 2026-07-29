@@ -62,8 +62,9 @@ assignments:
   MonkeyMan4167: monkeyman
   TechKnightGaming: techknight
   ahriahn: voidwalker
-  disasterflames: returnbydeath
+  disasterflames: disasterflames
   _glueman: theghost
+  crazyTNT2cool: crazytnt2cool
   # Phantom + Life Stealer run all the time; Lucky's reroll timer overrides both
   # with a single rolled kit for its duration, then reverts to all three.
   JustSoopTBH: phantom,lifestealer,lucky
@@ -810,27 +811,29 @@ illusory-realm:
     weaving: 0
 
 # =====================================================================
-# disasterflames -- Return by Death
-# All three powers are passive; there is no activated ability in this kit.
+# disasterflames -- Instant Exchange / Brother Bond / Swap Surge
 # =====================================================================
-returnbydeath:
-  keep-inventory:
-    # "Keep inv" is read as items only -- XP is a separate vanilla concept
-    # servers commonly treat independently, so it defaults off.
-    keep-experience: false          # ASSUMED
+disasterflames:
+  instant-exchange:
+    # No range value by design: all currently loaded entities are considered.
+    cooldown-seconds: 0.0
+    # Expands entity hitboxes slightly so aiming is practical without selecting
+    # something merely near the crosshair.
+    target-assist-radius: 0.25
 
-  return-by-death:
-    # The checkpoint re-anchors to wherever he is at an unpredictable moment,
-    # roughly once per this many seconds on average -- an exponential
-    # distribution (a per-tick dice roll), not a fixed timer, so the actual
-    # gap between saves is genuinely out of his control, per the spec.
-    average-interval-seconds: 300   # ASSUMED -- 5 minutes on average
+  brother-bond:
+    # "Near" was not given a number. Teammates are players on the same
+    # scoreboard team; both players receive these effects while in range.
+    radius: 10.0                      # ASSUMED
+    strength-amplifier: 0             # Strength I
+    speed-amplifier: 0                # Speed I
+    resistance-amplifier: 0           # Resistance I
 
-  second-wind:
-    # "Strength and speed 1" after respawning.
-    strength-amplifier: 0           # Strength I
-    speed-amplifier: 0              # Speed I
-    buff-seconds: 30                # ASSUMED -- no duration was given
+  swap-surge:
+    strength-amplifier: 1             # Strength II
+    speed-amplifier: 1                # Speed II
+    buff-seconds: 10.0                 # ASSUMED
+    invincibility-seconds: 2.0         # ASSUMED -- "brief"
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form
@@ -886,3 +889,53 @@ lifestealer:
     glow-seconds: 5
   double-drops:
     multiplier: 2
+
+# =====================================================================
+# crazyTNT2cool -- The Honored One / complete Limitless kit
+# =====================================================================
+# Intentionally overtuned: the request was to give him the full Gojo power set.
+crazytnt2cool:
+  six-eyes:
+    speed-amplifier: 1             # Speed II
+    haste-amplifier: 1             # Haste II
+    regeneration-amplifier: 0      # Regeneration I
+
+  infinity:
+    # Infinity blocks all damage except the void. Melee attackers are also
+    # pushed back, and projectiles disappear before reaching the owner.
+    repel-power: 1.2
+
+  blue:
+    range: 32.0
+    radius: 8.0
+    pull-power: 1.8
+    damage: 8.0                    # 4 hearts before armour
+    cooldown-seconds: 12
+
+  red:
+    range: 28.0
+    half-angle-degrees: 35.0
+    damage: 12.0                   # 6 hearts before armour
+    knockback: 2.4
+    cooldown-seconds: 18
+
+  hollow-purple:
+    range: 64.0
+    radius: 2.25
+    damage: 32.0                   # 16 hearts before armour
+    knockback: 3.0
+    cooldown-seconds: 90
+
+  warp:
+    range: 48.0
+    cooldown-seconds: 4
+
+  reverse-technique:
+    # Full heal, debuff cleanse, fire/freeze cleanse, and 4 absorption hearts.
+    cooldown-seconds: 45
+
+  unlimited-void:
+    radius: 16.0
+    duration-seconds: 8
+    damage: 6.0                    # initial overload damage
+    cooldown-seconds: 180
