@@ -37,20 +37,22 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
             Text.msg(sender, "<red>Only players have kits.");
             return true;
         }
-        PowerKit kit = plugin.kits().kitOf(player);
-        if (kit == null) {
+        List<PowerKit> playerKits = plugin.kits().kitsOf(player);
+        if (playerKits.isEmpty()) {
             Text.msg(player, "<gray>You have no kit assigned.</gray>");
             return true;
         }
 
         if (args.length == 0 || args[0].equalsIgnoreCase("list") || args[0].equalsIgnoreCase("info")) {
-            showList(player, kit);
+            for (PowerKit kit : playerKits) {
+                showList(player, kit);
+            }
             return true;
         }
         if (args[0].equalsIgnoreCase("gui") || args[0].equalsIgnoreCase("menu")) {
             // A clickable alternative to typing an exact ability id -- console/controller players
             // in particular are fighting an on-screen keyboard for something a click already does.
-            plugin.powerMenu().open(player, kit);
+            plugin.powerMenu().open(player, playerKits);
             return true;
         }
         if (args[0].equalsIgnoreCase("keybind") || args[0].equalsIgnoreCase("keybinds")) {
@@ -61,13 +63,15 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
         String abilityId = args[0].equalsIgnoreCase("use") && args.length > 1
                 ? args[1]
                 : args[0];
-        Ability ability = find(kit, abilityId);
-        if (ability == null) {
-            Text.msg(player, "<red>No ability called <white>" + Text.plain(abilityId)
-                    + "</white>. Try <white>/power list</white>.");
-            return true;
+        for (PowerKit kit : playerKits) {
+            Ability ability = find(kit, abilityId);
+            if (ability != null) {
+                kit.activate(player, ability.id());
+                return true;
+            }
         }
-        kit.activate(player, ability.id());
+        Text.msg(player, "<red>No ability called <white>" + Text.plain(abilityId)
+                + "</white>. Try <white>/power list</white>.");
         return true;
     }
 
@@ -122,8 +126,8 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
         if (!(sender instanceof Player player)) {
             return List.of();
         }
-        PowerKit kit = plugin.kits().kitOf(player);
-        if (kit == null || args.length != 1) {
+        List<PowerKit> playerKits = plugin.kits().kitsOf(player);
+        if (playerKits.isEmpty() || args.length != 1) {
             return List.of();
         }
         String prefix = args[0].toLowerCase(Locale.ROOT);
@@ -137,9 +141,11 @@ public class PowerCommand implements CommandExecutor, TabCompleter {
         if ("keybind".startsWith(prefix)) {
             out.add("keybind");
         }
-        for (Ability ability : kit.abilities()) {
-            if (ability.id().toLowerCase(Locale.ROOT).startsWith(prefix)) {
-                out.add(ability.id());
+        for (PowerKit kit : playerKits) {
+            for (Ability ability : kit.abilities()) {
+                if (ability.id().toLowerCase(Locale.ROOT).startsWith(prefix)) {
+                    out.add(ability.id());
+                }
             }
         }
         return out;

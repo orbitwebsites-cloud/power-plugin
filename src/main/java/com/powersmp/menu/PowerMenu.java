@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.util.Text;
+import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -31,6 +32,10 @@ import org.jetbrains.annotations.NotNull;
  * with their live cooldown state, and clicking one fires it and redraws in place -- no typing
  * required for anything this menu covers. It is additive: {@code /power} and {@code /power list}
  * behave exactly as before.
+ *
+ * <p>A player can have more than one kit at once (see {@link PowerKit} multi-kit support); every
+ * kit's abilities are pooled into one menu, each slot remembering which kit it belongs to so a
+ * click activates the right one.
  */
 public class PowerMenu implements Listener {
 
@@ -40,26 +45,33 @@ public class PowerMenu implements Listener {
         this.plugin = plugin;
     }
 
-    public void open(Player player, PowerKit kit) {
-        if (kit.abilities().isEmpty()) {
-            Text.msg(player, "<gray>" + Text.plain(kit.displayName())
-                    + " has no activated abilities -- it is all passive.</gray>");
+    public void open(Player player, List<PowerKit> kits) {
+        List<Entry> entries = new ArrayList<>();
+        for (PowerKit kit : kits) {
+            for (Ability ability : kit.abilities()) {
+                entries.add(new Entry(kit, ability));
+            }
+        }
+        if (entries.isEmpty()) {
+            Text.msg(player, "<gray>None of your kits have activated abilities -- they are all passive.</gray>");
             return;
         }
-        Holder holder = new Holder(kit);
-        int size = Math.min(54, ((kit.abilities().size() + 8) / 9) * 9);
+        Holder holder = new Holder(entries);
+        int size = Math.min(54, ((entries.size() + 8) / 9) * 9);
+        String title = kits.size() == 1
+                ? Text.plain(kits.get(0).displayName())
+                : entries.size() + " abilities";
         Inventory inventory = Bukkit.createInventory(holder, size,
-                Text.mm("<dark_gray>" + Text.plain(kit.displayName()) + " -- powers</dark_gray>"));
+                Text.mm("<dark_gray>" + title + " -- powers</dark_gray>"));
         holder.inventory = inventory;
-        redraw(player, inventory, kit);
+        redraw(player, inventory, entries);
         player.openInventory(inventory);
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.6f, 1.2f);
     }
 
-    private void redraw(Player player, Inventory inventory, PowerKit kit) {
-        List<Ability> abilities = kit.abilities();
-        for (int i = 0; i < abilities.size() && i < inventory.getSize(); i++) {
-            inventory.setItem(i, icon(player, abilities.get(i)));
+    private void redraw(Player player, Inventory inventory, List<Entry> entries) {
+        for (int i = 0; i < entries.size() && i < inventory.getSize(); i++) {
+            inventory.setItem(i, icon(player, entries.get(i).ability));
         }
     }
 
@@ -90,12 +102,13 @@ public class PowerMenu implements Listener {
                 || slot < 0 || slot >= event.getInventory().getSize()) {
             return;
         }
-        List<Ability> abilities = holder.kit.abilities();
-        if (slot >= abilities.size()) {
+        List<Entry> entries = holder.entries;
+        if (slot >= entries.size()) {
             return;
         }
-        holder.kit.activate(player, abilities.get(slot).id());
-        redraw(player, event.getInventory(), holder.kit);
+        Entry entry = entries.get(slot);
+        entry.kit.activate(player, entry.ability.id());
+        redraw(player, event.getInventory(), entries);
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -105,13 +118,16 @@ public class PowerMenu implements Listener {
         }
     }
 
-    /** Identifies our menu, and which kit it belongs to, without tracking open inventories by player. */
+    private record Entry(PowerKit kit, Ability ability) {
+    }
+
+    /** Identifies our menu, and which kit each slot belongs to, without tracking open inventories by player. */
     private static final class Holder implements InventoryHolder {
-        private final PowerKit kit;
+        private final List<Entry> entries;
         private Inventory inventory;
 
-        private Holder(PowerKit kit) {
-            this.kit = kit;
+        private Holder(List<Entry> entries) {
+            this.entries = entries;
         }
 
         @NotNull

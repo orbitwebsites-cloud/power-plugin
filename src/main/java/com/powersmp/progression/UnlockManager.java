@@ -51,8 +51,7 @@ public class UnlockManager implements Listener {
     }
 
     public boolean isUnlocked(Player player, Power power) {
-        PowerKit kit = plugin.kits().kitOf(player);
-        if (kit == null || !kit.id().equalsIgnoreCase(power.kitId())) {
+        if (!plugin.kits().isOwner(player, power.kitId())) {
             return false;
         }
         // "All powers are disabled" inside the Illusory Realm -- one choke point rather than
@@ -99,7 +98,7 @@ public class UnlockManager implements Listener {
                     + "</white> <gray>unlocked</gray> <gold>" + Text.plain(power.displayName()) + "</gold><gray>.</gray>"));
         }
 
-        PowerKit kit = plugin.kits().kitOf(player);
+        PowerKit kit = plugin.kits().byId(power.kitId());
         if (kit != null) {
             kit.onUnlock(player, power);
         }
@@ -127,13 +126,9 @@ public class UnlockManager implements Listener {
         if (unlockAll) {
             return;
         }
-        PowerKit kit = plugin.kits().kitOf(player);
-        if (kit == null) {
-            return;
-        }
         PlayerData data = plugin.data().get(player.getUniqueId());
         for (Power power : Power.values()) {
-            if (power.gate() != Power.Gate.KILLS || !power.kitId().equalsIgnoreCase(kit.id())) {
+            if (power.gate() != Power.Gate.KILLS || !plugin.kits().isOwner(player, power.kitId())) {
                 continue;
             }
             if (!data.hasUnlocked(power.id()) && data.kills() >= threshold(power)) {
@@ -148,7 +143,7 @@ public class UnlockManager implements Listener {
         if (killer == null || killer.equals(event.getEntity())) {
             return;
         }
-        if (plugin.kits().kitOf(killer) != null) {
+        if (!plugin.kits().kitsOf(killer).isEmpty()) {
             addKills(killer, 1);
         }
     }

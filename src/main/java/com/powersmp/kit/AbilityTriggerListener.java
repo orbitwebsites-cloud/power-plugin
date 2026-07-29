@@ -1,6 +1,7 @@
 package com.powersmp.kit;
 
 import com.powersmp.PowerSMP;
+import java.util.List;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -72,18 +73,31 @@ public class AbilityTriggerListener implements Listener {
                 plugin.data().get(player.getUniqueId()).abilityTrigger(), AbilityTrigger.SNEAK_RIGHT_CLICK);
     }
 
-    /** @return true if there was a kit with a primary ability to fire at all (regardless of cooldown). */
+    /**
+     * @return true if there was a kit with a primary ability to fire at all (regardless of cooldown).
+     * When a player has more than one kit at once (e.g. Phantom + Life Stealer), the chosen ability
+     * is looked up across all of them so the bound ability fires on whichever kit actually owns it.
+     */
     private boolean fire(Player player) {
-        PowerKit kit = plugin.kits().kitOf(player);
-        if (kit == null) {
+        List<PowerKit> kits = plugin.kits().kitsOf(player);
+        if (kits.isEmpty()) {
             return false;
         }
         String chosen = plugin.data().get(player.getUniqueId()).primaryAbility();
-        String primary = !chosen.isBlank() && hasAbility(kit, chosen) ? chosen : kit.primaryAbilityId();
+        if (!chosen.isBlank()) {
+            for (PowerKit kit : kits) {
+                if (hasAbility(kit, chosen)) {
+                    kit.activate(player, chosen);
+                    return true;
+                }
+            }
+        }
+        PowerKit first = kits.get(0);
+        String primary = first.primaryAbilityId();
         if (primary == null) {
             return false;
         }
-        kit.activate(player, primary);
+        first.activate(player, primary);
         return true;
     }
 

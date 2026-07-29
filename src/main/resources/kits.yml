@@ -64,7 +64,9 @@ assignments:
   ahriahn: voidwalker
   disasterflames: returnbydeath
   _glueman: theghost
-  JustSoopTBH: phantom
+  # Phantom + Life Stealer run all the time; Lucky's reroll timer overrides both
+  # with a single rolled kit for its duration, then reverts to all three.
+  JustSoopTBH: phantom,lifestealer,lucky
 
 # ---------------------------------------------------------------------
 # Progression / unlock gating.

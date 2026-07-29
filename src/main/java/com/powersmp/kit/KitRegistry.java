@@ -1,5 +1,6 @@
 package com.powersmp.kit;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -22,42 +23,50 @@ import org.bukkit.plugin.Plugin;
  * <p>Lookups go by IGN, cached to UUID on join. Names are the practical key here because that is
  * what the spec is written in; the UUID cache means a name change mid-session does not detach
  * someone from their kit.
+ *
+ * <p>A player can have more than one kit at once -- a comma-separated value in {@code assignments:}
+ * (e.g. {@code JustSoopTBH: phantom,lucky,lifestealer}) grants all of them, all the time.
+ * {@link #kitsOf} is the real lookup everywhere behaviour is dispatched from; {@link #kitOf} is a
+ * convenience for the single-kit case (the vast majority of the roster) and simply returns the
+ * first entry.
  */
 public class KitRegistry {
 
-    /** The bespoke designs, per the build spec. */
-    private static final Map<String, String> HARDCODED_ASSIGNMENTS = Map.ofEntries(
-            Map.entry("mavricc", "mavricc"),
-            Map.entry("northofnowhere", "northofnowhere"),
-            Map.entry("xcr1t1cx", "xcr1t1cx"),
-            Map.entry("kornflakis", "kornflakis"),
-            Map.entry("itzmetentx", "itzmetentx"),
-            Map.entry("jjlionjxi", "jjlionjxi"),
-            Map.entry("domanthegamer", "domanthegamer"),
-            Map.entry("sparkkkkkkkk", "sparkkkkkkkk"),
-            Map.entry("night_scar3", "night_scar3"),
-            Map.entry("marb13_", "marb13"),
-            Map.entry("llamachas", "llamachas"),
-            Map.entry("monkeyman4167", "monkeyman"),
-            Map.entry("techknightgaming", "techknight"),
-            Map.entry("ahriahn", "voidwalker"),
-            Map.entry("disasterflames", "returnbydeath"),
-            Map.entry("_glueman", "theghost"),
-            Map.entry("justsooptbh", "phantom"));
+    /** The bespoke designs, per the build spec. Most players have exactly one kit here. */
+    private static final Map<String, List<String>> HARDCODED_ASSIGNMENTS = Map.ofEntries(
+            Map.entry("mavricc", List.of("mavricc")),
+            Map.entry("northofnowhere", List.of("northofnowhere")),
+            Map.entry("xcr1t1cx", List.of("xcr1t1cx")),
+            Map.entry("kornflakis", List.of("kornflakis")),
+            Map.entry("itzmetentx", List.of("itzmetentx")),
+            Map.entry("jjlionjxi", List.of("jjlionjxi")),
+            Map.entry("domanthegamer", List.of("domanthegamer")),
+            Map.entry("sparkkkkkkkk", List.of("sparkkkkkkkk")),
+            Map.entry("night_scar3", List.of("night_scar3")),
+            Map.entry("marb13_", List.of("marb13")),
+            Map.entry("llamachas", List.of("llamachas")),
+            Map.entry("monkeyman4167", List.of("monkeyman")),
+            Map.entry("techknightgaming", List.of("techknight")),
+            Map.entry("ahriahn", List.of("voidwalker")),
+            Map.entry("disasterflames", List.of("returnbydeath")),
+            Map.entry("_glueman", List.of("theghost")),
+            // Phantom + Life Stealer run all the time; Lucky's own reroll timer overrides both
+            // (see #overrides) with a single rolled kit for its duration, then reverts to all three.
+            Map.entry("justsooptbh", List.of("phantom", "lifestealer", "lucky")));
 
     private final Plugin plugin;
     private final Map<String, PowerKit> kitsById = new LinkedHashMap<>();
-    /** lowercase IGN -> kit id */
-    private final Map<String, String> nameAssignments = new ConcurrentHashMap<>();
-    /** UUID -> kit id, both from config UUID keys and from name lookups resolved on join. */
-    private final Map<UUID, String> uuidAssignments = new ConcurrentHashMap<>();
+    /** lowercase IGN -> kit ids */
+    private final Map<String, List<String>> nameAssignments = new ConcurrentHashMap<>();
+    /** UUID -> kit ids, both from config UUID keys and from name lookups resolved on join. */
+    private final Map<UUID, List<String>> uuidAssignments = new ConcurrentHashMap<>();
     /**
-     * UUID -> kit id, in-memory only. Takes priority over the permanent assignment above when
-     * present. This is Lucky's whole mechanism: while an override is set, every lookup here --
-     * {@code kitOf}, {@code isOwner}, and therefore {@code UnlockManager.isUnlocked} and the shared
-     * kit tick/join/quit dispatch in {@code PowerSMP} -- resolves to the rolled kit instead, so the
-     * player genuinely becomes that kit for as long as the override lasts, with no other kit needing
-     * to know Lucky exists.
+     * UUID -> single kit id, in-memory only. Takes priority over every permanently assigned kit
+     * above when present. This is Lucky's whole mechanism: while an override is set, every lookup
+     * here -- {@code kitsOf}, {@code isOwner}, and therefore {@code UnlockManager.isUnlocked} and the
+     * shared kit tick/join/quit dispatch in {@code PowerSMP} -- resolves to the rolled kit alone
+     * instead of the player's real kit(s), so the player genuinely becomes just that kit for as long
+     * as the override lasts, with no other kit needing to know Lucky exists.
      */
     private final Map<UUID, String> overrides = new ConcurrentHashMap<>();
 
@@ -76,20 +85,30 @@ public class KitRegistry {
 
         if (section != null) {
             for (String key : section.getKeys(false)) {
-                String kitId = section.getString(key);
-                if (kitId == null || kitId.isBlank()) {
+                String raw = section.getString(key);
+                if (raw == null || raw.isBlank()) {
                     continue;
                 }
-                kitId = kitId.toLowerCase(Locale.ROOT);
-                if (!kitsById.containsKey(kitId)) {
-                    plugin.getLogger().warning("Assignment for '" + key + "' names unknown kit '"
-                            + kitId + "'; known kits are " + kitsById.keySet());
+                List<String> kitIds = new ArrayList<>();
+                for (String piece : raw.split(",")) {
+                    String kitId = piece.trim().toLowerCase(Locale.ROOT);
+                    if (kitId.isEmpty()) {
+                        continue;
+                    }
+                    if (!kitsById.containsKey(kitId)) {
+                        plugin.getLogger().warning("Assignment for '" + key + "' names unknown kit '"
+                                + kitId + "'; known kits are " + kitsById.keySet());
+                        continue;
+                    }
+                    kitIds.add(kitId);
+                }
+                if (kitIds.isEmpty()) {
                     continue;
                 }
                 try {
-                    uuidAssignments.put(UUID.fromString(key), kitId);
+                    uuidAssignments.put(UUID.fromString(key), kitIds);
                 } catch (IllegalArgumentException notAUuid) {
-                    nameAssignments.put(key.toLowerCase(Locale.ROOT), kitId);
+                    nameAssignments.put(key.toLowerCase(Locale.ROOT), kitIds);
                 }
             }
         }
@@ -97,24 +116,47 @@ public class KitRegistry {
                 + " by name, " + uuidAssignments.size() + " by UUID.");
     }
 
-    /** @return the player's kit, or null if they have none. */
-    public PowerKit kitOf(Player player) {
-        String kitId = overrides.get(player.getUniqueId());
-        if (kitId == null) {
-            kitId = uuidAssignments.get(player.getUniqueId());
-            if (kitId == null) {
-                kitId = nameAssignments.get(player.getName().toLowerCase(Locale.ROOT));
-                if (kitId != null) {
-                    uuidAssignments.put(player.getUniqueId(), kitId);
-                }
+    /** @return every kit currently active for this player -- empty if they have none. */
+    public List<PowerKit> kitsOf(Player player) {
+        String overrideId = overrides.get(player.getUniqueId());
+        if (overrideId != null) {
+            PowerKit overridden = kitsById.get(overrideId);
+            return overridden == null ? List.of() : List.of(overridden);
+        }
+
+        List<String> kitIds = uuidAssignments.get(player.getUniqueId());
+        if (kitIds == null) {
+            kitIds = nameAssignments.get(player.getName().toLowerCase(Locale.ROOT));
+            if (kitIds != null) {
+                uuidAssignments.put(player.getUniqueId(), kitIds);
             }
         }
-        return kitId == null ? null : kitsById.get(kitId);
+        if (kitIds == null || kitIds.isEmpty()) {
+            return List.of();
+        }
+        List<PowerKit> kits = new ArrayList<>(kitIds.size());
+        for (String kitId : kitIds) {
+            PowerKit kit = kitsById.get(kitId);
+            if (kit != null) {
+                kits.add(kit);
+            }
+        }
+        return kits;
+    }
+
+    /** @return the player's first kit, or null if they have none. Most players have exactly one. */
+    public PowerKit kitOf(Player player) {
+        List<PowerKit> kits = kitsOf(player);
+        return kits.isEmpty() ? null : kits.get(0);
     }
 
     public boolean isOwner(Player player, String kitId) {
-        PowerKit kit = kitOf(player);
-        return kit != null && kit.id().equalsIgnoreCase(kitId);
+        for (PowerKit kit : kitsOf(player)) {
+            if (kit.id().equalsIgnoreCase(kitId)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public PowerKit byId(String kitId) {

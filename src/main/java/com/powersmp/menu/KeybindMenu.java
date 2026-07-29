@@ -5,6 +5,7 @@ import com.powersmp.kit.Ability;
 import com.powersmp.kit.AbilityTrigger;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.util.Text;
+import java.util.ArrayList;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
@@ -69,10 +70,10 @@ public class KeybindMenu implements Listener {
             inventory.setItem(i, filler());
         }
 
-        PowerKit kit = plugin.kits().kitOf(player);
-        List<Ability> abilities = kit == null ? List.of() : kit.abilities();
+        List<PowerKit> kits = plugin.kits().kitsOf(player);
+        List<Ability> abilities = allAbilities(kits);
         String chosen = plugin.data().get(player.getUniqueId()).primaryAbility();
-        String effectiveDefault = kit == null ? null : kit.primaryAbilityId();
+        String effectiveDefault = kits.isEmpty() ? null : kits.get(0).primaryAbilityId();
         for (int i = 0; i < 9; i++) {
             int slot = ABILITY_ROW_START + i;
             if (i >= abilities.size()) {
@@ -85,6 +86,15 @@ public class KeybindMenu implements Listener {
                     : ability.id().equalsIgnoreCase(chosen);
             inventory.setItem(slot, abilityIcon(ability, selected));
         }
+    }
+
+    /** Combines abilities across every kit a player currently has (see {@link PowerKit} multi-kit support). */
+    private List<Ability> allAbilities(List<PowerKit> kits) {
+        List<Ability> abilities = new ArrayList<>();
+        for (PowerKit kit : kits) {
+            abilities.addAll(kit.abilities());
+        }
+        return abilities;
     }
 
     private ItemStack icon(AbilityTrigger trigger, boolean selected) {
@@ -146,8 +156,7 @@ public class KeybindMenu implements Listener {
             return;
         }
         if (slot >= ABILITY_ROW_START && slot < ABILITY_ROW_START + 9) {
-            PowerKit kit = plugin.kits().kitOf(player);
-            List<Ability> abilities = kit == null ? List.of() : kit.abilities();
+            List<Ability> abilities = allAbilities(plugin.kits().kitsOf(player));
             int index = slot - ABILITY_ROW_START;
             if (index >= abilities.size()) {
                 return;

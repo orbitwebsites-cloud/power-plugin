@@ -9,6 +9,7 @@ import com.powersmp.util.Text;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -62,26 +63,28 @@ public class PowerSMPCommand implements CommandExecutor, TabCompleter {
         if (target == null) {
             return;
         }
-        PowerKit kit = plugin.kits().kitOf(target);
+        List<PowerKit> kits = plugin.kits().kitsOf(target);
         PlayerData data = plugin.data().get(target.getUniqueId());
 
+        String kitLabel = kits.isEmpty() ? "none" : kits.stream()
+                .map(kit -> Text.plain(kit.displayName() + " (" + kit.id() + ")"))
+                .reduce((a, b) -> a + ", " + b).orElse("none");
         Text.msg(sender, "<white>" + Text.plain(target.getName()) + "</white> <dark_gray>-</dark_gray> kit: <aqua>"
-                + (kit == null ? "none" : Text.plain(kit.displayName() + " (" + kit.id() + ")")) + "</aqua>");
+                + kitLabel + "</aqua>");
         Text.raw(sender, "<gray>  stance:</gray> " + Text.plain(data.stance())
                 + " <gray>| kills:</gray> " + data.kills()
                 + " <gray>| spear:</gray> tier " + data.spearTier() + " (" + data.spearKills() + " kills)");
         Text.raw(sender, "<gray>  mushroom hunger scope:</gray> " + plugin.food().scopeName());
-        if (kit == null) {
-            return;
-        }
-        for (Power power : Power.values()) {
-            if (!power.kitId().equalsIgnoreCase(kit.id())) {
-                continue;
+        for (PowerKit kit : kits) {
+            for (Power power : Power.values()) {
+                if (!power.kitId().equalsIgnoreCase(kit.id())) {
+                    continue;
+                }
+                boolean on = plugin.unlocks().isUnlocked(target, power);
+                Text.raw(sender, "<dark_gray>  •</dark_gray> " + (on ? "<green>✔</green> " : "<red>✘</red> ")
+                        + Text.plain(power.displayName()) + " <dark_gray>(" + power.gate().name().toLowerCase(Locale.ROOT)
+                        + ")</dark_gray>");
             }
-            boolean on = plugin.unlocks().isUnlocked(target, power);
-            Text.raw(sender, "<dark_gray>  •</dark_gray> " + (on ? "<green>✔</green> " : "<red>✘</red> ")
-                    + Text.plain(power.displayName()) + " <dark_gray>(" + power.gate().name().toLowerCase(Locale.ROOT)
-                    + ")</dark_gray>");
         }
     }
 

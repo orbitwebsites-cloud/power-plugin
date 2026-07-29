@@ -311,16 +311,14 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private void startKitTick() {
         Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
-                PowerKit kit = kits.kitOf(player);
-                if (kit == null) {
-                    continue;
-                }
-                try {
-                    kit.tick(player);
-                } catch (Exception ex) {
-                    // One kit throwing must not stop the others from ticking.
-                    getLogger().warning("Kit '" + kit.id() + "' threw during tick for "
-                            + player.getName() + ": " + ex);
+                for (PowerKit kit : kits.kitsOf(player)) {
+                    try {
+                        kit.tick(player);
+                    } catch (Exception ex) {
+                        // One kit throwing must not stop the others from ticking.
+                        getLogger().warning("Kit '" + kit.id() + "' threw during tick for "
+                                + player.getName() + ": " + ex);
+                    }
                 }
             }
         }, tickInterval, tickInterval);
@@ -342,16 +340,14 @@ public class PowerSMP extends JavaPlugin implements Listener {
         data.get(player.getUniqueId()).lastKnownName(player.getName());
         data.markDirty();
         cooldowns.hydrate(player.getUniqueId());
-        PowerKit kit = kits.kitOf(player);
-        if (kit != null) {
+        for (PowerKit kit : kits.kitsOf(player)) {
             kit.onJoin(player);
         }
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        PowerKit kit = kits.kitOf(event.getPlayer());
-        if (kit != null) {
+        for (PowerKit kit : kits.kitsOf(event.getPlayer())) {
             kit.onQuit(event.getPlayer());
         }
         cooldowns.clearAll(event.getPlayer().getUniqueId());
