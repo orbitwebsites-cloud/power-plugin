@@ -17,7 +17,7 @@ import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
 import com.powersmp.kit.impl.NorthOfNowhereKit;
-import com.powersmp.kit.impl.ReturnByDeathKit;
+import com.powersmp.kit.impl.DisasterflamesKit;
 import com.powersmp.kit.impl.DomanKit;
 import com.powersmp.kit.impl.TheGhostKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
@@ -35,6 +35,7 @@ import com.powersmp.kit.impl.SparkKit;
 import com.powersmp.kit.impl.TechKnightKit;
 import com.powersmp.kit.impl.VoidwalkerKit;
 import com.powersmp.kit.impl.XCriticKit;
+import com.powersmp.kit.impl.CrazyTNT2CoolKit;
 import com.powersmp.menu.KeybindMenu;
 import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
@@ -114,11 +115,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private MonkeyManKit monkeyman;
     private TechKnightKit techknight;
     private VoidwalkerKit voidwalker;
-    private ReturnByDeathKit returnByDeath;
+    private DisasterflamesKit disasterflames;
     private TheGhostKit theghost;
     private PhantomKit phantom;
     private LuckyKit lucky;
     private LifeStealerKit lifestealer;
+    private CrazyTNT2CoolKit crazyTNT2Cool;
 
     private int tickInterval = 20;
     private BukkitTask kitTickTask;
@@ -166,11 +168,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
         monkeyman = new MonkeyManKit(this);
         techknight = new TechKnightKit(this);
         voidwalker = new VoidwalkerKit(this);
-        returnByDeath = new ReturnByDeathKit(this);
+        disasterflames = new DisasterflamesKit(this);
         theghost = new TheGhostKit(this);
         phantom = new PhantomKit(this);
         lucky = new LuckyKit(this);
         lifestealer = new LifeStealerKit(this);
+        crazyTNT2Cool = new CrazyTNT2CoolKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -185,11 +188,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(monkeyman);
         kits.register(techknight);
         kits.register(voidwalker);
-        kits.register(returnByDeath);
+        kits.register(disasterflames);
         kits.register(theghost);
         kits.register(phantom);
         kits.register(lucky);
         kits.register(lifestealer);
+        kits.register(crazyTNT2Cool);
 
         cooldowns.attachStore(data);
 
@@ -222,11 +226,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(techknight, this);
         Bukkit.getPluginManager().registerEvents(techknight.menu(), this);
         Bukkit.getPluginManager().registerEvents(voidwalker, this);
-        Bukkit.getPluginManager().registerEvents(returnByDeath, this);
+        Bukkit.getPluginManager().registerEvents(disasterflames, this);
         Bukkit.getPluginManager().registerEvents(theghost, this);
         Bukkit.getPluginManager().registerEvents(phantom, this);
         Bukkit.getPluginManager().registerEvents(lucky, this);
         Bukkit.getPluginManager().registerEvents(lifestealer, this);
+        Bukkit.getPluginManager().registerEvents(crazyTNT2Cool, this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
@@ -321,11 +326,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
         monkeyman.reload(kitsConfig.getConfigurationSection("monkeyman"));
         techknight.reload(kitsConfig.getConfigurationSection("techknight"));
         voidwalker.reload(kitsConfig.getConfigurationSection("voidwalker"));
-        returnByDeath.reload(kitsConfig.getConfigurationSection("returnbydeath"));
+        disasterflames.reload(kitsConfig.getConfigurationSection("disasterflames"));
         theghost.reload(kitsConfig.getConfigurationSection("theghost"));
         phantom.reload(kitsConfig.getConfigurationSection("phantom"));
         lucky.reload(kitsConfig.getConfigurationSection("lucky"));
         lifestealer.reload(kitsConfig.getConfigurationSection("lifestealer"));
+        crazyTNT2Cool.reload(kitsConfig.getConfigurationSection("crazytnt2cool"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */

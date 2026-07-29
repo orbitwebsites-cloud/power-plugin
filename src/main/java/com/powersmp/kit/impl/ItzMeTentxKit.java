@@ -34,7 +34,9 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.block.Action;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
@@ -67,6 +69,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     private final PowerSMP plugin;
     /** Players inside a manual (dry) riptide, since {@code isRiptiding()} stays false for those. */
     private final Map<UUID, Long> manualRiptide = new ConcurrentHashMap<>();
+    /** Fallback charge handles for dry tridents; some clients do not emit stop-use reliably. */
+    private final Map<UUID, Integer> pendingRiptide = new ConcurrentHashMap<>();
     /** Last attack-speed value written, so the attribute is not rewritten every tick. */
     private final Map<UUID, Double> appliedAttackSpeed = new ConcurrentHashMap<>();
     /** Tridents pulled out of death drops, held until the owner respawns. */
@@ -211,18 +215,53 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         if (level <= 0 || event.getTicksHeldFor() < RIPTIDE_CHARGE_TICKS) {
             return;
         }
-        if (isWet(player)) {
-            return; // Vanilla handles this one.
+        if (isRiptiding(player)) {
+            return; // The fallback charge already launched it.
         }
+        launchDryRiptide(player, level);
+    }
 
+    /** Starts a dry-riptide charge even when the client never sends Paper's stop-use event. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onStartUsingTrident(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        Player player = event.getPlayer();
+        ItemStack item = event.getItem();
+        if (!plugin.kits().isOwner(player, ID)
+                || !plugin.unlocks().isUnlocked(player, Power.TRIDENT_GOD)
+                || item == null || !player.getUniqueId().equals(TridentItem.ownerOf(item))
+                || pendingRiptide.containsKey(player.getUniqueId())) {
+            return;
+        }
+        // Replace vanilla's water/rain-only Riptide gate with one consistent charge path that
+        // works in water, rain, and completely dry air/land.
+        event.setCancelled(true);
+        UUID id = player.getUniqueId();
+        int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            pendingRiptide.remove(id);
+            if (!player.isOnline()
+                    || !player.getInventory().getItemInMainHand().isSimilar(item)) {
+                return;
+            }
+            launchDryRiptide(player, item.getEnchantmentLevel(Enchants.RIPTIDE));
+        }, RIPTIDE_CHARGE_TICKS).getTaskId();
+        pendingRiptide.put(id, taskId);
+    }
+
+    private void launchDryRiptide(Player player, int level) {
+        if (level <= 0) {
+            return;
+        }
+        pendingRiptide.remove(player.getUniqueId());
         double power = riptidePowerBase + riptidePowerPerLevel * level;
         player.setVelocity(player.getLocation().getDirection().multiply(power / 3.0d));
         player.setFallDistance(0.0f);
-        // Mark the window by hand: isRiptiding() only reports vanilla's own spin attack.
         manualRiptide.put(player.getUniqueId(), System.currentTimeMillis() + 1500L);
         player.getWorld().playSound(player.getLocation(), soundFor(level), 1.0f, 1.0f);
-        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 60, 0.4, 0.3, 0.4, 0.2);
-        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 20, 0.3, 0.2, 0.3, 0.05);
+        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 30, 0.4, 0.3, 0.4, 0.2);
+        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 10, 0.3, 0.2, 0.3, 0.05);
     }
 
     private Sound soundFor(int level) {

@@ -56,7 +56,7 @@ public class UnlockManager implements Listener {
         }
         // "All powers are disabled" inside the Illusory Realm -- one choke point rather than
         // teaching all 14 kits about domains.
-        if (plugin.realm() != null && plugin.realm().powersSuppressed(player)) {
+        if (plugin.realm() != null && plugin.realm().powersSuppressed(player, power)) {
             return false;
         }
         PlayerData data = plugin.data().get(player.getUniqueId());
