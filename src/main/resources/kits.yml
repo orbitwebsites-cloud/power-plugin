@@ -339,8 +339,8 @@ xcr1t1cx:
       5: 10
     # xCR1T1Cx's own form response: "stuns them for 5 seconds with a cooldown
     # of a minute". This was briefly 0 under a blanket "no nerfs" pass; the
-    # minute is his own number, not a nerf, so it is restored.
-    hit-cooldown-seconds: 60
+    # Every successful spear hit lunges and stuns, as specified.
+    hit-cooldown-seconds: 0
     # Player kills only -- was always true with no toggle before, so mob kills silently
     # upgraded Lunge tiers. Matches techknight's mace.
     count-player-kills: true
