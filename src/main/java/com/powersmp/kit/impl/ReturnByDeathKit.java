@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -151,10 +152,21 @@ public class ReturnByDeathKit implements PowerKit, Listener {
         if (!plugin.kits().isOwner(player, ID) || !plugin.unlocks().isUnlocked(player, Power.POST_RESPAWN_VIGOR)) {
             return;
         }
-        Effects.apply(player, PotionEffectType.STRENGTH, respawnBuffSeconds * 20, respawnStrengthAmplifier);
-        Effects.apply(player, PotionEffectType.SPEED, respawnBuffSeconds * 20, respawnSpeedAmplifier);
-        player.getWorld().spawnParticle(Particle.HEART, player.getLocation().add(0.0, 1.6, 0.0),
-                10, 0.4, 0.4, 0.4, 0.0);
-        player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.3f);
+        // Respawn events fire before the client/server respawn transition completes. Applying the
+        // effects in that event can be discarded by Paper, which made Second Wind appear random.
+        Bukkit.getScheduler().runTask(plugin, () -> {
+            if (!player.isOnline() || !plugin.kits().isOwner(player, ID)
+                    || !plugin.unlocks().isUnlocked(player, Power.POST_RESPAWN_VIGOR)) {
+                return;
+            }
+            Effects.apply(player, PotionEffectType.STRENGTH,
+                    respawnBuffSeconds * 20, respawnStrengthAmplifier);
+            Effects.apply(player, PotionEffectType.SPEED,
+                    respawnBuffSeconds * 20, respawnSpeedAmplifier);
+            player.getWorld().spawnParticle(Particle.HEART,
+                    player.getLocation().add(0.0, 1.6, 0.0), 10,
+                    0.4, 0.4, 0.4, 0.0);
+            player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.6f, 1.3f);
+        });
     }
 }
