@@ -484,8 +484,8 @@ night_scar3:
   # MID TIER
   dash:
     charges: 3
-    power: 1.5                     # ASSUMED
-    recharge-seconds: 10           # ASSUMED -- charges return one at a time
+    distance-blocks: 15.0          # Moves 15 blocks in the direction looking (including up)
+    recharge-seconds: 10           # Charges return one at a time
     wind-burst-level: 1            # "gives me (Wind Burst)" -- on the mace
 
   # HIGH TIER

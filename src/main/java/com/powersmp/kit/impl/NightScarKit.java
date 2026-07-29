@@ -64,7 +64,7 @@ public class NightScarKit implements PowerKit, Listener {
 
     private int strengthAmplifier;
     private int dashCharges = 3;
-    private double dashPower = 1.5d;
+    private double dashDistance = 15.0d;
     private double dashRechargeSeconds = 10.0d;
     private int windBurstLevel = 1;
     private int maxDensity = 8;
@@ -96,7 +96,7 @@ public class NightScarKit implements PowerKit, Listener {
             ConfigurationSection dash = section.getConfigurationSection("dash");
             if (dash != null) {
                 dashCharges = dash.getInt("charges", dashCharges);
-                dashPower = dash.getDouble("power", dashPower);
+                dashDistance = dash.getDouble("distance-blocks", dashDistance);
                 dashRechargeSeconds = dash.getDouble("recharge-seconds", dashRechargeSeconds);
                 windBurstLevel = dash.getInt("wind-burst-level", windBurstLevel);
             }
@@ -169,8 +169,8 @@ public class NightScarKit implements PowerKit, Listener {
         MovementExemption.begin(owner);
         Bukkit.getScheduler().runTaskLater(plugin, () -> MovementExemption.end(owner), 20L);
 
-        // "boost in any direction" -- wherever he is looking, including straight up.
-        Vector direction = owner.getLocation().getDirection().normalize().multiply(dashPower);
+        // Boost in the direction the player is looking, including straight up.
+        Vector direction = owner.getLocation().getDirection().normalize().multiply(dashDistance);
         owner.setVelocity(direction);
         owner.setFallDistance(0.0f);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_BREEZE_WIND_BURST, 1.0f, 1.2f);
