@@ -5,6 +5,7 @@ import com.powersmp.item.TridentItem;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Attributes;
+import com.powersmp.util.Crits;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
@@ -42,6 +43,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
 /**
@@ -88,6 +90,8 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     private final Map<UUID, BukkitTask> riptideCollisionWatch = new ConcurrentHashMap<>();
     /** Last attack-speed value written, so the attribute is not rewritten every tick. */
     private final Map<UUID, Double> appliedAttackSpeed = new ConcurrentHashMap<>();
+    /** Consecutive crits landed; any non-crit hit resets it back to zero. */
+    private final Map<UUID, Integer> critStreak = new ConcurrentHashMap<>();
     /** Tridents pulled out of death drops, held until the owner respawns. */
     private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
 
@@ -96,6 +100,9 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     private boolean cancelDrowningDamage = true;
     private double wetAttackSpeedBonus = 2.0d;
     private boolean rainCounts = true;
+    private int critStreakHits = 3;
+    private int critStreakSlownessAmplifier = 2;
+    private double critStreakSeconds = 5.0d;
     private double riptidePowerBase = 3.0d;
     private double riptidePowerPerLevel = 1.5d;
     private double riptideStunSeconds = 3.0d;
@@ -130,6 +137,13 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         if (tidal != null) {
             wetAttackSpeedBonus = tidal.getDouble("attack-speed-bonus", wetAttackSpeedBonus);
             rainCounts = tidal.getBoolean("rain-counts", true);
+            ConfigurationSection critStreakSection = tidal.getConfigurationSection("crit-streak-slowness");
+            if (critStreakSection != null) {
+                critStreakHits = Math.max(1, critStreakSection.getInt("hits", critStreakHits));
+                critStreakSlownessAmplifier =
+                        critStreakSection.getInt("slowness-amplifier", critStreakSlownessAmplifier);
+                critStreakSeconds = critStreakSection.getDouble("duration-seconds", critStreakSeconds);
+            }
         }
         ConfigurationSection trident = section.getConfigurationSection("trident-god");
         if (trident != null) {
@@ -203,6 +217,43 @@ public class ItzMeTentxKit implements PowerKit, Listener {
                 && plugin.kits().isOwner(player, ID)
                 && plugin.unlocks().isUnlocked(player, Power.AQUATIC_GRACE)) {
             event.setCancelled(true);
+        }
+    }
+
+    /**
+     * Tier 2 add-on alongside the wet attack-speed bonus: three critical hits in a row slow the
+     * target. Any non-crit hit in between resets the streak back to zero -- it has to be three
+     * straight, not three out of some larger window.
+     */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onCritStreak(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player) || !plugin.kits().isOwner(player, ID)) {
+            return;
+        }
+        if (!plugin.unlocks().isUnlocked(player, Power.TIDAL_SPEED)) {
+            return;
+        }
+        if (!(event.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        UUID id = player.getUniqueId();
+        if (!Crits.isCriticalMelee(player)) {
+            critStreak.remove(id);
+            return;
+        }
+        int streak = critStreak.merge(id, 1, Integer::sum);
+        if (streak < critStreakHits) {
+            return;
+        }
+        critStreak.remove(id);
+
+        int ticks = (int) (critStreakSeconds * 20.0d);
+        Effects.apply(target, PotionEffectType.SLOWNESS, ticks, critStreakSlownessAmplifier);
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_GUARDIAN_ATTACK, 1.0f, 0.8f);
+        target.getWorld().spawnParticle(Particle.SPLASH, target.getLocation().add(0, 1, 0), 30, 0.4, 0.5, 0.4, 0.1);
+        Text.actionBar(player, "<aqua><bold>CRITICAL STREAK</bold></aqua>");
+        if (target instanceof Player targetPlayer) {
+            Text.actionBar(targetPlayer, "<aqua>Slowed by three straight crits.</aqua>");
         }
     }
 
@@ -285,9 +336,11 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     }
 
     /**
-     * Polls once a tick for the flight's duration: the moment something is within collision range,
-     * the player is brought to a dead stop and the target stunned right there, instead of the old
-     * behaviour of sailing straight through and only stunning on a follow-up attack.
+     * Polls once a tick for the flight's duration. A plain "who is nearby right now" check missed
+     * fast riptides -- at typical launch speeds the player covers more than a collision-range's worth
+     * of ground in a single tick, so a target could sit squarely on the path between last tick's
+     * position and this tick's without ever being "nearby" at either sampled instant. A ray trace
+     * along that whole travelled segment (widened by the collision range) catches it instead.
      */
     private void startCollisionWatch(Player player) {
         UUID id = player.getUniqueId();
@@ -297,6 +350,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         BukkitTask task = Bukkit.getScheduler().runTaskTimer((Plugin) plugin, new Runnable() {
             private int ticks = 0;
+            private Location lastLocation = player.getLocation();
 
             @Override
             public void run() {
@@ -305,18 +359,23 @@ public class ItzMeTentxKit implements PowerKit, Listener {
                     stop();
                     return;
                 }
-                for (Entity nearby : player.getNearbyEntities(
-                        riptideCollisionRange, riptideCollisionRange, riptideCollisionRange)) {
-                    if (nearby.equals(player) || !(nearby instanceof LivingEntity target)) {
-                        continue;
-                    }
-                    if (riptideStunPlayersOnly && !(target instanceof Player)) {
-                        continue;
-                    }
-                    onRiptideCollision(player, target);
-                    stop();
+                Location from = lastLocation;
+                Location now = player.getLocation();
+                lastLocation = now;
+                Vector traveled = now.toVector().subtract(from.toVector());
+                double distance = traveled.length();
+                if (distance < 1.0e-4) {
                     return;
                 }
+                RayTraceResult hit = player.getWorld().rayTraceEntities(
+                        from, traveled, distance, riptideCollisionRange,
+                        candidate -> !candidate.equals(player) && candidate instanceof LivingEntity target
+                                && (!riptideStunPlayersOnly || target instanceof Player));
+                if (hit == null || !(hit.getHitEntity() instanceof LivingEntity target)) {
+                    return;
+                }
+                onRiptideCollision(player, target);
+                stop();
             }
 
             private void stop() {
@@ -481,6 +540,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
         appliedAttackSpeed.remove(owner.getUniqueId());
         manualRiptide.remove(owner.getUniqueId());
+        critStreak.remove(owner.getUniqueId());
         cancelTask(chargingRiptide, owner.getUniqueId());
         cancelTask(riptideCollisionWatch, owner.getUniqueId());
     }
@@ -500,6 +560,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         } else if (power == Power.TIDAL_SPEED) {
             Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
             appliedAttackSpeed.remove(owner.getUniqueId());
+            critStreak.remove(owner.getUniqueId());
         }
     }
 
@@ -514,6 +575,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         appliedAttackSpeed.clear();
         manualRiptide.clear();
+        critStreak.clear();
         chargingRiptide.values().forEach(BukkitTask::cancel);
         chargingRiptide.clear();
         riptideCollisionWatch.values().forEach(BukkitTask::cancel);

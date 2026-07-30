@@ -366,6 +366,11 @@ itzmetentx:
     attack-speed-bonus: 2.0        # ASSUMED
     # Standing in rain counts as being in water, per the spec.
     rain-counts: true
+    # Three critical hits in a row (any non-crit resets the streak) slows the target.
+    crit-streak-slowness:
+      hits: 3
+      slowness-amplifier: 2         # Slowness III
+      duration-seconds: 5
 
   trident-god:
     # Vanilla will not riptide out of water or rain, and its own attempt to
