@@ -1,8 +1,7 @@
 package com.powersmp.kit.impl;
 
 import com.powersmp.PowerSMP;
-import com.powersmp.data.PlayerData;
-import com.powersmp.kit.Ability;
+import com.powersmp.combat.ComboTracker;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.item.ResourcePackItems;
 import com.powersmp.progression.Power;
@@ -10,12 +9,10 @@ import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
-import com.powersmp.util.MovementExemption;
 import com.powersmp.util.Text;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,11 +21,13 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
-import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.inventory.InventoryDragEvent;
@@ -40,42 +39,35 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.util.Vector;
 
 /**
- * Night_Scar3: Mace Master.
+ * Night_Scar3: redesigned after the server-wide mace ban.
  *
- * <p>Permanent Strength, three rechargeable dashes, and a mace that gains a level of Density per
- * kill up to VIII -- after which each further kill is worth a permanent extra heart instead.
- *
- * <p>Note this is a <em>different</em> kit to TechKnightGaming's Mace Massacre, which caps far
- * higher and has no health overflow. Two players with mace kits is unusual but they were specified
- * separately, so they are built separately and share no state.
+ * <p>Density Mace no longer made sense once maces were banned outright, so all three tiers were
+ * rebuilt from scratch rather than patched: a passive that gives fire immunity and a scaling health
+ * boost, a combo-triggered blind, and a bound Cutlass sword replacing the mace. The health boost
+ * climbs with the tiers themselves (12 -> 15 -> 20 hearts) rather than with kills -- there being
+ * three numbered tiers already does the pacing a kill counter would otherwise do.
  */
 public class NightScarKit implements PowerKit, Listener {
 
     public static final String ID = "night_scar3";
 
-    private static final String ABILITY_DASH = "dash";
-
     private final PowerSMP plugin;
-    /** Dash charges currently spent, and when each will come back. */
-    private final Map<UUID, Integer> dashesUsed = new ConcurrentHashMap<>();
-    private final Map<UUID, Long> lastDashRecharge = new ConcurrentHashMap<>();
-
-    private int strengthAmplifier;
-    private int dashCharges = 3;
-    private double dashDistance = 15.0d;
-    private double dashRechargeSeconds = 10.0d;
-    private int windBurstLevel = 1;
-    private int maxDensity = 8;
-    private double heartsPerKillAfterMax = 2.0d;
-    private double maxBonusHealth = 40.0d;
-    private boolean maceUnbreakable = true;
-    private boolean countPlayerKills = true;
-    private boolean countMobKills = true;
-    /** Maces pulled out of death drops, held until the owner respawns. */
+    private final ComboTracker combos = new ComboTracker(3.0d);
+    /** Cutlasses pulled out of death drops, held until the owner respawns. */
     private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
+
+    private int fireVigorBonusHearts = 2;
+    private int shadowBombBonusHearts = 5;
+    private int cutlassBonusHearts = 10;
+
+    private int shadowBombComboHits = 3;
+    private int shadowBombDarknessAmplifier = 0;
+    private int shadowBombSlownessAmplifier = 3;
+    private double shadowBombSeconds = 5.0d;
+
+    private boolean cutlassUnbreakable = true;
 
     public NightScarKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -92,207 +84,149 @@ public class NightScarKit implements PowerKit, Listener {
     }
 
     public void reload(ConfigurationSection section) {
-        if (section != null) {
-            strengthAmplifier = section.getInt("strength.amplifier", 0);
-            ConfigurationSection dash = section.getConfigurationSection("dash");
-            if (dash != null) {
-                dashCharges = dash.getInt("charges", dashCharges);
-                dashDistance = dash.getDouble("distance-blocks", dashDistance);
-                dashRechargeSeconds = dash.getDouble("recharge-seconds", dashRechargeSeconds);
-                windBurstLevel = dash.getInt("wind-burst-level", windBurstLevel);
-            }
-            ConfigurationSection mace = section.getConfigurationSection("mace");
-            if (mace != null) {
-                maxDensity = mace.getInt("max-density", maxDensity);
-                heartsPerKillAfterMax = mace.getDouble("health-per-kill-after-max", heartsPerKillAfterMax);
-                maxBonusHealth = mace.getDouble("max-bonus-health", maxBonusHealth);
-                maceUnbreakable = mace.getBoolean("unbreakable", true);
-                countPlayerKills = mace.getBoolean("count-player-kills", true);
-                // Was always true with no way to turn it off -- mob kills were silently raising
-                // density. Defaults to false now; techknight's mace makes the same choice.
-                countMobKills = mace.getBoolean("count-mob-kills", false);
-            }
+        if (section == null) {
+            return;
         }
-        plugin.cooldowns().registerLabel(ABILITY_DASH, "Dash");
+        ConfigurationSection passive = section.getConfigurationSection("passive");
+        if (passive != null) {
+            fireVigorBonusHearts = passive.getInt("fire-and-vigor-bonus-hearts", fireVigorBonusHearts);
+            shadowBombBonusHearts = passive.getInt("shadow-bomb-bonus-hearts", shadowBombBonusHearts);
+            cutlassBonusHearts = passive.getInt("cutlass-bonus-hearts", cutlassBonusHearts);
+        }
+        ConfigurationSection shadowBomb = section.getConfigurationSection("shadow-bomb");
+        if (shadowBomb != null) {
+            shadowBombComboHits = Math.max(1, shadowBomb.getInt("combo-hits", shadowBombComboHits));
+            combos.windowSeconds(shadowBomb.getDouble("combo-window-seconds", 3.0d));
+            shadowBombDarknessAmplifier = shadowBomb.getInt("darkness-amplifier", shadowBombDarknessAmplifier);
+            shadowBombSlownessAmplifier = shadowBomb.getInt("slowness-amplifier", shadowBombSlownessAmplifier);
+            shadowBombSeconds = shadowBomb.getDouble("duration-seconds", shadowBombSeconds);
+        }
+        ConfigurationSection cutlass = section.getConfigurationSection("cutlass");
+        if (cutlass != null) {
+            cutlassUnbreakable = cutlass.getBoolean("unbreakable", true);
+        }
     }
 
-    // ---- low tier: permanent Strength -----------------------------------
+    // ---- passive: fire resistance + scaling health boost -----------------
 
     @Override
     public void tick(Player owner) {
-        if (plugin.unlocks().isUnlocked(owner, Power.PERMANENT_STRENGTH)) {
-            Effects.applyInfinite(owner, PotionEffectType.STRENGTH, strengthAmplifier);
-        }
-        rechargeDashes(owner);
-        if (plugin.unlocks().isUnlocked(owner, Power.DENSITY_MACE)) {
+        if (plugin.unlocks().isUnlocked(owner, Power.FIRE_AND_VIGOR)) {
+            Effects.applyInfinite(owner, PotionEffectType.FIRE_RESISTANCE, 0);
             applyBonusHealth(owner);
-            ensureMace(owner);
+        }
+        if (plugin.unlocks().isUnlocked(owner, Power.CUTLASS_MASTER)) {
+            ensureCutlass(owner);
         }
     }
 
-    // ---- mid tier: dashes -----------------------------------------------
+    /** Bonus hearts climb with the highest tier unlocked, not with kills. */
+    private void applyBonusHealth(Player owner) {
+        int bonusHearts = fireVigorBonusHearts;
+        if (plugin.unlocks().isUnlocked(owner, Power.CUTLASS_MASTER)) {
+            bonusHearts = cutlassBonusHearts;
+        } else if (plugin.unlocks().isUnlocked(owner, Power.SHADOW_BOMB)) {
+            bonusHearts = shadowBombBonusHearts;
+        }
+        Attributes.set(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH, bonusHearts * 2.0d);
+    }
 
-    /** Charges come back one at a time rather than all at once, so spending all three still stings. */
-    private void rechargeDashes(Player owner) {
-        UUID id = owner.getUniqueId();
-        int used = dashesUsed.getOrDefault(id, 0);
-        if (used <= 0) {
+    // ---- mid tier: Shadow Bomb --------------------------------------------
+
+    /** Passive, no manual activation: a 3-hit combo blinds and slows whoever is on the other end. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onHit(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player player) || !plugin.kits().isOwner(player, ID)) {
             return;
         }
-        long now = System.currentTimeMillis();
-        long last = lastDashRecharge.getOrDefault(id, now);
-        if (now - last >= (long) (dashRechargeSeconds * 1000.0d)) {
-            dashesUsed.put(id, used - 1);
-            lastDashRecharge.put(id, now);
-            Text.actionBar(owner, "<gray>Dash recharged (" + (dashCharges - (used - 1)) + "/"
-                    + dashCharges + ")</gray>");
+        if (!plugin.unlocks().isUnlocked(player, Power.SHADOW_BOMB)) {
+            return;
+        }
+        if (!(event.getEntity() instanceof LivingEntity target)) {
+            return;
+        }
+        int hits = combos.hit(player.getUniqueId(), target.getUniqueId());
+        if (hits < shadowBombComboHits) {
+            return;
+        }
+        combos.reset(player.getUniqueId());
+
+        int ticks = (int) (shadowBombSeconds * 20.0d);
+        Effects.apply(target, PotionEffectType.DARKNESS, ticks, shadowBombDarknessAmplifier);
+        Effects.apply(target, PotionEffectType.SLOWNESS, ticks, shadowBombSlownessAmplifier);
+        target.getWorld().playSound(target.getLocation(), Sound.ENTITY_WITHER_AMBIENT, 0.6f, 1.6f);
+        target.getWorld().spawnParticle(Particle.SMOKE, target.getLocation().add(0, 1, 0), 40, 0.4, 0.6, 0.4, 0.02);
+        target.getWorld().spawnParticle(Particle.SQUID_INK, target.getLocation().add(0, 1, 0), 15, 0.3, 0.4, 0.3, 0.05);
+        Text.actionBar(player, "<dark_purple><bold>SHADOW BOMB</bold></dark_purple>");
+        if (target instanceof Player targetPlayer) {
+            Text.actionBar(targetPlayer, "<dark_purple>Blinded by the shadows...</dark_purple>");
         }
     }
 
-    private boolean dash(Player owner) {
-        if (!plugin.unlocks().isUnlocked(owner, Power.DASH)) {
-            return plugin.unlocks().denyLocked(owner, Power.DASH);
-        }
-        UUID id = owner.getUniqueId();
-        int used = dashesUsed.getOrDefault(id, 0);
-        if (used >= dashCharges) {
-            Text.msg(owner, "<red>No dashes left -- one comes back every "
-                    + (int) dashRechargeSeconds + "s.");
-            return false;
-        }
-        if (used == 0) {
-            lastDashRecharge.put(id, System.currentTimeMillis());
-        }
-        dashesUsed.put(id, used + 1);
+    // ---- high tier: the Cutlass sword --------------------------------------
 
-        // Vanilla's own movement check does not know a dash is deliberate and will snap him back
-        // mid-flight without this -- the same fix the web shooter's grapple needed.
-        MovementExemption.begin(owner);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> MovementExemption.end(owner), 20L);
-
-        // Boost in the direction the player is looking, including straight up.
-        Vector direction = owner.getLocation().getDirection().normalize().multiply(dashDistance);
-        owner.setVelocity(direction);
-        owner.setFallDistance(0.0f);
-        owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_BREEZE_WIND_BURST, 1.0f, 1.2f);
-        owner.getWorld().spawnParticle(Particle.CLOUD, owner.getLocation(), 25, 0.3, 0.3, 0.3, 0.08);
-        owner.getWorld().spawnParticle(Particle.GUST, owner.getLocation(), 1);
-        Text.actionBar(owner, "<aqua>Dash</aqua> <gray>(" + (dashCharges - used - 1) + "/"
-                + dashCharges + " left)</gray>");
-        return true;
-    }
-
-    // ---- high tier: the mace --------------------------------------------
-
-    private ItemStack buildMace(int density) {
-        ItemStack mace = new ItemStack(Material.MACE);
-        ItemMeta meta = mace.getItemMeta();
+    private ItemStack buildCutlass() {
+        ItemStack cutlass = new ItemStack(Material.IRON_SWORD);
+        ItemMeta meta = cutlass.getItemMeta();
         if (meta != null) {
-            meta.displayName(Text.mm("<dark_aqua><bold>Mace Master</bold></dark_aqua>"));
-            meta.setUnbreakable(maceUnbreakable);
-            if (Enchants.DENSITY != null && density > 0) {
-                meta.addEnchant(Enchants.DENSITY, density, true);
-            }
-            if (Enchants.WIND_BURST != null && windBurstLevel > 0) {
-                meta.addEnchant(Enchants.WIND_BURST, windBurstLevel, true);
-            }
+            meta.displayName(Text.mm("<dark_aqua><bold>Cutlass</bold></dark_aqua>"));
+            meta.setUnbreakable(cutlassUnbreakable);
+            addEnchant(meta, Enchantment.SHARPNESS, 5);
+            addEnchant(meta, Enchantment.FIRE_ASPECT, 2);
+            addEnchant(meta, Enchantment.SWEEPING_EDGE, 3);
             meta.lore(List.of(
-                    Text.mm("<gray>Density " + density + " / " + maxDensity + "</gray>"),
-                    Text.mm("<dark_gray>Kills past the cap become hearts.</dark_gray>")));
-            meta.getPersistentDataContainer().set(Keys.SCAR_MACE, PersistentDataType.INTEGER, density);
+                    Text.mm("<gray>Forged in the Altar's fire.</gray>"),
+                    Text.mm("<dark_gray>Max health: 20 hearts.</dark_gray>")));
+            meta.getPersistentDataContainer().set(Keys.SCAR_CUTLASS, PersistentDataType.BYTE, (byte) 1);
             Enchants.applyVanishing(meta);
-            mace.setItemMeta(meta);
+            cutlass.setItemMeta(meta);
         }
-        ResourcePackItems.apply(mace, ResourcePackItems.TECH_SHIELD);
-        return mace;
+        ResourcePackItems.apply(cutlass, ResourcePackItems.CUTLASS_SWORD);
+        return cutlass;
     }
 
-    private boolean isScarMace(ItemStack item) {
-        if (item == null || item.getType() != Material.MACE) {
+    private void addEnchant(ItemMeta meta, Enchantment enchantment, int level) {
+        if (enchantment == null) {
+            return;
+        }
+        meta.addEnchant(enchantment, level, true);
+    }
+
+    private boolean isCutlass(ItemStack item) {
+        if (item == null || item.getType() != Material.IRON_SWORD) {
             return false;
         }
         ItemMeta meta = item.getItemMeta();
         return meta != null && meta.getPersistentDataContainer()
-                .has(Keys.SCAR_MACE, PersistentDataType.INTEGER);
+                .has(Keys.SCAR_CUTLASS, PersistentDataType.BYTE);
     }
 
-    /** Re-issues the mace, or re-syncs its Density if player data has moved on without it. */
-    private void ensureMace(Player owner) {
-        PlayerData data = plugin.data().get(owner.getUniqueId());
-        int density = Math.min(maxDensity, data.maceKills());
+    /** Hands out the Cutlass if it is missing -- nothing to re-sync, it does not level up. */
+    private void ensureCutlass(Player owner) {
         for (ItemStack item : owner.getInventory().getContents()) {
-            if (isScarMace(item)) {
-                Integer current = item.getItemMeta().getPersistentDataContainer()
-                        .get(Keys.SCAR_MACE, PersistentDataType.INTEGER);
-                if (current == null || current != density) {
-                    ItemMeta meta = buildMace(density).getItemMeta();
-                    item.setItemMeta(meta);
-                }
+            if (isCutlass(item)) {
                 return;
             }
         }
-        owner.getInventory().addItem(buildMace(density));
+        owner.getInventory().addItem(buildCutlass());
     }
 
     @Override
     public void onJoin(Player owner) {
         Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
-        Effects.remove(owner, PotionEffectType.STRENGTH);
-        if (plugin.unlocks().isUnlocked(owner, Power.DENSITY_MACE)) {
+        Effects.remove(owner, PotionEffectType.FIRE_RESISTANCE);
+        if (plugin.unlocks().isUnlocked(owner, Power.FIRE_AND_VIGOR)) {
             applyBonusHealth(owner);
-            ensureMace(owner);
         }
-    }
-
-    /** Kills past the Density cap are banked as permanent extra hearts. */
-    private void applyBonusHealth(Player owner) {
-        PlayerData data = plugin.data().get(owner.getUniqueId());
-        int overflow = Math.max(0, data.maceKills() - maxDensity);
-        double bonus = Math.min(maxBonusHealth, overflow * heartsPerKillAfterMax);
-        Attributes.set(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH, bonus);
-    }
-
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onKill(EntityDeathEvent event) {
-        Player killer = event.getEntity().getKiller();
-        if (killer == null || !plugin.kits().isOwner(killer, ID)) {
-            return;
-        }
-        if (!plugin.unlocks().isUnlocked(killer, Power.DENSITY_MACE)) {
-            return;
-        }
-        if (!isScarMace(killer.getInventory().getItemInMainHand())) {
-            return;
-        }
-        boolean victimIsPlayer = event.getEntity() instanceof Player;
-        if (victimIsPlayer ? !countPlayerKills : !countMobKills) {
-            return;
-        }
-        PlayerData data = plugin.data().get(killer.getUniqueId());
-        int before = data.maceKills();
-        data.maceKills(before + 1);
-        plugin.data().markDirty();
-
-        if (before < maxDensity) {
-            ensureMace(killer);
-            Text.msg(killer, "<dark_aqua>Density " + Math.min(maxDensity, before + 1)
-                    + "</dark_aqua><gray>/" + maxDensity + "</gray>");
-            killer.playSound(killer.getLocation(), Sound.BLOCK_ANVIL_USE, 0.8f, 1.4f);
-            killer.getWorld().spawnParticle(Particle.CRIT, killer.getLocation().add(0, 1, 0), 20, 0.3, 0.3, 0.3, 0.2);
-        } else {
-            applyBonusHealth(killer);
-            double max = Attributes.valueOf(killer, Attributes.MAX_HEALTH, 20.0d);
-            Text.msg(killer, "<red>+" + (heartsPerKillAfterMax / 2.0d) + " heart</red> <gray>("
-                    + (max / 2.0d) + " total)</gray>");
-            killer.playSound(killer.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.3f);
-            killer.getWorld().spawnParticle(Particle.HEART, killer.getLocation().add(0, 1.6, 0), 8, 0.3, 0.3, 0.3, 0.0);
+        if (plugin.unlocks().isUnlocked(owner, Power.CUTLASS_MASTER)) {
+            ensureCutlass(owner);
         }
     }
 
     // ---- "can't be taken away, even if I die" ---------------------------
-    // Mirrors techknight's mace protection: the mace never had its own drop/death/container
+    // Mirrors techknight's mace protection: the cutlass never had its own drop/death/container
     // guards, which is exactly how a duplicate happens -- the original ends up on the ground or
-    // in a chest while ensureMace(), seeing no mace in inventory, hands out a second one.
+    // in a chest while ensureCutlass(), seeing no cutlass in inventory, hands out a second one.
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
@@ -302,7 +236,7 @@ public class NightScarKit implements PowerKit, Listener {
         }
         for (Iterator<ItemStack> it = event.getDrops().iterator(); it.hasNext(); ) {
             ItemStack drop = it.next();
-            if (isScarMace(drop)) {
+            if (isCutlass(drop)) {
                 deathStash.put(player.getUniqueId(), drop.clone());
                 it.remove();
                 break;
@@ -315,31 +249,31 @@ public class NightScarKit implements PowerKit, Listener {
         Player player = event.getPlayer();
         ItemStack stashed = deathStash.remove(player.getUniqueId());
         // Curse of Vanishing means there is usually nothing to restore -- tick() would eventually
-        // notice and rebuild it anyway, but ensureMace() here does it immediately instead of after
+        // notice and rebuild it anyway, but ensureCutlass() here does it immediately instead of after
         // up to a second's delay.
         Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
             if (!player.isOnline()) {
                 return;
             }
             if (stashed == null) {
-                if (plugin.unlocks().isUnlocked(player, Power.DENSITY_MACE)) {
-                    ensureMace(player);
+                if (plugin.unlocks().isUnlocked(player, Power.CUTLASS_MASTER)) {
+                    ensureCutlass(player);
                 }
                 return;
             }
             HashMap<Integer, ItemStack> leftover = new HashMap<>(player.getInventory().addItem(stashed));
             if (!leftover.isEmpty()) {
-                Text.msg(player, "<yellow>Your mace is waiting -- free an inventory slot.");
+                Text.msg(player, "<yellow>Your cutlass is waiting -- free an inventory slot.");
             }
-            Text.msg(player, "<gray>Your mace came back with you.</gray>");
+            Text.msg(player, "<gray>Your cutlass came back with you.</gray>");
         });
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onDrop(PlayerDropItemEvent event) {
-        if (isScarMace(event.getItemDrop().getItemStack())) {
+        if (isCutlass(event.getItemDrop().getItemStack())) {
             event.setCancelled(true);
-            Text.actionBar(event.getPlayer(), "<red>Your mace will not leave you.</red>");
+            Text.actionBar(event.getPlayer(), "<red>Your cutlass will not leave you.</red>");
         }
     }
 
@@ -348,60 +282,49 @@ public class NightScarKit implements PowerKit, Listener {
         if (event.getInventory().getType() == InventoryType.CRAFTING) {
             return;
         }
-        if (isScarMace(event.getCurrentItem()) || isScarMace(event.getCursor())) {
+        if (isCutlass(event.getCurrentItem()) || isCutlass(event.getCursor())) {
             event.setCancelled(true);
         }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onInventoryDrag(InventoryDragEvent event) {
-        if (event.getInventory().getType() != InventoryType.CRAFTING && isScarMace(event.getOldCursor())) {
+        if (event.getInventory().getType() != InventoryType.CRAFTING && isCutlass(event.getOldCursor())) {
             event.setCancelled(true);
         }
     }
 
-    // ---- abilities ------------------------------------------------------
-
-    @Override
-    public List<Ability> abilities() {
-        return List.of(new Ability(ABILITY_DASH, "Dash",
-                dashCharges + " charges, one back every " + (int) dashRechargeSeconds + "s."));
-    }
-
-    @Override
-    public String primaryAbilityId() {
-        return ABILITY_DASH;
-    }
-
-    @Override
-    public boolean activate(Player owner, String abilityId) {
-        return ABILITY_DASH.equalsIgnoreCase(abilityId.toLowerCase(Locale.ROOT)) && dash(owner);
-    }
+    // ---- cleanup --------------------------------------------------------
 
     @Override
     public void onQuit(Player owner) {
         Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
-        Effects.remove(owner, PotionEffectType.STRENGTH);
-        dashesUsed.remove(owner.getUniqueId());
-        lastDashRecharge.remove(owner.getUniqueId());
+        Effects.remove(owner, PotionEffectType.FIRE_RESISTANCE);
+        combos.reset(owner.getUniqueId());
     }
 
     @Override
     public void onRevoke(Player owner, Power power) {
-        if (power == Power.PERMANENT_STRENGTH) {
-            Effects.remove(owner, PotionEffectType.STRENGTH);
-        } else if (power == Power.DENSITY_MACE) {
+        if (power == Power.FIRE_AND_VIGOR) {
             Attributes.clear(owner, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
+            Effects.remove(owner, PotionEffectType.FIRE_RESISTANCE);
+        } else if (power == Power.SHADOW_BOMB || power == Power.CUTLASS_MASTER) {
+            // Bonus health may need to drop back a tier; tick() re-derives it on the next pass, but
+            // re-apply immediately so it does not read as stale for up to a second.
+            if (plugin.unlocks().isUnlocked(owner, Power.FIRE_AND_VIGOR)) {
+                applyBonusHealth(owner);
+            }
         }
     }
 
     @Override
     public void onDisable() {
-        for (Player player : org.bukkit.Bukkit.getOnlinePlayers()) {
+        for (Player player : Bukkit.getOnlinePlayers()) {
             if (plugin.kits().isOwner(player, ID)) {
                 Attributes.clear(player, Attributes.MAX_HEALTH, Keys.SCAR_BONUS_HEALTH);
-                Effects.remove(player, PotionEffectType.STRENGTH);
+                Effects.remove(player, PotionEffectType.FIRE_RESISTANCE);
             }
         }
+        combos.clear();
     }
 }

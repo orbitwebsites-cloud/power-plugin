@@ -106,10 +106,11 @@ progression:
     gunpowder: 0
     explosion: 4
     atom_bomb: 8
-    # Night_Scar3's low / mid / high tiers.
-    permanent_strength: 0
-    dash: 4
-    density_mace: 8
+    # Night_Scar3's low / mid / high tiers. Redesigned after the mace ban -- Density Mace no
+    # longer applies, replaced by fire res/health, Shadow Bomb, and a bound Cutlass sword.
+    fire_and_vigor: 0
+    shadow_bomb: 4
+    cutlass_master: 8
     # Marb13_'s low / mid / high tiers.
     miners_haven: 0
     ender_magic: 4
@@ -367,16 +368,22 @@ itzmetentx:
     rain-counts: true
 
   trident-god:
-    # Vanilla will not riptide out of water or rain, and will not let a
-    # Riptide trident be thrown either -- so nothing happens on release and
-    # there is no event to cancel. The dry launch is re-implemented instead,
-    # using vanilla's own curve: base + per-level * riptide level.
+    # Vanilla will not riptide out of water or rain, and its own attempt to
+    # even start charging a dry Riptide trident only ever engaged reliably
+    # with a block in the crosshair -- so the whole interaction is driven by
+    # hand instead: right-click cancels vanilla outright and schedules the
+    # launch a fixed delay later, using vanilla's own curve: base + per-level
+    # * riptide level.
     dry-riptide-power-base: 3.0
     dry-riptide-power-per-level: 1.5
     # Anything caught by the spin attack is stunned. It stays hittable, so
     # this is an opening to attack rather than a shield around the target.
     hit-stun-seconds: 3
     stun-players-only: false
+    # How close (in blocks) counts as "collided" during a dry riptide -- the
+    # player is stopped dead and the target stunned right there, instead of
+    # sailing straight through.
+    collision-range: 0.6
 
 # =====================================================================
 # JJlionjxi -- low / mid / high tier kit
@@ -470,32 +477,28 @@ sparkkkkkkkk:
 # =====================================================================
 # Night_Scar3 -- Mace Master
 # =====================================================================
-# Separate from TechKnightGaming's mace kit -- different player, different
-# rules, no shared state.
+# Redesigned after the server-wide mace ban -- Density Mace no longer made
+# sense as a power, so all three tiers were rebuilt. Health scales with the
+# tier itself (12 -> 15 -> 20 hearts), not with kills.
 night_scar3:
-  # LOW TIER
-  strength:
-    amplifier: 0                   # Permanent Strength I
+  # All tiers -- bonus hearts (2.0 health per heart) layered on top of the
+  # vanilla 10-heart base. Whichever is the highest tier unlocked wins.
+  passive:
+    fire-and-vigor-bonus-hearts: 2  # 12 hearts total
+    shadow-bomb-bonus-hearts: 5     # 15 hearts total
+    cutlass-bonus-hearts: 10        # 20 hearts total
 
   # MID TIER
-  dash:
-    charges: 3
-    distance-blocks: 15.0          # Moves 15 blocks in the direction looking (including up)
-    recharge-seconds: 10           # Charges return one at a time
-    wind-burst-level: 1            # "gives me (Wind Burst)" -- on the mace
+  shadow-bomb:
+    combo-hits: 3                  # Landing a 3-hit combo triggers it
+    combo-window-seconds: 3.0
+    darkness-amplifier: 0          # Darkness I
+    slowness-amplifier: 3          # Slowness IV
+    duration-seconds: 5
 
   # HIGH TIER
-  mace:
-    # "Every kill = +1 density Max (Density 8)"
-    max-density: 8
-    # "After the mace is Maxed every kill = 1 extra heart" -- 2.0 health = 1 heart.
-    health-per-kill-after-max: 2.0
-    max-bonus-health: 40.0         # ASSUMED cap, 20 extra hearts
+  cutlass:
     unbreakable: true
-    # Player kills only -- was always true with no toggle before, so mob kills silently
-    # raised density. Matches techknight's mace.
-    count-player-kills: true
-    count-mob-kills: false
 
 # =====================================================================
 # Marb13_ -- Miner's Haven / Ender Magic / Portal and Shadow Master

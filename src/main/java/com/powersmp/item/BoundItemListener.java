@@ -101,8 +101,8 @@ public final class BoundItemListener implements Listener {
         if (meta == null) {
             return false;
         }
-        if (meta.getPersistentDataContainer().has(Keys.SCAR_MACE, PersistentDataType.INTEGER)) {
-            return contains(player, this::isScarMace);
+        if (meta.getPersistentDataContainer().has(Keys.SCAR_CUTLASS, PersistentDataType.BYTE)) {
+            return contains(player, this::isScarCutlass);
         }
         if (meta.getPersistentDataContainer().has(Keys.BOUND_ELYTRA, PersistentDataType.BYTE)) {
             return contains(player, this::isBoundElytra);
@@ -127,8 +127,8 @@ public final class BoundItemListener implements Listener {
         return meta != null && meta.getPersistentDataContainer().has(key, type);
     }
 
-    private boolean isScarMace(ItemStack item) {
-        return hasKey(item, Keys.SCAR_MACE, PersistentDataType.INTEGER);
+    private boolean isScarCutlass(ItemStack item) {
+        return hasKey(item, Keys.SCAR_CUTLASS, PersistentDataType.BYTE);
     }
 
     private boolean isBoundElytra(ItemStack item) {
@@ -155,7 +155,7 @@ public final class BoundItemListener implements Listener {
         if (meta == null) {
             return false;
         }
-        if (meta.getPersistentDataContainer().has(Keys.SCAR_MACE, PersistentDataType.INTEGER)) {
+        if (meta.getPersistentDataContainer().has(Keys.SCAR_CUTLASS, PersistentDataType.BYTE)) {
             return plugin.kits().isOwner(player, "night_scar3");
         }
         if (meta.getPersistentDataContainer().has(Keys.BOUND_ELYTRA, PersistentDataType.BYTE)
@@ -174,7 +174,7 @@ public final class BoundItemListener implements Listener {
         }
         ItemMeta meta = item.getItemMeta();
         return meta != null && (meta.getPersistentDataContainer()
-                .has(Keys.SCAR_MACE, PersistentDataType.INTEGER)
+                .has(Keys.SCAR_CUTLASS, PersistentDataType.BYTE)
                 || meta.getPersistentDataContainer().has(Keys.BOUND_ELYTRA, PersistentDataType.BYTE)
                 || meta.getPersistentDataContainer().has(Keys.DRACONIC_MACE, PersistentDataType.BYTE));
     }

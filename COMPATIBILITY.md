@@ -47,7 +47,6 @@ What breaks without it:
 | Kit | Ability | What NCP sees |
 |---|---|---|
 | domanthegamer | grapple, web pull, wall climb | velocity with no input, vertical movement with no ladder |
-| Night_Scar3 | dash | burst velocity in any direction |
 | ItzMeTentx | dry riptide | a launch with no water — impossible in vanilla |
 | Mavricc | Wither Wings launch, riptide | upward velocity, gliding start |
 | Mavricc | blue stance / consolidation | extended reach via attributes NCP does not read |

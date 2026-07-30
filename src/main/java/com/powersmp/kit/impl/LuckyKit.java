@@ -173,7 +173,7 @@ public class LuckyKit implements PowerKit, Listener {
             return false;
         }
         return meta.getPersistentDataContainer().has(Keys.BOUND_ELYTRA, PersistentDataType.BYTE)
-                || meta.getPersistentDataContainer().has(Keys.SCAR_MACE, PersistentDataType.INTEGER);
+                || meta.getPersistentDataContainer().has(Keys.SCAR_CUTLASS, PersistentDataType.BYTE);
     }
 
     /**

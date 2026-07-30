@@ -61,9 +61,12 @@ public enum Power {
     ATOM_BOMB("atom_bomb", "Atom Bomb", "sparkkkkkkkk", Gate.KILLS),
 
     // --- Night_Scar3 -----------------------------------------------------
-    PERMANENT_STRENGTH("permanent_strength", "Permanent Strength", "night_scar3", Gate.KILLS),
-    DASH("dash", "Dash", "night_scar3", Gate.KILLS),
-    DENSITY_MACE("density_mace", "Mace Master", "night_scar3", Gate.KILLS),
+    // Redesigned after the server-wide mace ban -- Density Mace no longer makes sense as a power,
+    // so all three tiers were replaced: fire res + a scaling health boost (12 -> 15 -> 20 hearts as
+    // each tier unlocks), a combo-triggered blind, and a bound Cutlass sword in place of the mace.
+    FIRE_AND_VIGOR("fire_and_vigor", "Fire Resistance & Vigor", "night_scar3", Gate.KILLS),
+    SHADOW_BOMB("shadow_bomb", "Shadow Bomb", "night_scar3", Gate.KILLS),
+    CUTLASS_MASTER("cutlass_master", "Cutlass Master", "night_scar3", Gate.KILLS),
 
     // --- Marb13_ ---------------------------------------------------------
     MINERS_HAVEN("miners_haven", "Miner's Haven", "marb13", Gate.KILLS),

@@ -9,7 +9,6 @@ import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
-import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,11 +21,13 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.block.Action;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
@@ -36,10 +37,12 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.event.block.Action;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
 
 /**
  * ItzMeTentx: the water kit.
@@ -54,10 +57,15 @@ import org.bukkit.potion.PotionEffectType;
  *
  * <p>Riptide is hard-gated on the player being in water or rain -- when dry, releasing a Riptide
  * trident does nothing at all, and the trident cannot be thrown either, so there is no vanilla
- * behaviour to intercept or cancel. The launch is therefore re-implemented: Paper's
- * {@link PlayerStopUsingItemEvent} reports how long the trident was charged,
- * and if it was held past vanilla's charge time while dry, the player is thrown along their look
- * vector using vanilla's own power curve.
+ * behaviour to intercept or cancel. The launch is therefore re-implemented from scratch on top of
+ * {@link PlayerInteractEvent} rather than depending on vanilla's own charge/release lifecycle:
+ * right-clicking with the bound trident while dry cancels the interaction outright (vanilla's own
+ * attempt to start "using" a dry Riptide trident is inconsistent -- it would only ever engage while
+ * a block was in the crosshair, never on a bare right-click into open air) and schedules the launch
+ * a fixed, vanilla-matching charge delay later. A separate proximity watch during the flight brings
+ * the player to a dead stop the moment they reach a target, instead of sailing straight through --
+ * the stun on its own was never the problem, only the fact that momentum kept carrying him past
+ * whoever he had just hit.
  */
 public class ItzMeTentxKit implements PowerKit, Listener {
 
@@ -66,11 +74,18 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     /** Vanilla charges a riptide throw for 10 ticks before it will fire. */
     private static final int RIPTIDE_CHARGE_TICKS = 10;
 
+    /** Vanilla's own flight window for a spin-attack riptide; the manual one matches it. */
+    private static final long MANUAL_RIPTIDE_MILLIS = 1500L;
+    /** Safety cap on the collision watch so a missed target does not poll forever. */
+    private static final int COLLISION_WATCH_MAX_TICKS = 30;
+
     private final PowerSMP plugin;
     /** Players inside a manual (dry) riptide, since {@code isRiptiding()} stays false for those. */
     private final Map<UUID, Long> manualRiptide = new ConcurrentHashMap<>();
-    /** Fallback charge handles for dry tridents; some clients do not emit stop-use reliably. */
-    private final Map<UUID, Integer> pendingRiptide = new ConcurrentHashMap<>();
+    /** Players mid-charge on a dry riptide -- one click, one scheduled launch. */
+    private final Map<UUID, BukkitTask> chargingRiptide = new ConcurrentHashMap<>();
+    /** The tick-by-tick proximity watch that stops a dry riptide dead on contact. */
+    private final Map<UUID, BukkitTask> riptideCollisionWatch = new ConcurrentHashMap<>();
     /** Last attack-speed value written, so the attribute is not rewritten every tick. */
     private final Map<UUID, Double> appliedAttackSpeed = new ConcurrentHashMap<>();
     /** Tridents pulled out of death drops, held until the owner respawns. */
@@ -85,6 +100,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     private double riptidePowerPerLevel = 1.5d;
     private double riptideStunSeconds = 3.0d;
     private boolean riptideStunPlayersOnly;
+    private double riptideCollisionRange = 0.6d;
 
     public ItzMeTentxKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -122,6 +138,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
                     trident.getDouble("dry-riptide-power-per-level", riptidePowerPerLevel);
             riptideStunSeconds = trident.getDouble("hit-stun-seconds", riptideStunSeconds);
             riptideStunPlayersOnly = trident.getBoolean("stun-players-only", false);
+            riptideCollisionRange = trident.getDouble("collision-range", riptideCollisionRange);
         }
     }
 
@@ -192,12 +209,22 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     // ---- Trident God ----------------------------------------------------
 
     /**
-     * Dry riptide. Vanilla will not fire one out of water or rain and will not let a Riptide trident
-     * be thrown either, so nothing happens on release and there is no event to cancel -- the launch
-     * has to be performed here from scratch.
+     * Dry riptide, take two. Vanilla will not fire one out of water or rain, and its own attempt to
+     * even start "using" a dry Riptide trident turned out to depend on whatever the crosshair
+     * happened to be resting on -- reliable with a block in view, silently dead in open air. Rather
+     * than chase that quirk, the whole interaction is driven by hand: a right-click with the bound
+     * trident while dry is cancelled outright (so vanilla never gets a say either way) and the
+     * launch is scheduled a fixed, vanilla-matching charge delay later.
      */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onReleaseTrident(PlayerStopUsingItemEvent event) {
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onTridentInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
+            return;
+        }
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
         Player player = event.getPlayer();
         if (!plugin.kits().isOwner(player, ID)
                 || !plugin.unlocks().isUnlocked(player, Power.TRIDENT_GOD)) {
@@ -212,56 +239,41 @@ public class ItzMeTentxKit implements PowerKit, Listener {
             return;
         }
         int level = item.getEnchantmentLevel(Enchants.RIPTIDE);
-        if (level <= 0 || event.getTicksHeldFor() < RIPTIDE_CHARGE_TICKS) {
-            return;
+        if (level <= 0 || isWet(player)) {
+            return; // Wet: vanilla's own hold-and-release handles this one.
         }
-        if (isRiptiding(player)) {
-            return; // The fallback charge already launched it.
-        }
-        launchDryRiptide(player, level);
-    }
-
-    /** Starts a dry-riptide charge even when the client never sends Paper's stop-use event. */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onStartUsingTrident(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-        Player player = event.getPlayer();
-        ItemStack item = event.getItem();
-        if (!plugin.kits().isOwner(player, ID)
-                || !plugin.unlocks().isUnlocked(player, Power.TRIDENT_GOD)
-                || item == null || !player.getUniqueId().equals(TridentItem.ownerOf(item))
-                || pendingRiptide.containsKey(player.getUniqueId())) {
-            return;
-        }
-        // Replace vanilla's water/rain-only Riptide gate with one consistent charge path that
-        // works in water, rain, and completely dry air/land.
-        event.setCancelled(true);
         UUID id = player.getUniqueId();
-        int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            pendingRiptide.remove(id);
-            if (!player.isOnline()
-                    || !player.getInventory().getItemInMainHand().isSimilar(item)) {
-                return;
-            }
-            launchDryRiptide(player, item.getEnchantmentLevel(Enchants.RIPTIDE));
-        }, RIPTIDE_CHARGE_TICKS).getTaskId();
-        pendingRiptide.put(id, taskId);
+        if (chargingRiptide.containsKey(id)) {
+            return; // Already mid-charge -- one click, one launch.
+        }
+
+        event.setCancelled(true);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_1, 0.6f, 0.8f);
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(
+                (Plugin) plugin, () -> launchDryRiptide(player, level), RIPTIDE_CHARGE_TICKS);
+        chargingRiptide.put(id, task);
     }
 
     private void launchDryRiptide(Player player, int level) {
-        if (level <= 0) {
+        UUID id = player.getUniqueId();
+        chargingRiptide.remove(id);
+        if (!player.isOnline() || isWet(player)) {
             return;
         }
-        pendingRiptide.remove(player.getUniqueId());
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held.getType() != Material.TRIDENT || !id.equals(TridentItem.ownerOf(held))) {
+            return; // Swapped items mid-charge.
+        }
+
         double power = riptidePowerBase + riptidePowerPerLevel * level;
         player.setVelocity(player.getLocation().getDirection().multiply(power / 3.0d));
         player.setFallDistance(0.0f);
-        manualRiptide.put(player.getUniqueId(), System.currentTimeMillis() + 1500L);
+        // Mark the window by hand: isRiptiding() only reports vanilla's own spin attack.
+        manualRiptide.put(id, System.currentTimeMillis() + MANUAL_RIPTIDE_MILLIS);
         player.getWorld().playSound(player.getLocation(), soundFor(level), 1.0f, 1.0f);
-        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 30, 0.4, 0.3, 0.4, 0.2);
-        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 10, 0.3, 0.2, 0.3, 0.05);
+        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 60, 0.4, 0.3, 0.4, 0.2);
+        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 20, 0.3, 0.2, 0.3, 0.05);
+        startCollisionWatch(player);
     }
 
     private Sound soundFor(int level) {
@@ -272,7 +284,63 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         };
     }
 
-    /** Anything caught by the spin attack is stunned -- but stays hittable, so it is an opening. */
+    /**
+     * Polls once a tick for the flight's duration: the moment something is within collision range,
+     * the player is brought to a dead stop and the target stunned right there, instead of the old
+     * behaviour of sailing straight through and only stunning on a follow-up attack.
+     */
+    private void startCollisionWatch(Player player) {
+        UUID id = player.getUniqueId();
+        BukkitTask previous = riptideCollisionWatch.remove(id);
+        if (previous != null) {
+            previous.cancel();
+        }
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer((Plugin) plugin, new Runnable() {
+            private int ticks = 0;
+
+            @Override
+            public void run() {
+                ticks++;
+                if (!player.isOnline() || !isRiptiding(player) || ticks > COLLISION_WATCH_MAX_TICKS) {
+                    stop();
+                    return;
+                }
+                for (Entity nearby : player.getNearbyEntities(
+                        riptideCollisionRange, riptideCollisionRange, riptideCollisionRange)) {
+                    if (nearby.equals(player) || !(nearby instanceof LivingEntity target)) {
+                        continue;
+                    }
+                    if (riptideStunPlayersOnly && !(target instanceof Player)) {
+                        continue;
+                    }
+                    onRiptideCollision(player, target);
+                    stop();
+                    return;
+                }
+            }
+
+            private void stop() {
+                BukkitTask self = riptideCollisionWatch.remove(id);
+                if (self != null) {
+                    self.cancel();
+                }
+            }
+        }, 1L, 1L);
+        riptideCollisionWatch.put(id, task);
+    }
+
+    /** Stops the player dead and stuns whoever they just collided with. */
+    private void onRiptideCollision(Player player, LivingEntity target) {
+        manualRiptide.remove(player.getUniqueId());
+        Vector velocity = player.getVelocity();
+        player.setVelocity(new Vector(0.0d, Math.min(0.0d, velocity.getY()), 0.0d));
+        plugin.freeze().stunSeconds(target, riptideStunSeconds);
+        target.getWorld().playSound(target.getLocation(), Sound.ITEM_TRIDENT_HIT, 1.0f, 0.8f);
+        target.getWorld().spawnParticle(Particle.SPLASH, target.getLocation().add(0, 1, 0), 40, 0.5, 0.5, 0.5, 0.25);
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_HIT_GROUND, 1.0f, 1.0f);
+    }
+
+    /** Anything caught by vanilla's own spin attack is stunned -- but stays hittable, an opening. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onRiptideHit(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)
@@ -413,6 +481,15 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
         appliedAttackSpeed.remove(owner.getUniqueId());
         manualRiptide.remove(owner.getUniqueId());
+        cancelTask(chargingRiptide, owner.getUniqueId());
+        cancelTask(riptideCollisionWatch, owner.getUniqueId());
+    }
+
+    private void cancelTask(Map<UUID, BukkitTask> tasks, UUID id) {
+        BukkitTask task = tasks.remove(id);
+        if (task != null) {
+            task.cancel();
+        }
     }
 
     @Override
@@ -437,5 +514,9 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         appliedAttackSpeed.clear();
         manualRiptide.clear();
+        chargingRiptide.values().forEach(BukkitTask::cancel);
+        chargingRiptide.clear();
+        riptideCollisionWatch.values().forEach(BukkitTask::cancel);
+        riptideCollisionWatch.clear();
     }
 }

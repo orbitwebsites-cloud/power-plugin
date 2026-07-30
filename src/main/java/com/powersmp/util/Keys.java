@@ -39,7 +39,7 @@ public final class Keys {
     public static NamespacedKey DRAGON_OMELET;
     public static NamespacedKey DRACONIC_MACE;
     public static NamespacedKey WEB_SHOOTER;
-    public static NamespacedKey SCAR_MACE;
+    public static NamespacedKey SCAR_CUTLASS;
     public static NamespacedKey SHADOW_MARK;
     public static NamespacedKey BOUND_TRIDENT;
     public static NamespacedKey ENERGY_CORE;
@@ -71,7 +71,7 @@ public final class Keys {
         DRAGON_OMELET = new NamespacedKey(plugin, "dragon_omelet");
         DRACONIC_MACE = new NamespacedKey(plugin, "draconic_mace");
         WEB_SHOOTER = new NamespacedKey(plugin, "web_shooter");
-        SCAR_MACE = new NamespacedKey(plugin, "scar_mace");
+        SCAR_CUTLASS = new NamespacedKey(plugin, "scar_cutlass");
         SHADOW_MARK = new NamespacedKey(plugin, "shadow_mark");
         BOUND_TRIDENT = new NamespacedKey(plugin, "bound_trident");
         ENERGY_CORE = new NamespacedKey(plugin, "energy_core");

@@ -17,6 +17,7 @@ public final class ResourcePackItems {
     public static final int FINAL_ORB = 27004;
     public static final int ASCENDED_WING = 27005;
     public static final int TECH_SHIELD = 27006;
+    public static final int CUTLASS_SWORD = 27007;
 
     private ResourcePackItems() {
     }

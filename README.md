@@ -35,7 +35,7 @@ from a common ability pool.
 | ItzMeTentx | Tidebound | Infinite Breathing & Dolphin's Grace, Faster Attack Speed, Trident God |
 | domanthegamer | Limit Break | Limit Break + Kamehameha (low), Ascended Flight (mid), Final Burst (high) |
 | Sparkkkkkkkk | The Atom | Creeper Harvest (low), Explosion (mid), Atom Bomb (high) |
-| Night_Scar3 | Mace Master | Permanent Strength (low), Dash (mid), Density Mace (high) |
+| Night_Scar3 | Mace Master | Fire Resistance & Vigor (low), Shadow Bomb (mid), Cutlass Master (high) |
 | Marb13_ | Portal and Shadow Master | Miner's Haven (low), Ender Magic (mid), Portal & Shadow (high) |
 | LlamaChas | Kryptonian | Flight, Heat Vision, X-Ray, Freeze Breath, Super Strength |
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
