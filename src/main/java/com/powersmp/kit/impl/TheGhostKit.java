@@ -16,6 +16,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
+import org.bukkit.Input;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -31,12 +32,17 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.player.PlayerAnimationEvent;
+import org.bukkit.event.player.PlayerInputEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
 /**
@@ -44,20 +50,20 @@ import org.bukkit.util.Vector;
  *
  * <h2>Possession</h2>
  * There is no vanilla way to hand a mob's movement over to a player, so this fakes it: the mob's own
- * AI is switched off, the player is dropped into {@code SPECTATOR} and glued to the mob's viewpoint
- * with {@code setSpectatorTarget}, and a per-tick task then teleports the mob to wherever the
- * player's (noclip) spectator body actually is. The player is, in effect, remote-piloting the mob's
- * position. Sneak + swap-hands makes the mob take a swing at whatever is nearest it, since a
- * spectator cannot throw a real attack. Sneak + right-click again -- the primary-ability slot --
- * releases it and hands the player their body back; so does the mob dying or the player leaving.
+ * AI is switched off, the player becomes invisible in their own body, and a per-tick task teleports
+ * the mob to the player's position. The player is, in effect, remote-piloting the mob's position.
+ * Left-click, swap-hands, or the explicit Possessed Attack ability makes the mob swing at whatever
+ * is nearest it. Firing Possession
+ * again releases it and hands the player their body back; so does the mob dying or player leaving.
  *
  * <h2>Spectral Body</h2>
  * Real per-player collision does not exist in the Bukkit API, so this reuses the same lie X-ray
- * tells: solid blocks near the Ghost are sent to him alone as air, so his own client stops treating
- * them as solid and lets him walk through. The real world is never touched, and the fake blocks
- * follow him and get put back as he moves away. This depends on the {@code powersmp} group's existing
- * {@code nocheatplus.checks.moving.passable} exemption (the same one flight and x-ray already need) --
- * without it, NoCheatPlus will flag him for standing inside a block it still thinks is solid.
+ * tells: solid blocks near the Ghost are sent to him alone as air, then current Paper input is used
+ * to apply server-authoritative movement only while his hitbox crosses one of those blocks. The real
+ * world is never touched, and the fake blocks follow him and get put back as he moves away. This
+ * depends on the {@code powersmp} group's existing {@code nocheatplus.checks.moving.passable}
+ * exemption (the same one flight and x-ray already need); without it, NoCheatPlus will flag him for
+ * standing inside a block it still thinks is solid.
  *
  * <h2>Astral Form</h2>
  * "Everyone invisible to me, me invisible to everyone" is two independent one-way effects, which
@@ -77,6 +83,7 @@ public class TheGhostKit implements PowerKit, Listener {
     public static final String ID = "theghost";
 
     private static final String ABILITY_POSSESS = "possess";
+    private static final String ABILITY_POSSESS_ATTACK = "possess_attack";
     private static final String ABILITY_ASTRAL = "astral";
     private static final String COOLDOWN_POSSESS_ATTACK = "possess_attack";
 
@@ -96,6 +103,8 @@ public class TheGhostKit implements PowerKit, Listener {
 
     /** Blocks currently faked as air per player, so the real ones can be put back. */
     private final Map<UUID, Set<Location>> fakedBlocks = new ConcurrentHashMap<>();
+    /** Per-tick movement drivers active only while a Spectral Body owner is holding movement input. */
+    private final Map<UUID, BukkitTask> phaseTasks = new ConcurrentHashMap<>();
 
     // Possession
     private double possessRange = 20.0d;
@@ -174,7 +183,8 @@ public class TheGhostKit implements PowerKit, Listener {
         }
 
         UUID ownerId = owner.getUniqueId();
-        possessionMemory.put(ownerId, new PossessionMemory(owner.getGameMode(), owner.getLocation().clone()));
+        possessionMemory.put(ownerId, new PossessionMemory(owner.getGameMode(),
+                owner.getLocation().clone(), owner.getPotionEffect(PotionEffectType.INVISIBILITY)));
         possessedMob.put(ownerId, target.getUniqueId());
         possessedMobIds.add(target.getUniqueId());
         possessedMobHadAi.put(target.getUniqueId(), target.hasAI());
@@ -184,8 +194,10 @@ public class TheGhostKit implements PowerKit, Listener {
 
         target.setAI(false);
         target.setTarget(null);
-        owner.setGameMode(GameMode.SPECTATOR);
-        owner.setSpectatorTarget(target);
+        // Keep the player in their own body: invisibility preserves normal walking controls and
+        // prevents spectator flight while the possessed mob mirrors their position.
+        Effects.apply(owner, PotionEffectType.INVISIBILITY, PotionEffect.INFINITE_DURATION, 0);
+        owner.teleport(target.getLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
 
         BukkitTask task = new BukkitRunnable() {
             @Override
@@ -199,9 +211,9 @@ public class TheGhostKit implements PowerKit, Listener {
                     cancel();
                     return;
                 }
-                // The mob is warped to wherever the player's (noclip) spectator body actually
-                // ended up -- that noclip freedom is what makes this read as "controlling" it.
-                target.teleport(owner.getLocation());
+                // The mob is warped to the free-moving spectator body, including its look
+                // direction. Unlike setSpectatorTarget(), this leaves WASD and flight input live.
+                target.teleport(owner.getLocation(), PlayerTeleportEvent.TeleportCause.PLUGIN);
             }
         }.runTaskTimer(plugin, 1L, 1L);
         possessionTasks.put(ownerId, task);
@@ -236,12 +248,17 @@ public class TheGhostKit implements PowerKit, Listener {
             task.cancel();
         }
         PossessionMemory memory = possessionMemory.remove(ownerId);
-        if (memory != null && owner.isOnline()) {
-            owner.setSpectatorTarget(null);
+        if (memory != null) {
             owner.setGameMode(memory.gameMode());
-            owner.teleport(memory.location());
-            owner.getWorld().spawnParticle(Particle.SOUL, owner.getLocation().add(0.0, 1.0, 0.0),
-                    20, 0.3, 0.5, 0.3, 0.02);
+            Effects.remove(owner, PotionEffectType.INVISIBILITY);
+            if (memory.previousInvisibility() != null) {
+                owner.addPotionEffect(memory.previousInvisibility());
+            }
+            owner.teleport(memory.location(), PlayerTeleportEvent.TeleportCause.PLUGIN);
+            if (owner.isOnline()) {
+                owner.getWorld().spawnParticle(Particle.SOUL, owner.getLocation().add(0.0, 1.0, 0.0),
+                        20, 0.3, 0.5, 0.3, 0.02);
+            }
         }
         if (message != null && owner.isOnline()) {
             Text.msg(owner, message);
@@ -249,9 +266,9 @@ public class TheGhostKit implements PowerKit, Listener {
     }
 
     /** A swing while possessing -- spectators cannot throw a real attack, so this fakes one by hand. */
-    private void possessAttack(Player owner, LivingEntity mob) {
+    private boolean possessAttack(Player owner, LivingEntity mob, boolean reportMiss) {
         if (!plugin.cooldowns().tryUseSilently(owner.getUniqueId(), COOLDOWN_POSSESS_ATTACK, possessAttackCooldown)) {
-            return;
+            return false;
         }
         LivingEntity victim = null;
         double closest = possessAttackRange * possessAttackRange;
@@ -267,12 +284,29 @@ public class TheGhostKit implements PowerKit, Listener {
             }
         }
         if (victim == null) {
-            return;
+            if (reportMiss) {
+                Text.actionBar(owner, "<gray>No target within " + possessAttackRange + " blocks.</gray>");
+            }
+            return false;
         }
         victim.damage(possessAttackDamage, mob);
         mob.getWorld().playSound(mob.getLocation(), Sound.ENTITY_GENERIC_EXPLODE, 0.3f, 1.8f);
         victim.getWorld().spawnParticle(Particle.SWEEP_ATTACK, victim.getLocation().add(0.0, 1.0, 0.0),
                 3, 0.2, 0.2, 0.2, 0.0);
+        return true;
+    }
+
+    private boolean possessAttack(Player owner) {
+        if (!plugin.unlocks().isUnlocked(owner, Power.POSSESSION)) {
+            return plugin.unlocks().denyLocked(owner, Power.POSSESSION);
+        }
+        UUID mobId = possessedMob.get(owner.getUniqueId());
+        if (mobId == null || !(Bukkit.getEntity(mobId) instanceof LivingEntity mob)
+                || mob.isDead() || !mob.isValid()) {
+            Text.msg(owner, "<red>You are not possessing a living mob.</red>");
+            return false;
+        }
+        return possessAttack(owner, mob, true);
     }
 
     private Mob findPossessTarget(Player owner, double range) {
@@ -310,11 +344,163 @@ public class TheGhostKit implements PowerKit, Listener {
         }
         event.setCancelled(true);
         if (Bukkit.getEntity(mobId) instanceof LivingEntity mob) {
-            possessAttack(player, mob);
+            possessAttack(player, mob, false);
+        }
+    }
+
+    /** Left-click is the natural attack button and remains available in the free spectator body. */
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    public void onPossessedSwing(PlayerAnimationEvent event) {
+        Player player = event.getPlayer();
+        UUID mobId = possessedMob.get(player.getUniqueId());
+        if (mobId != null && Bukkit.getEntity(mobId) instanceof LivingEntity mob) {
+            possessAttack(player, mob, false);
         }
     }
 
     // ---- Spectral Body --------------------------------------------------
+
+    /**
+     * Starts server-authoritative phasing when movement input begins. Fake air blocks make the wall
+     * visually traversable, but they do not change server collision; teleporting only the small
+     * portion of a movement step that intersects a phaseable block is what makes the passive real.
+     */
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onInput(PlayerInputEvent event) {
+        Player owner = event.getPlayer();
+        if (!hasMovement(event.getInput()) || !plugin.kits().isOwner(owner, ID)
+                || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)
+                || possessedMob.containsKey(owner.getUniqueId())) {
+            return;
+        }
+        startPhaseTask(owner);
+    }
+
+    private void startPhaseTask(Player owner) {
+        UUID ownerId = owner.getUniqueId();
+        if (phaseTasks.containsKey(ownerId)) {
+            return;
+        }
+        BukkitTask task = new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!owner.isOnline() || !plugin.kits().isOwner(owner, ID)
+                        || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)) {
+                    phaseTasks.remove(ownerId);
+                    cancel();
+                    return;
+                }
+                // Keep one lightweight driver alive for the owner. Input events report state
+                // changes, not every held-key tick, so cancelling while idle can miss the first
+                // server-corrected movement packet at a wall.
+                if (owner.isDead() || possessedMob.containsKey(ownerId)
+                        || owner.getGameMode() == GameMode.SPECTATOR
+                        || !hasMovement(owner.getCurrentInput())) {
+                    return;
+                }
+                phaseStep(owner, owner.getCurrentInput());
+            }
+        }.runTaskTimer(plugin, 1L, 1L);
+        phaseTasks.put(ownerId, task);
+    }
+
+    private void phaseStep(Player owner, Input input) {
+        Vector forward = owner.getLocation().getDirection();
+        forward.setY(0.0d);
+        if (forward.lengthSquared() < 1.0e-6) {
+            forward.setZ(1.0d);
+        } else {
+            forward.normalize();
+        }
+        Vector right = new Vector(-forward.getZ(), 0.0d, forward.getX());
+        Vector movement = new Vector();
+        if (input.isForward()) {
+            movement.add(forward);
+        }
+        if (input.isBackward()) {
+            movement.subtract(forward);
+        }
+        if (input.isRight()) {
+            movement.add(right);
+        }
+        if (input.isLeft()) {
+            movement.subtract(right);
+        }
+        if (movement.lengthSquared() > 1.0e-6) {
+            double speed = input.isSneak() ? 0.12d : input.isSprint() ? 0.32d : 0.22d;
+            movement.normalize().multiply(speed);
+        }
+        if (input.isJump()) {
+            movement.setY(0.22d);
+        } else if (input.isSneak()) {
+            movement.setY(-0.22d);
+        }
+        if (movement.lengthSquared() < 1.0e-6) {
+            return;
+        }
+
+        BoundingBox currentBox = owner.getBoundingBox();
+        BoundingBox nextBox = currentBox.clone().shift(movement);
+        int currentCollision = collisionState(owner, currentBox);
+        int nextCollision = collisionState(owner, nextBox);
+        if (nextCollision == 2) {
+            Text.actionBar(owner, "<dark_gray>That material resists your Spectral Body.</dark_gray>");
+            return;
+        }
+        // Open-air movement remains vanilla. We intervene only while entering, crossing, or
+        // leaving an actual solid block, which avoids turning normal walking into teleport spam.
+        if (currentCollision == 1 || nextCollision == 1) {
+            Location next = owner.getLocation().add(movement);
+            owner.teleport(next, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        }
+    }
+
+    /**
+     * @return 0 for clear, 1 for phaseable solid, 2 for a configured impassable material.
+     */
+    private int collisionState(Player owner, BoundingBox box) {
+        final double epsilon = 1.0e-5;
+        int minX = (int) Math.floor(box.getMinX() + epsilon);
+        int maxX = (int) Math.floor(box.getMaxX() - epsilon);
+        int minY = (int) Math.floor(box.getMinY() + epsilon);
+        int maxY = (int) Math.floor(box.getMaxY() - epsilon);
+        int minZ = (int) Math.floor(box.getMinZ() + epsilon);
+        int maxZ = (int) Math.floor(box.getMaxZ() - epsilon);
+        boolean solid = false;
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    Block block = owner.getWorld().getBlockAt(x, y, z);
+                    // isPassable alone treats every stair/slab as a full cube. The shape overlap
+                    // keeps ordinary movement over partial blocks from accidentally engaging
+                    // phasing when the player's real hitbox is not touching their solid portion.
+                    // Paper exposes this VoxelShape in coordinates local to the block (0..1),
+                    // while an entity BoundingBox is in world coordinates. Compare like with like.
+                    BoundingBox localBox = box.clone().shift(-x, -y, -z);
+                    if (block.isPassable() || !block.getCollisionShape().overlaps(localBox)) {
+                        continue;
+                    }
+                    if (impassableBlocks.contains(block.getType())) {
+                        return 2;
+                    }
+                    solid = true;
+                }
+            }
+        }
+        return solid ? 1 : 0;
+    }
+
+    private static boolean hasMovement(Input input) {
+        return input != null && (input.isForward() || input.isBackward() || input.isLeft()
+                || input.isRight() || input.isJump() || input.isSneak());
+    }
+
+    private void stopPhaseTask(Player owner) {
+        BukkitTask task = phaseTasks.remove(owner.getUniqueId());
+        if (task != null) {
+            task.cancel();
+        }
+    }
 
     /**
      * Rebuilds the "phase bubble" around the Ghost every time he moves: solid, non-impassable blocks
@@ -472,6 +658,9 @@ public class TheGhostKit implements PowerKit, Listener {
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
         Player player = event.getEntity();
+        if (possessedMob.containsKey(player.getUniqueId())) {
+            release(player, null);
+        }
         if (astralActive.remove(player.getUniqueId())) {
             setMutualVisibility(player, true);
             Effects.remove(player, PotionEffectType.INVISIBILITY);
@@ -484,8 +673,10 @@ public class TheGhostKit implements PowerKit, Listener {
     public List<Ability> abilities() {
         return List.of(
                 new Ability(ABILITY_POSSESS, "Possession",
-                        "Take control of the mob you are looking at. Sneak + swap-hands to attack, "
+                        "Take control of the mob you are looking at. Left-click or use the attack ability, "
                                 + "use again to let go."),
+                new Ability(ABILITY_POSSESS_ATTACK, "Possessed Attack",
+                        "Make your current host attack the nearest living target."),
                 new Ability(ABILITY_ASTRAL, "Astral Form",
                         "Toggle mutual invisibility with every other player."));
     }
@@ -499,6 +690,7 @@ public class TheGhostKit implements PowerKit, Listener {
     public boolean activate(Player owner, String abilityId) {
         return switch (abilityId.toLowerCase(Locale.ROOT)) {
             case ABILITY_POSSESS -> possess(owner);
+            case ABILITY_POSSESS_ATTACK -> possessAttack(owner);
             case ABILITY_ASTRAL -> toggleAstral(owner);
             default -> false;
         };
@@ -511,6 +703,7 @@ public class TheGhostKit implements PowerKit, Listener {
         setMutualVisibility(owner, true);
         Effects.remove(owner, PotionEffectType.INVISIBILITY);
         restorePhaseBubble(owner);
+        startPhaseTask(owner);
     }
 
     @Override
@@ -522,6 +715,7 @@ public class TheGhostKit implements PowerKit, Listener {
             setMutualVisibility(owner, true);
             Effects.remove(owner, PotionEffectType.INVISIBILITY);
         }
+        stopPhaseTask(owner);
         restorePhaseBubble(owner);
     }
 
@@ -530,6 +724,7 @@ public class TheGhostKit implements PowerKit, Listener {
         if (power == Power.POSSESSION && possessedMob.containsKey(owner.getUniqueId())) {
             release(owner, "<gray>The possession ends.</gray>");
         } else if (power == Power.SPECTRAL_BODY) {
+            stopPhaseTask(owner);
             restorePhaseBubble(owner);
         } else if (power == Power.ASTRAL_FORM && astralActive.remove(owner.getUniqueId())) {
             setMutualVisibility(owner, true);
@@ -550,11 +745,13 @@ public class TheGhostKit implements PowerKit, Listener {
                 setMutualVisibility(player, true);
                 Effects.remove(player, PotionEffectType.INVISIBILITY);
             }
+            stopPhaseTask(player);
             restorePhaseBubble(player);
         }
     }
 
     /** What a possession has to hand back when it ends. */
-    private record PossessionMemory(GameMode gameMode, Location location) {
+    private record PossessionMemory(GameMode gameMode, Location location,
+                                    PotionEffect previousInvisibility) {
     }
 }
