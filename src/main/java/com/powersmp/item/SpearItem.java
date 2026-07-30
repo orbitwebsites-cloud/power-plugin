@@ -6,6 +6,7 @@ import com.powersmp.util.Text;
 import java.util.List;
 import java.util.UUID;
 import org.bukkit.Material;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -22,12 +23,18 @@ import org.bukkit.persistence.PersistentDataType;
  *
  * <p>xCR1T1Cx's custom "Lunge" (pull + stun on hit with cooldown) is entirely separate from
  * vanilla's Lunge enchantment (self-propel on jab). The names happen to collide but the mechanics
- * are unrelated.
+ * are unrelated -- the spear carries both: the custom tier drives the pull/stun and grows with
+ * kills (Lunge I-V in the display name), while the actual vanilla Lunge enchantment is applied at a
+ * flat level V regardless of tier, alongside Curse of Vanishing and Unbreaking III.
  */
 public final class SpearItem {
 
     public static final int MIN_TIER = 3;
     public static final int MAX_TIER = 5;
+
+    /** Fixed, not tied to the custom kill-based tier -- vanilla's own Lunge caps at V. */
+    private static final int LUNGE_ENCHANT_LEVEL = 5;
+    private static final int UNBREAKING_LEVEL = 3;
 
     private static final String[] NUMERALS = {"", "I", "II", "III", "IV", "V"};
 
@@ -41,6 +48,10 @@ public final class SpearItem {
         meta.setUnbreakable(true);
         meta.getPersistentDataContainer()
                 .set(Keys.SPEAR_OWNER, PersistentDataType.STRING, owner.toString());
+        if (Enchants.LUNGE != null) {
+            meta.addEnchant(Enchants.LUNGE, LUNGE_ENCHANT_LEVEL, true);
+        }
+        meta.addEnchant(Enchantment.UNBREAKING, UNBREAKING_LEVEL, true);
         Enchants.applyVanishing(meta);
         spear.setItemMeta(meta);
         ResourcePackItems.apply(spear, ResourcePackItems.GRAPPLE_HOOK);

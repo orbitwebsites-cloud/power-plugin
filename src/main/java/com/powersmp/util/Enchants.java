@@ -21,6 +21,7 @@ public final class Enchants {
     public static final Enchantment WIND_BURST = resolve("wind_burst");
     public static final Enchantment RIPTIDE = resolve("riptide");
     public static final Enchantment VANISHING_CURSE = resolve("vanishing_curse");
+    public static final Enchantment LUNGE = resolve("lunge");
 
     private Enchants() {
     }
@@ -49,6 +50,7 @@ public final class Enchants {
         check(logger, DENSITY, "density");
         check(logger, BREACH, "breach");
         check(logger, WIND_BURST, "wind_burst");
+        check(logger, LUNGE, "lunge");
     }
 
     private static void check(Logger logger, Enchantment enchantment, String name) {
