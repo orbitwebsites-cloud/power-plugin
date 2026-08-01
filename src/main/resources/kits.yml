@@ -955,6 +955,8 @@ idledeathgamble:
   cooldown-seconds: 35
   # Starts after the 4m 11s Jackpot buffs expire.
   jackpot-cooldown-seconds: 120
+  # Informational: Jackpot is enforced in code at exactly 251s (4m 11s), so an
+  # older server-side kits.yml cannot accidentally shorten it after an update.
   buff-seconds: 251
   strength-amplifier: 2           # Strength III
   regeneration-amplifier: 4       # Regeneration V

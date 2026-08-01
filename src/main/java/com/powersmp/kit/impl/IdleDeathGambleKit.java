@@ -44,6 +44,8 @@ public class IdleDeathGambleKit implements PowerKit {
 
     private static final String ABILITY_JACKPOT = "jackpot";
     private static final long AURA_PERIOD_TICKS = 5L;
+    /** Exact requested Jackpot duration: 4 minutes 11 seconds. */
+    private static final double JACKPOT_DURATION_SECONDS = 251.0d;
 
     private final PowerSMP plugin;
     private final Map<UUID, BukkitTask> greenAuras = new ConcurrentHashMap<>();
@@ -55,7 +57,6 @@ public class IdleDeathGambleKit implements PowerKit {
     private double normalCooldownSeconds = 35.0d;
     /** Cooldown that begins after the Jackpot buffs expire. */
     private double jackpotCooldownSeconds = 120.0d;
-    private double buffSeconds = 251.0d;
     private int strengthAmplifier = 2;
     private int regenerationAmplifier = 4;
     private int speedAmplifier = 2;
@@ -86,7 +87,6 @@ public class IdleDeathGambleKit implements PowerKit {
                     section.getInt("fever-chance-percent", feverChance));
             normalCooldownSeconds = Math.max(0.0d,
                     section.getDouble("cooldown-seconds", normalCooldownSeconds));
-            buffSeconds = Math.max(0.05d, section.getDouble("buff-seconds", buffSeconds));
             jackpotCooldownSeconds = Math.max(0.0d,
                     section.getDouble("jackpot-cooldown-seconds", jackpotCooldownSeconds));
             strengthAmplifier = Math.max(0,
@@ -140,11 +140,12 @@ public class IdleDeathGambleKit implements PowerKit {
     }
 
     private void win(Player owner, PlayerData data, int chance, boolean feverRoll) {
-        int durationTicks = Math.max(1, (int) Math.round(buffSeconds * 20.0d));
+        int durationTicks = (int) (JACKPOT_DURATION_SECONDS * 20.0d);
 
         // Keep rerolls locked for the full Jackpot, then apply the configured post-Jackpot CD.
         plugin.cooldowns().setSeconds(
-                owner.getUniqueId(), ABILITY_JACKPOT, buffSeconds + jackpotCooldownSeconds);
+                owner.getUniqueId(), ABILITY_JACKPOT,
+                JACKPOT_DURATION_SECONDS + jackpotCooldownSeconds);
 
         Effects.apply(owner, PotionEffectType.STRENGTH, durationTicks, strengthAmplifier);
         Effects.apply(owner, PotionEffectType.REGENERATION, durationTicks, regenerationAmplifier);
