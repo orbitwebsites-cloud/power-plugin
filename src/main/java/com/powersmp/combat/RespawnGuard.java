@@ -1,6 +1,7 @@
 package com.powersmp.combat;
 
 import com.powersmp.PowerSMP;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Text;
 import java.util.Map;
 import java.util.UUID;
@@ -12,6 +13,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -86,7 +88,7 @@ public class RespawnGuard implements Listener {
         protectedUntil.put(player.getUniqueId(), System.currentTimeMillis() + (long) (durationSeconds * 1000.0d));
         if (message) {
             Text.msg(player, "<green>You are protected from damage for <white>"
-                    + (int) durationSeconds + "s</white>.</green>");
+                    + (int) durationSeconds + "s</white>. <gray>You cannot attack players during protection.</gray>");
         }
     }
 
@@ -100,5 +102,19 @@ public class RespawnGuard implements Listener {
             return;
         }
         event.setCancelled(true);
+    }
+
+    /** Protection cannot be used to attack players without risk of retaliation. */
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onProtectedPlayerAttack(EntityDamageByEntityEvent event) {
+        Player attacker = TeamRules.playerSource(event.getDamager());
+        if (!(event.getEntity() instanceof Player)
+                || attacker == null
+                || !isProtected(attacker)) {
+            return;
+        }
+        event.setCancelled(true);
+        Text.actionBar(attacker,
+                "<red>You cannot attack players during respawn protection.</red>");
     }
 }
