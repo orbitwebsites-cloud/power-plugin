@@ -37,6 +37,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
@@ -111,7 +112,7 @@ public final class DisasterflamesKit implements PowerKit, Listener {
     @Override
     public List<Ability> abilities() {
         return List.of(
-                new Ability(DOGS, "Divine Dogs", "Summon two armored Strength II, Speed II wolves."),
+                new Ability(DOGS, "Divine Dogs", "Summon two armored Strength III, Speed III wolves."),
                 new Ability(RABBITS, "Rabbit Escape", "Vanish without particles and release 20 rabbits."),
                 new Ability(STORAGE, "Shadow Storage", "Open your hidden, death-safe shadow inventory."),
                 new Ability(MAHORAGA, "Mahoraga", "Begin the ritual for the Divine General."));
@@ -145,13 +146,11 @@ public final class DisasterflamesKit implements PowerKit, Listener {
                 dog.setOwner(owner);
                 dog.customName(Text.mm(white ? "<white><bold>Divine Dog: White</bold>" : "<black><bold>Divine Dog: Black</bold>"));
                 dog.setCustomNameVisible(true);
-                // Paper exposes wolf armour inconsistently across 1.21 patch releases; the
-                // chest slot preserves the item where supported, while the armour attribute
-                // below guarantees the intended protection on every supported build.
-                dog.getEquipment().setChestplate(new ItemStack(Material.WOLF_ARMOR));
+                dog.getEquipment().setItem(EquipmentSlot.BODY,
+                        new ItemStack(Material.WOLF_ARMOR), true);
                 dog.getAttribute(Attribute.ARMOR).setBaseValue(12.0d);
-                dog.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, PotionEffect.INFINITE_DURATION, 1, true, false, true));
-                dog.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, PotionEffect.INFINITE_DURATION, 1, true, false, true));
+                dog.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, PotionEffect.INFINITE_DURATION, 2, true, false, true));
+                dog.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, PotionEffect.INFINITE_DURATION, 2, true, false, true));
                 tag(dog, owner, "dog");
             });
             pair.add(wolf.getUniqueId());
