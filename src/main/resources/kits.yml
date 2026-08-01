@@ -799,7 +799,7 @@ illusory-realm:
 # =====================================================================
 disasterflames:
   divine-dogs:
-    cooldown-seconds: 60
+    cooldown-seconds: 120
   rabbit-escape:
     duration-seconds: 15
     cooldown-seconds: 60
