@@ -426,6 +426,10 @@ public class DomanKit implements PowerKit, Listener {
     }
 
     private boolean bloodTrail(Player owner) {
+        // A reloaded/legacy Bloodlust can carry newer kill progress than the data file. Sync it
+        // before checking the unlock so Blood Trail does not remain falsely locked until the
+        // next passive refresh tick.
+        refreshBloodlust(owner);
         int kills = plugin.data().get(owner.getUniqueId()).bloodlustKills();
         if (!canUseBloodlust(owner, bloodTrailKills, "Blood Trail", kills)) {
             return false;
@@ -666,8 +670,11 @@ public class DomanKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(owner, Power.BLOODLUST)) {
             return plugin.unlocks().denyLocked(owner, Power.BLOODLUST);
         }
-        if (!holdingBloodlust(owner)) {
-            Text.msg(owner, "<red>Hold Bloodlust in your main hand first.</red>");
+        // Keybound abilities should work while the soulbound weapon is anywhere in Doman's
+        // inventory. Requiring the main hand made the key appear broken whenever the player was
+        // eating, using a shield, or had just changed hotbar slots.
+        if (findBloodlust(owner) == null) {
+            Text.msg(owner, "<red>You need to carry Bloodlust to use " + ability + ".</red>");
             return false;
         }
         if (kills < requiredKills) {
