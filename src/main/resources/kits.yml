@@ -691,16 +691,16 @@ techknight:
     pull-power: 1.35
     pulse-ticks: 30
     range: 100.0
-    cooldown-seconds: 10
+    cooldown-seconds: 0
 
   # Original Altar Arc 1 Bone Blade actives, layered under Titan Protocol.
   bone-blade:
     skeletal-leap-cooldown-seconds: 15
     skeletal-leap-power: 2.5
     skeletal-leap-speed-seconds: 6
-    bone-cage-cooldown-seconds: 30
+    bone-cage-cooldown-seconds: 20
     bone-cage-projectile-speed: 4.0
-    bone-cage-stun-seconds: 5
+    bone-cage-stun-seconds: 10
 
 # =====================================================================
 # Voidwalker (ahriahn) -- Shadow Step / Grasp of Eylis / Illusory Realm

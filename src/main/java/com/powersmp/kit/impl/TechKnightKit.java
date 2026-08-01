@@ -89,13 +89,13 @@ public class TechKnightKit implements PowerKit, Listener {
     private double grapplePower = 1.35d;
     private int grapplePulseTicks = 30;
     private double grappleRange = 100.0d;
-    private double grappleCooldown = 10.0d;
+    private double grappleCooldown = 0.0d;
     private double skeletalLeapCooldown = 30.0d;
     private double skeletalLeapPower = 2.0d;
     private int skeletalLeapSpeedTicks = 80;
-    private double boneCageCooldown = 60.0d;
+    private double boneCageCooldown = 20.0d;
     private double boneCageProjectileSpeed = 4.0d;
-    private double boneCageStunSeconds = 5.0d;
+    private double boneCageStunSeconds = 10.0d;
 
     public TechKnightKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -571,7 +571,7 @@ public class TechKnightKit implements PowerKit, Listener {
                         "Fill your inventory with experience bottles. No cooldown."),
                 new Ability(ABILITY_GRAPPLE, "Grapple Shot",
                         "Pull toward a visible target up to " + (int) grappleRange
-                                + " blocks away. " + (int) grappleCooldown + "s cooldown."),
+                                + " blocks away. No cooldown."),
                 new Ability(ABILITY_SKELETAL_LEAP, "Skeletal Leap",
                         "Bone Blade: leap forward with Speed III. "
                                 + (int) skeletalLeapCooldown + "s cooldown."),
