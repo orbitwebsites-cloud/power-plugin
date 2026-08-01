@@ -660,7 +660,7 @@ techknight:
     tier-3-damage-bonus: 9.0
     # Tier I (0 kills): Sharpness III and +2 damage over its Netherite Sword base.
     # Tier II (2 kills): Sharpness V, Strength II, Speed I, Fire Resistance I.
-    # Tier III (10 kills): Sharpness VIII, Strength III, Speed II,
+    # Tier III (10 kills): Sharpness VIII, Strength II, Speed II,
     # Fire Resistance I and Resistance II.
     # Buffs refresh while the tagged blade is anywhere in the player inventory.
 

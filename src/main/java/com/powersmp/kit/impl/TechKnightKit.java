@@ -227,7 +227,7 @@ public class TechKnightKit implements PowerKit, Listener {
             Effects.refresh(owner, PotionEffectType.FIRE_RESISTANCE, 0);
         }
         if (tier >= 3) {
-            Effects.refresh(owner, PotionEffectType.STRENGTH, 2);
+            Effects.refresh(owner, PotionEffectType.STRENGTH, 1);
             Effects.refresh(owner, PotionEffectType.SPEED, 1);
             Effects.refresh(owner, PotionEffectType.FIRE_RESISTANCE, 0);
             Effects.refresh(owner, PotionEffectType.RESISTANCE, 1);

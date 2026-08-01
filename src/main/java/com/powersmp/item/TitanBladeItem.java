@@ -70,7 +70,7 @@ public final class TitanBladeItem {
                 } + "</red>"),
                 Text.mm(switch (safeTier) {
                     case 2 -> "<aqua>Strength II, Speed I, Fire Resistance</aqua>";
-                    case 3 -> "<aqua>Strength III, Speed II, Resistance II, Fire Resistance</aqua>";
+                    case 3 -> "<aqua>Strength II, Speed II, Resistance II, Fire Resistance</aqua>";
                     default -> "<gray>More systems unlock at Tier II</gray>";
                 }),
                 Text.mm("<white>Skeletal Leap</white><gray> - forward leap + Speed III</gray>"),
