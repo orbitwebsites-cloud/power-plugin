@@ -61,6 +61,7 @@ public final class DisasterflamesKit implements PowerKit, Listener {
     private final Map<UUID, UUID> mahoragas = new ConcurrentHashMap<>();
     private final Map<UUID, Inventory> openStorage = new ConcurrentHashMap<>();
     private final Map<UUID, Long> invincibleUntil = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> rabbitEscapeUntil = new ConcurrentHashMap<>();
     private final Map<UUID, BukkitTask> summonTasks = new ConcurrentHashMap<>();
 
     private double dogsCooldown = 60.0d;
@@ -107,6 +108,9 @@ public final class DisasterflamesKit implements PowerKit, Listener {
             Effects.refresh(owner, PotionEffectType.SPEED, 1);
         }
         clean(owner.getUniqueId());
+        if (rabbitEscapeActive(owner)) {
+            hideRabbitEscape(owner);
+        }
     }
 
     @Override
@@ -169,6 +173,9 @@ public final class DisasterflamesKit implements PowerKit, Listener {
         if (!plugin.cooldowns().tryUse(owner, RABBITS, rabbitCooldown)) return false;
         owner.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY,
                 rabbitDurationTicks, 0, true, false, false));
+        rabbitEscapeUntil.put(owner.getUniqueId(),
+                System.currentTimeMillis() + rabbitDurationTicks * 50L);
+        hideRabbitEscape(owner);
         List<UUID> swarm = new ArrayList<>();
         for (int i = 0; i < 20; i++) {
             Rabbit rabbit = owner.getWorld().spawn(owner.getLocation().clone().add(
@@ -180,7 +187,10 @@ public final class DisasterflamesKit implements PowerKit, Listener {
             swarm.add(rabbit.getUniqueId());
         }
         rabbits.put(owner.getUniqueId(), swarm);
-        Bukkit.getScheduler().runTaskLater(plugin, () -> removeEntities(rabbits.remove(owner.getUniqueId())), rabbitDurationTicks);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            removeEntities(rabbits.remove(owner.getUniqueId()));
+            endRabbitEscape(owner);
+        }, rabbitDurationTicks);
         owner.playSound(owner.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f);
         return true;
     }
@@ -289,6 +299,18 @@ public final class DisasterflamesKit implements PowerKit, Listener {
         }
     }
 
+    /** Rabbit Escape is defensive movement only: the hidden user cannot deal damage. */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onRabbitEscapeAttack(EntityDamageByEntityEvent event) {
+        Player attacker = TeamRules.playerSource(event.getDamager());
+        if (attacker != null && plugin.kits().isOwner(attacker, ID)
+                && rabbitEscapeActive(attacker)) {
+            event.setCancelled(true);
+            Text.actionBar(attacker,
+                    "<gray>Rabbit Escape prevents offensive attacks.</gray>");
+        }
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onCombat(EntityDamageByEntityEvent event) {
         Player owner = null;
@@ -356,6 +378,29 @@ public final class DisasterflamesKit implements PowerKit, Listener {
         if (!hasLiving(rabbits.get(owner))) rabbits.remove(owner);
         if (living(mahoragas.get(owner)) == null) mahoragas.remove(owner);
         if (invincibleUntil.getOrDefault(owner, 0L) <= System.currentTimeMillis()) invincibleUntil.remove(owner);
+        if (rabbitEscapeUntil.getOrDefault(owner, 0L) <= System.currentTimeMillis()) {
+            rabbitEscapeUntil.remove(owner);
+        }
+    }
+
+    private boolean rabbitEscapeActive(Player owner) {
+        return rabbitEscapeUntil.getOrDefault(owner.getUniqueId(), 0L)
+                > System.currentTimeMillis();
+    }
+
+    /** hidePlayer conceals the player model and every equipped armor piece. */
+    private void hideRabbitEscape(Player owner) {
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            if (!viewer.equals(owner)) viewer.hidePlayer(plugin, owner);
+        }
+    }
+
+    private void endRabbitEscape(Player owner) {
+        rabbitEscapeUntil.remove(owner.getUniqueId());
+        if (!owner.isOnline()) return;
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            if (!viewer.equals(owner)) viewer.showPlayer(plugin, owner);
+        }
     }
 
     private void removeEntities(List<UUID> ids) {
@@ -385,10 +430,18 @@ public final class DisasterflamesKit implements PowerKit, Listener {
         if (recoveredMahoraga != null) mahoragas.put(ownerId, recoveredMahoraga);
     }
 
-    @Override public void onQuit(Player owner) { invincibleUntil.remove(owner.getUniqueId()); }
+    @Override
+    public void onQuit(Player owner) {
+        invincibleUntil.remove(owner.getUniqueId());
+        endRabbitEscape(owner);
+    }
 
     @Override
     public void onDisable() {
+        for (UUID ownerId : List.copyOf(rabbitEscapeUntil.keySet())) {
+            Player owner = Bukkit.getPlayer(ownerId);
+            if (owner != null) endRabbitEscape(owner);
+        }
         openStorage.forEach(this::persistStorage);
         openStorage.clear();
         dogs.values().forEach(this::removeEntities);
@@ -396,5 +449,6 @@ public final class DisasterflamesKit implements PowerKit, Listener {
         mahoragas.values().forEach(id -> { Entity entity = living(id); if (entity != null) entity.remove(); });
         summonTasks.values().forEach(BukkitTask::cancel);
         dogs.clear(); rabbits.clear(); mahoragas.clear(); summonTasks.clear(); invincibleUntil.clear();
+        rabbitEscapeUntil.clear();
     }
 }
