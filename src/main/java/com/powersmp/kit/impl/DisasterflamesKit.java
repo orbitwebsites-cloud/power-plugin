@@ -23,11 +23,11 @@ import org.bukkit.Sound;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.IronGolem;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Mob;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Rabbit;
-import org.bukkit.entity.Warden;
 import org.bukkit.entity.Wolf;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -35,7 +35,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDeathEvent;
-import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.EquipmentSlot;
@@ -163,6 +162,10 @@ public final class DisasterflamesKit implements PowerKit, Listener {
             pair.add(wolf.getUniqueId());
         }
         dogs.put(owner.getUniqueId(), pair);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            removeEntities(dogs.remove(owner.getUniqueId()));
+            Text.msg(owner, "<gray>Your Divine Dogs returned to the shadows.</gray>");
+        }, 20L * 120L);
         owner.getWorld().spawnParticle(Particle.SMOKE, owner.getLocation(), 70, 1.3d, 0.4d, 1.3d, 0.08d);
         owner.playSound(owner.getLocation(), Sound.ENTITY_WOLF_AMBIENT, 1.3f, 0.7f);
         return true;
@@ -255,49 +258,51 @@ public final class DisasterflamesKit implements PowerKit, Listener {
 
     private void spawnMahoraga(Player owner) {
         boolean tamed = plugin.data().get(owner.getUniqueId()).mahoragaTamed();
-        Warden warden = owner.getWorld().spawn(owner.getLocation().add(2.0d, 0.0d, 0.0d), Warden.class, entity -> {
+        IronGolem golem = owner.getWorld().spawn(owner.getLocation().add(2.0d, 0.0d, 0.0d), IronGolem.class, entity -> {
             entity.customName(Text.mm("<gold><bold>Eight-Handled Sword Mahoraga</bold>"));
             entity.setCustomNameVisible(true);
-            entity.getAttribute(Attribute.MAX_HEALTH).setBaseValue(500.0d);
-            entity.getAttribute(Attribute.ARMOR).setBaseValue(8.0d);
-            entity.getAttribute(Attribute.ARMOR_TOUGHNESS).setBaseValue(4.0d);
+            entity.setPlayerCreated(tamed);
+            entity.getAttribute(Attribute.MAX_HEALTH).setBaseValue(300.0d);
+            entity.getAttribute(Attribute.ARMOR).setBaseValue(12.0d);
+            entity.getAttribute(Attribute.ARMOR_TOUGHNESS).setBaseValue(6.0d);
             entity.getAttribute(Attribute.KNOCKBACK_RESISTANCE).setBaseValue(1.0d);
-            entity.setHealth(500.0d);
+            entity.getAttribute(Attribute.ATTACK_DAMAGE).setBaseValue(30.0d);
+            entity.setHealth(300.0d);
             entity.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, PotionEffect.INFINITE_DURATION, 1, true, false, true));
             entity.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, PotionEffect.INFINITE_DURATION, 0, true, false, true));
             entity.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, PotionEffect.INFINITE_DURATION, 1, true, false, true));
             tag(entity, owner, tamed ? "mahoraga_tamed" : "mahoraga_ritual");
         });
-        mahoragas.put(owner.getUniqueId(), warden.getUniqueId());
-        owner.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, warden.getLocation().add(0, 1, 0), 160, 1.2, 1.8, 1.2, 0.3);
+        mahoragas.put(owner.getUniqueId(), golem.getUniqueId());
+        owner.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING, golem.getLocation().add(0, 1, 0), 160, 1.2, 1.8, 1.2, 0.3);
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             Entity current = living(mahoragas.get(owner.getUniqueId()));
             if (current != null) current.remove();
             mahoragas.remove(owner.getUniqueId());
         }, mahoragaDurationTicks);
-        startWardenAI(owner, warden, tamed);
+        startMahoragaAI(owner, golem, tamed);
     }
 
-    private void startWardenAI(Player owner, Warden warden, boolean tamed) {
+    private void startMahoragaAI(Player owner, IronGolem golem, boolean tamed) {
         Bukkit.getScheduler().runTaskTimer(plugin, task -> {
-            if (!warden.isValid() || warden.isDead()) { task.cancel(); return; }
+            if (!golem.isValid() || golem.isDead()) { task.cancel(); return; }
             if (tamed) {
-                warden.clearAnger(owner);
-                if (warden.getTarget() != null && warden.getTarget().equals(owner)) {
-                    warden.setTarget(null);
+                LivingEntity current = golem.getTarget();
+                if (current != null && (current.equals(owner)
+                        || owner.getUniqueId().equals(owner(current)))) {
+                    golem.setTarget(null);
                 }
                 return;
             }
             LivingEntity nearest = null;
             double best = Double.MAX_VALUE;
-            for (Entity entity : warden.getNearbyEntities(32, 16, 32)) {
-                if (!(entity instanceof LivingEntity target) || target.equals(warden)) continue;
-                double distance = target.getLocation().distanceSquared(warden.getLocation());
+            for (Entity entity : golem.getNearbyEntities(32, 16, 32)) {
+                if (!(entity instanceof LivingEntity target) || target.equals(golem)) continue;
+                double distance = target.getLocation().distanceSquared(golem.getLocation());
                 if (distance < best) { best = distance; nearest = target; }
             }
             if (nearest != null) {
-                warden.setAnger(nearest, 150);
-                warden.setTarget(nearest);
+                golem.setTarget(nearest);
             }
         }, 0L, 20L);
     }
@@ -332,29 +337,12 @@ public final class DisasterflamesKit implements PowerKit, Listener {
                 && event.getDamager() instanceof LivingEntity attacker) { owner = victim; target = attacker; }
         if (owner == null || target == null
                 || (target instanceof Player targetPlayer
-                        && TeamRules.areTeammates(owner, targetPlayer))) return;
+                        && TeamRules.areTeammates(owner, targetPlayer))
+                || owner.getUniqueId().equals(owner(target))) return;
         Entity summon = living(mahoragas.get(owner.getUniqueId()));
-        if (summon instanceof Warden warden
-                && "mahoraga_tamed".equals(type(warden))) {
-            warden.setAnger(target, 150);
-            warden.setTarget(target);
-        }
-    }
-
-    /** Mahoraga keeps the Warden's blind sensing, but its darkness pulse is suppressed. */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onMahoragaDarkness(EntityPotionEffectEvent event) {
-        if (event.getCause() != EntityPotionEffectEvent.Cause.WARDEN
-                || event.getNewEffect() == null
-                || event.getNewEffect().getType() != PotionEffectType.DARKNESS) return;
-        for (UUID id : mahoragas.values()) {
-            Entity entity = living(id);
-            if (entity instanceof Warden
-                    && entity.getWorld().equals(event.getEntity().getWorld())
-                    && entity.getLocation().distanceSquared(event.getEntity().getLocation()) <= 64.0d * 64.0d) {
-                event.setCancelled(true);
-                return;
-            }
+        if (summon instanceof IronGolem golem
+                && "mahoraga_tamed".equals(type(golem))) {
+            golem.setTarget(target);
         }
     }
 
