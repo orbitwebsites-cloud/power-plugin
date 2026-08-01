@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Text;
 import java.util.List;
 import java.util.Locale;
@@ -175,7 +176,8 @@ public class SparkKit implements PowerKit, Listener {
         // Particle.FLASH throws IllegalArgumentException ("missing required data class
         // org.bukkit.Color") on this server build -- createExplosion's own EXPLOSION particle
         // covers the visual anyway.
-        where.getWorld().createExplosion(where, power, fire, breakBlocks, owner);
+        TeamRules.runProtected(owner,
+                () -> where.getWorld().createExplosion(where, power, fire, breakBlocks, owner));
         where.getWorld().playSound(where, Sound.ENTITY_GENERIC_EXPLODE, 1.0f, 0.8f);
         where.getWorld().spawnParticle(Particle.LARGE_SMOKE, where, 60, power, power, power, 0.05);
     }

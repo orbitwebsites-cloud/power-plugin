@@ -50,7 +50,7 @@ public interface PowerKit {
         return List.of();
     }
 
-    /** Ability bound to sneak + right-click, or null if the kit has no obvious primary. */
+    /** Default sneak + right-click ability before a player creates explicit bindings. */
     default String primaryAbilityId() {
         return null;
     }

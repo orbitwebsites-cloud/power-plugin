@@ -71,24 +71,63 @@ public class PowerMenu implements Listener {
 
     private void redraw(Player player, Inventory inventory, List<Entry> entries) {
         for (int i = 0; i < entries.size() && i < inventory.getSize(); i++) {
-            inventory.setItem(i, icon(player, entries.get(i).ability));
+            inventory.setItem(i, icon(player, entries.get(i)));
         }
     }
 
-    private ItemStack icon(Player player, Ability ability) {
+    private ItemStack icon(Player player, Entry entry) {
+        Ability ability = entry.ability;
         long remaining = plugin.cooldowns().remainingMillis(player.getUniqueId(), ability.id());
         boolean ready = remaining <= 0L;
-        ItemStack item = new ItemStack(ready ? Material.NETHER_STAR : Material.GRAY_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(ready
+                ? iconMaterial(ability.id()) : Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
         if (meta != null) {
             meta.displayName(Text.mm((ready ? "<green>" : "<red>") + Text.plain(ability.name())));
             meta.lore(List.of(
+                    Text.mm("<dark_gray>" + Text.plain(entry.kit.displayName()) + "</dark_gray>"),
                     Text.mm("<gray>" + Text.plain(ability.description()) + "</gray>"),
                     Text.mm(ready ? "<green>Ready -- click to use</green>"
                             : "<red>Cooldown: " + Text.duration(remaining) + "</red>")));
             item.setItemMeta(meta);
         }
         return item;
+    }
+
+    private Material iconMaterial(String id) {
+        String normalized = id.toLowerCase(java.util.Locale.ROOT);
+        if (normalized.contains("grapple") || normalized.contains("chain")) {
+            return Material.LEAD;
+        }
+        if (normalized.contains("heal") || normalized.contains("regen")) {
+            return Material.GOLDEN_APPLE;
+        }
+        if (normalized.contains("flight") || normalized.contains("wind")) {
+            return Material.FEATHER;
+        }
+        if (normalized.contains("blood")) {
+            return Material.REDSTONE;
+        }
+        if (normalized.contains("shadow") || normalized.contains("astral")
+                || normalized.contains("phantom") || normalized.contains("void")) {
+            return Material.ENDER_EYE;
+        }
+        if (normalized.contains("explosion") || normalized.contains("bomb")) {
+            return Material.TNT;
+        }
+        if (normalized.contains("cage") || normalized.contains("bone")) {
+            return Material.BONE;
+        }
+        if (normalized.contains("restock") || normalized.contains("loadout")) {
+            return Material.CHEST;
+        }
+        if (normalized.contains("xp")) {
+            return Material.EXPERIENCE_BOTTLE;
+        }
+        if (normalized.contains("jackpot") || normalized.contains("lucky")) {
+            return Material.EMERALD;
+        }
+        return Material.NETHER_STAR;
     }
 
     @EventHandler(priority = EventPriority.LOWEST)

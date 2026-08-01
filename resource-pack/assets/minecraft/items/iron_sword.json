@@ -1,0 +1,10 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [
+      {"threshold": 27009, "model": {"type": "minecraft:model", "model": "powersmp:item/nightscar_cutlass"}}
+    ],
+    "fallback": {"type": "minecraft:model", "model": "minecraft:item/iron_sword"}
+  }
+}

@@ -1,9 +1,0 @@
-{
-  "parent":"minecraft:item/handheld",
-  "textures":{"layer0":"minecraft:item/mace"},
-  "overrides":[
-    {"predicate":{"custom_model_data":27003},"model":"powersmp:item/tech_gauntlet"},
-    {"predicate":{"custom_model_data":27004},"model":"powersmp:item/final_orb"},
-    {"predicate":{"custom_model_data":27006},"model":"powersmp:item/tech_shield"}
-  ]
-}

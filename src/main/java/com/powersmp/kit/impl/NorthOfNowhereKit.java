@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Keys;
@@ -182,6 +183,9 @@ public class NorthOfNowhereKit implements PowerKit, Listener {
             if (!isPlayer && !worldAffectsMobs) {
                 continue;
             }
+            if (entity instanceof Player target && !TeamRules.canAffect(owner, target)) {
+                continue;
+            }
             // Frozen targets can never deal damage; whether they can take it is the config above.
             plugin.freeze().freeze(entity, ticks, worldBlocksDamage);
             caught++;
@@ -253,7 +257,8 @@ public class NorthOfNowhereKit implements PowerKit, Listener {
     private int applySlow(Player owner, int ticks) {
         int slowed = 0;
         for (Entity entity : owner.getNearbyEntities(mihRadius, mihRadius, mihRadius)) {
-            if (entity.equals(owner) || !(entity instanceof LivingEntity target)) {
+            if (entity.equals(owner) || !(entity instanceof LivingEntity target)
+                    || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
             if (mihPlayersOnly && !(target instanceof Player)) {

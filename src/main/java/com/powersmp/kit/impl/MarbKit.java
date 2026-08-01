@@ -9,6 +9,7 @@ import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
 import java.util.List;
 import java.util.Locale;
+import java.util.UUID;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -18,6 +19,12 @@ import org.bukkit.block.TileState;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Item;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.ItemDespawnEvent;
+import org.bukkit.event.player.PlayerItemBreakEvent;
 import org.bukkit.event.Listener;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -220,13 +227,7 @@ public class MarbKit implements PowerKit, Listener {
 
     // ---- high tier: shadow items ----------------------------------------
 
-    /**
-     * Turns the held item into a permanent shadow of itself, in place -- no new item is created and
-     * nothing is added to the inventory, so there is nothing here to duplicate or launder. Earlier
-     * this cloned the held item into a second, separate stack that expired after a timer, precisely
-     * because a permanent free copy of anything is a duplication exploit; converting the original
-     * one-for-one instead of copying it removes that problem at the source, so the timer is gone too.
-     */
+    /** Creates one permanent shadow copy tethered to the original item's lifetime. */
     private boolean makeShadowItem(Player owner) {
         if (!plugin.unlocks().isUnlocked(owner, Power.SHADOW_MASTER)) {
             return plugin.unlocks().denyLocked(owner, Power.SHADOW_MASTER);
@@ -237,26 +238,51 @@ public class MarbKit implements PowerKit, Listener {
             return false;
         }
         if (isShadow(held)) {
-            Text.msg(owner, "<red>That is already a shadow.");
+            Text.msg(owner, "<red>You cannot make a shadow of a shadow.</red>");
+            return false;
+        }
+        if (originalId(held) != null) {
+            Text.msg(owner, "<red>That item already has a shadow copy.</red>");
+            return false;
+        }
+        if (owner.getInventory().firstEmpty() < 0) {
+            Text.msg(owner, "<red>Free an inventory slot for the shadow copy.</red>");
             return false;
         }
         if (!plugin.cooldowns().tryUse(owner, ABILITY_SHADOW, shadowCooldown)) {
             return false;
         }
 
-        ItemMeta meta = held.getItemMeta();
+        String linkId = UUID.randomUUID().toString();
+        ItemMeta originalMeta = held.getItemMeta();
+        if (originalMeta == null) {
+            return false;
+        }
+        originalMeta.getPersistentDataContainer()
+                .set(Keys.SHADOW_ORIGINAL_ID, PersistentDataType.STRING, linkId);
+        held.setItemMeta(originalMeta);
+
+        ItemStack shadow = held.clone();
+        ItemMeta meta = shadow.getItemMeta();
         if (meta != null) {
+            meta.getPersistentDataContainer().remove(Keys.SHADOW_ORIGINAL_ID);
             meta.displayName(Text.mm("<dark_gray><italic>Shadow "
                     + Text.plain(Text.prettify(held.getType().name().toLowerCase(Locale.ROOT)))
                     + "</italic></dark_gray>"));
-            meta.lore(List.of(Text.mm("<dark_gray>A permanent shadow.</dark_gray>")));
-            meta.getPersistentDataContainer().set(Keys.SHADOW_MARK, PersistentDataType.BYTE, (byte) 1);
-            held.setItemMeta(meta);
+            meta.lore(List.of(
+                    Text.mm("<dark_gray>A permanent copy tethered to its original.</dark_gray>"),
+                    Text.mm("<gray>If the original is destroyed, this shadow disappears.</gray>")));
+            meta.getPersistentDataContainer()
+                    .set(Keys.SHADOW_MARK, PersistentDataType.STRING, linkId);
+            meta.getPersistentDataContainer().set(
+                    Keys.SHADOW_OWNER, PersistentDataType.STRING, owner.getUniqueId().toString());
+            shadow.setItemMeta(meta);
         }
         owner.getInventory().setItemInMainHand(held);
+        owner.getInventory().addItem(shadow);
         owner.playSound(owner.getLocation(), Sound.BLOCK_AMETHYST_BLOCK_CHIME, 0.8f, 0.6f);
         owner.getWorld().spawnParticle(Particle.SMOKE, owner.getLocation().add(0, 1, 0), 30, 0.3, 0.5, 0.3, 0.02);
-        Text.msg(owner, "<dark_gray>The item takes on a shadowy form, permanently.</dark_gray>");
+        Text.msg(owner, "<dark_gray>A permanent shadow copy forms beside the original.</dark_gray>");
         return true;
     }
 
@@ -265,8 +291,77 @@ public class MarbKit implements PowerKit, Listener {
             return false;
         }
         ItemMeta meta = item.getItemMeta();
-        return meta != null && meta.getPersistentDataContainer()
-                .has(Keys.SHADOW_MARK, PersistentDataType.BYTE);
+        return meta != null && (meta.getPersistentDataContainer()
+                .has(Keys.SHADOW_MARK, PersistentDataType.STRING)
+                || meta.getPersistentDataContainer().has(Keys.SHADOW_MARK, PersistentDataType.BYTE));
+    }
+
+    private static String originalId(ItemStack item) {
+        ItemMeta meta = item == null ? null : item.getItemMeta();
+        return meta == null ? null : meta.getPersistentDataContainer()
+                .get(Keys.SHADOW_ORIGINAL_ID, PersistentDataType.STRING);
+    }
+
+    private static String shadowId(ItemStack item) {
+        ItemMeta meta = item == null ? null : item.getItemMeta();
+        return meta == null ? null : meta.getPersistentDataContainer()
+                .get(Keys.SHADOW_MARK, PersistentDataType.STRING);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onOriginalBreak(PlayerItemBreakEvent event) {
+        removeLinkedShadow(originalId(event.getBrokenItem()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onOriginalDespawn(ItemDespawnEvent event) {
+        removeLinkedShadow(originalId(event.getEntity().getItemStack()));
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onDroppedOriginalDestroyed(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Item dropped)) {
+            return;
+        }
+        String id = originalId(dropped.getItemStack());
+        if (id == null) {
+            return;
+        }
+        switch (event.getCause()) {
+            case LAVA, FIRE, FIRE_TICK, BLOCK_EXPLOSION, ENTITY_EXPLOSION, CONTACT ->
+                    removeLinkedShadow(id);
+            default -> { }
+        }
+    }
+
+    private void removeLinkedShadow(String linkId) {
+        if (linkId == null) {
+            return;
+        }
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            removeLinkedShadow(player.getInventory().getContents(), player, linkId);
+            for (int slot = 0; slot < player.getEnderChest().getSize(); slot++) {
+                if (linkId.equals(shadowId(player.getEnderChest().getItem(slot)))) {
+                    player.getEnderChest().setItem(slot, null);
+                }
+            }
+        }
+        for (org.bukkit.World world : Bukkit.getWorlds()) {
+            for (Item item : world.getEntitiesByClass(Item.class)) {
+                if (linkId.equals(shadowId(item.getItemStack()))) {
+                    item.remove();
+                }
+            }
+        }
+    }
+
+    private void removeLinkedShadow(ItemStack[] contents, Player player, String linkId) {
+        for (int slot = 0; slot < contents.length; slot++) {
+            if (linkId.equals(shadowId(contents[slot]))) {
+                player.getInventory().setItem(slot, null);
+                Text.actionBar(player, "<dark_gray>Your shadow vanished with its original.</dark_gray>");
+            }
+        }
     }
 
     // ---- abilities ------------------------------------------------------
@@ -277,7 +372,7 @@ public class MarbKit implements PowerKit, Listener {
                 new Ability(ABILITY_ENDERCHEST, "Ender Chest", "Open your ender chest anywhere."),
                 new Ability(ABILITY_PORTAL, "Portal", "Open a nether portal where you stand."),
                 new Ability(ABILITY_SHADOW, "Shadow Item",
-                        "Turn the held item into a permanent shadow of itself."));
+                        "Create a permanent copy that vanishes when its original is destroyed."));
     }
 
     @Override

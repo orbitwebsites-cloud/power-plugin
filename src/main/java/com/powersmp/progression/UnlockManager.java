@@ -47,6 +47,21 @@ public class UnlockManager implements Listener {
             for (String key : thresholds.getKeys(false)) {
                 killThresholds.put(key.toLowerCase(java.util.Locale.ROOT), thresholds.getInt(key, 0));
             }
+            // Preserve Night Scar's old 0/4/8 progression when an existing server updates.
+            migrateThreshold("infernal_vitality", "permanent_strength");
+            migrateThreshold("shadow_bomb", "dash");
+            migrateThreshold("cutlass_master", "density_mace");
+            migrateThreshold("cutlass_master", "combat_vitality");
+            // Preserve Doman's existing 0/4/8 progress while replacing the old Limit Break kit.
+            migrateThreshold("blood_bound", "limit_break");
+            migrateThreshold("tracking", "ascended_flight");
+            migrateThreshold("bloodlust", "final_burst");
+        }
+    }
+
+    private void migrateThreshold(String current, String legacy) {
+        if (!killThresholds.containsKey(current) && killThresholds.containsKey(legacy)) {
+            killThresholds.put(current, killThresholds.get(legacy));
         }
     }
 
@@ -66,7 +81,9 @@ public class UnlockManager implements Listener {
         return switch (power.gate()) {
             case ALWAYS -> true;
             case TRIGGER -> data.hasUnlocked(power.id());
-            case KILLS -> unlockAll
+            // Shadows Technique explicitly starts with Divine Dogs and earns its later tiers;
+            // the server-wide development shortcut must not hand out Mahoraga immediately.
+            case KILLS -> (unlockAll && !"disasterflames".equals(power.kitId()))
                     || data.hasUnlocked(power.id())
                     || data.kills() >= threshold(power);
         };
@@ -149,12 +166,12 @@ public class UnlockManager implements Listener {
 
     /** Persists any kill-gated power whose threshold the player has now passed. */
     public void checkKillUnlocks(Player player) {
-        if (unlockAll) {
-            return;
-        }
         PlayerData data = plugin.data().get(player.getUniqueId());
         for (Power power : Power.values()) {
             if (power.gate() != Power.Gate.KILLS || !plugin.kits().isOwner(player, power.kitId())) {
+                continue;
+            }
+            if (unlockAll && !"disasterflames".equals(power.kitId())) {
                 continue;
             }
             if (!data.isRevoked(power.id())

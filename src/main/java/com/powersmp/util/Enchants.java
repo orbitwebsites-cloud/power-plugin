@@ -7,19 +7,14 @@ import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /**
- * Mace enchantment lookup.
- *
- * <p>Resolved through the registry rather than as static constants, for the same reason
- * {@link Attributes} does: enchantments became registry-backed in 1.20.5, and Density, Breach and
- * Wind Burst only exist from 1.21. A missing one degrades to a logged warning instead of a
- * link error at class load.
+ * Registry-backed enchantment lookup for custom signature weapons.
  */
 public final class Enchants {
 
-    public static final Enchantment DENSITY = resolve("density");
-    public static final Enchantment BREACH = resolve("breach");
-    public static final Enchantment WIND_BURST = resolve("wind_burst");
     public static final Enchantment RIPTIDE = resolve("riptide");
+    public static final Enchantment LUNGE = resolve("lunge");
+    public static final Enchantment SWEEPING_EDGE = resolve("sweeping_edge");
+    public static final Enchantment SHARPNESS = resolve("sharpness");
     public static final Enchantment VANISHING_CURSE = resolve("vanishing_curse");
 
     private Enchants() {
@@ -46,15 +41,15 @@ public final class Enchants {
     }
 
     public static void warnMissing(Logger logger) {
-        check(logger, DENSITY, "density");
-        check(logger, BREACH, "breach");
-        check(logger, WIND_BURST, "wind_burst");
+        check(logger, LUNGE, "lunge");
+        check(logger, SWEEPING_EDGE, "sweeping_edge");
+        check(logger, SHARPNESS, "sharpness");
     }
 
     private static void check(Logger logger, Enchantment enchantment, String name) {
         if (enchantment == null) {
             logger.warning("Enchantment '" + name + "' is unavailable on this server version; "
-                    + "the mace will skip that rung of its ladder.");
+                    + "the matching signature weapon will omit it.");
         }
     }
 }

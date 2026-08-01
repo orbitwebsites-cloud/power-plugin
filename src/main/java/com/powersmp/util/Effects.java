@@ -1,5 +1,6 @@
 package com.powersmp.util;
 
+import com.powersmp.team.TeamRules;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -24,6 +25,7 @@ public final class Effects {
             return;
         }
         entity.addPotionEffect(new PotionEffect(type, durationTicks, amplifier, true, false, true));
+        TeamRules.shareBuff(entity, type, durationTicks, amplifier);
     }
 
     /**
@@ -51,6 +53,9 @@ public final class Effects {
         if (type == null || amplifier < 0) {
             return;
         }
+        // Share on every passive refresh, even when the owner's infinite effect already exists;
+        // otherwise a teammate who walks into range later would never receive it.
+        TeamRules.shareBuff(entity, type, PotionEffect.INFINITE_DURATION, amplifier);
         PotionEffect existing = entity.getPotionEffect(type);
         if (existing != null && existing.getAmplifier() > amplifier) {
             return;
@@ -99,12 +104,21 @@ public final class Effects {
      * on both, in the same spirit as the registry lookups in {@code Attributes} and {@code Enchants}.
      */
     public static boolean isHarmful(PotionEffectType type) {
+        return hasCategory(type, "HARMFUL");
+    }
+
+    /** Whether an effect is safe to mirror to nearby teammates. Neutral markers are excluded. */
+    public static boolean isBeneficial(PotionEffectType type) {
+        return hasCategory(type, "BENEFICIAL");
+    }
+
+    private static boolean hasCategory(PotionEffectType type, String expected) {
         if (type == null) {
             return false;
         }
         try {
             Object category = type.getEffectCategory();
-            return category instanceof Enum<?> value && "HARMFUL".equals(value.name());
+            return category != null && expected.equals(category.toString());
         } catch (Throwable ignored) {
             return false;
         }

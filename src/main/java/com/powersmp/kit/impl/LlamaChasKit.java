@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
@@ -175,6 +176,9 @@ public class LlamaChasKit implements PowerKit, Listener {
             return;
         }
         Entity target = event.getEntity();
+        if (target instanceof LivingEntity living && !TeamRules.canAffect(player, living)) {
+            return;
+        }
         Vector away = target.getLocation().toVector().subtract(player.getLocation().toVector());
         if (away.lengthSquared() < 1.0e-4) {
             return;
@@ -271,7 +275,8 @@ public class LlamaChasKit implements PowerKit, Listener {
                 break;
             }
             for (Entity nearby : point.getWorld().getNearbyEntities(point, 0.6d, 0.6d, 0.6d)) {
-                if (nearby instanceof LivingEntity candidate && !candidate.equals(owner)) {
+                if (nearby instanceof LivingEntity candidate && !candidate.equals(owner)
+                        && TeamRules.canAffect(owner, candidate)) {
                     struck = candidate;
                     break;
                 }
@@ -369,7 +374,8 @@ public class LlamaChasKit implements PowerKit, Listener {
         int caught = 0;
 
         for (Entity nearby : owner.getNearbyEntities(freezeRange, freezeRange, freezeRange)) {
-            if (!(nearby instanceof LivingEntity target) || target.equals(owner)) {
+            if (!(nearby instanceof LivingEntity target) || target.equals(owner)
+                    || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
             if (!owner.hasLineOfSight(target)) {

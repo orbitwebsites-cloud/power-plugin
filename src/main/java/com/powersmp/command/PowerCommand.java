@@ -19,7 +19,8 @@ import org.jetbrains.annotations.NotNull;
  * {@code /power} -- the player-facing entry point to their own kit.
  *
  * <p>Every activated ability is reachable here. Each player's own chosen client action (see
- * {@code /power keybind}) is a shortcut for the kit's primary, but a command always works, which
+ * {@code /power keybinds}) can map each detectable gesture to a different ability, but a command
+ * always works, which
  * matters for abilities whose natural trigger would collide with normal play.
  */
 public class PowerCommand implements CommandExecutor, TabCompleter {

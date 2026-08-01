@@ -6,6 +6,7 @@ import java.util.List;
 import org.bukkit.Material;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.CustomModelDataComponent;
 import org.bukkit.persistence.PersistentDataType;
 
 /** Custom-model-data ids shared by the optional lightweight PowerSMP resource pack. */
@@ -17,6 +18,12 @@ public final class ResourcePackItems {
     public static final int FINAL_ORB = 27004;
     public static final int ASCENDED_WING = 27005;
     public static final int TECH_SHIELD = 27006;
+    public static final int BONE_BLADE = 27007;
+    public static final int BLOODLUST = 27008;
+    public static final int NIGHTSCAR_CUTLASS = 27009;
+    public static final int TIDE_TRIDENT = 27010;
+    public static final int MOMENTUM_SPEAR = 27011;
+    public static final int MASTERQUIZLA_GLOCK = 27012;
 
     private ResourcePackItems() {
     }
@@ -29,7 +36,11 @@ public final class ResourcePackItems {
         if (meta == null) {
             return;
         }
-        meta.setCustomModelData(modelData);
+        // The 1.21.4+ item definition format reads custom_model_data as a float list.
+        // Set it directly rather than relying on Bukkit's deprecated integer bridge.
+        CustomModelDataComponent customModelData = meta.getCustomModelDataComponent();
+        customModelData.setFloats(List.of((float) modelData));
+        meta.setCustomModelDataComponent(customModelData);
         item.setItemMeta(meta);
     }
 

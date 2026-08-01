@@ -38,7 +38,7 @@ commands:
     permission: powersmp.use
   powersmp:
     description: PowerSMP administration.
-    usage: /powersmp <reload|info [player]|grant <player> <power>|revoke <player> <power>|kills <player> [amount]|spear [player]>
+    usage: /powersmp <reload|info [player]|grant <player> <kit-or-owner-IGN>|revoke <player> <kit-or-owner-IGN>|kills <player> [amount]|spear [player]>
     aliases: [psmp]
     permission: powersmp.admin
 

@@ -1,12 +1,12 @@
 package com.powersmp.kit;
 
 /**
- * Every client action a server plugin can actually see and use to fire a kit's primary ability.
+ * Every client action a server plugin can see and map to an activated ability.
  *
  * <p>There is no way to detect a literal key like "G" from the server -- Minecraft never sends the
  * physical key, only the action it is bound to (sneak, attack, use-item, swap-hands, and so on).
- * What {@code /power keybind} actually offers is a choice of <em>which action</em> triggers your
- * ability. To get a specific physical key, rebind that vanilla action to it in your own Minecraft
+ * What {@code /power keybinds} offers is an independent ability mapping for each action. To get a
+ * specific physical key, rebind that vanilla action to it in your own Minecraft
  * Controls menu -- e.g. set {@code SWAP_HANDS} here, then rebind "Swap Item In Hand" from F to G in
  * Controls, and pressing G fires your ability. The mapping is entirely client-side and needs no
  * server support.

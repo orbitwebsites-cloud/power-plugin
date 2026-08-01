@@ -20,6 +20,8 @@ general:
   tick-interval-ticks: 40
   # Show remaining cooldowns on the action bar.
   cooldown-action-bar: true
+  # Play a quiet cue and show READY when any ability finishes cooling down.
+  cooldown-ready-notifications: true
   # Which client action fires a player's primary ability is now a per-player choice, not a
   # server-wide setting -- see /power keybind and com.powersmp.kit.AbilityTrigger. Defaults to
   # sneak + right-click, same as before, but every player can change it for themselves.
@@ -29,6 +31,21 @@ general:
   cooldown-action-bar-max-seconds: 600
   # Auto-save interval for data.yml, in seconds.
   autosave-seconds: 300
+
+# =====================================================================
+# Vanilla scoreboard teams
+# =====================================================================
+teams:
+  # Players on the same /team are skipped by PowerSMP damage, pulls, freezes,
+  # stuns, blindness, slowness and other hostile ability effects.
+  protect-from-negative-abilities: true
+  buff-sharing:
+    enabled: true
+    radius: 50.0
+    # Shared copies can never out-rank level II or last longer than 15 seconds.
+    # Passives refresh while the teammate stays in range, then expire naturally.
+    max-amplifier: 1
+    max-duration-seconds: 15.0
 
 # ---------------------------------------------------------------------
 # Server-wide, not tied to any kit: everyone is immune to all damage for
@@ -63,8 +80,14 @@ assignments:
   TechKnightGaming: techknight
   ahriahn: voidwalker
   disasterflames: disasterflames
+  FunnySounds: funnysounds
+  ThePoultryMan10: poultryman
+  masterquizla: masterquizla
   _glueman: theghost
   crazyTNT2cool: crazytnt2cool
+  I_BL0W_STUFF_UP: bites_the_dust
+  IdleDeathGamble: idledeathgamble
+  Ldledeathgamble: idledeathgamble
   # Phantom + Life Stealer run all the time; Lucky's reroll timer overrides both
   # with a single rolled kit for its duration, then reverts to all three.
   JustSoopTBH: phantom,lifestealer,lucky
@@ -99,21 +122,25 @@ progression:
     fat_tank: 4
     greedy_heal: 8
     # domanthegamer's low / mid / high tiers.
-    limit_break: 0
-    ascended_flight: 4
-    final_burst: 8
+    blood_bound: 0
+    tracking: 4
+    bloodlust: 8
     # Sparkkkkkkkk's low / mid / high tiers.
     gunpowder: 0
     explosion: 4
     atom_bomb: 8
     # Night_Scar3's low / mid / high tiers.
-    permanent_strength: 0
-    dash: 4
-    density_mace: 8
+    infernal_vitality: 0
+    shadow_bomb: 4
+    cutlass_master: 8
     # Marb13_'s low / mid / high tiers.
     miners_haven: 0
     ender_magic: 4
     shadow_master: 8
+    # Shadows Technique: dogs at the start, utility at 4 kills, Mahoraga at 10.
+    rabbit_escape: 4
+    shadow_storage: 4
+    mahoraga: 10
   # Announce unlocks in chat to the whole server.
   broadcast-unlocks: true
 
@@ -232,12 +259,6 @@ mavricc:
     # Set true to carry red's armour penalty, blue's Weakness and green's
     # Slowness across as well.
     consolidation-includes-drawbacks: false
-    # The weakened mace: keeps Breach, loses the slam. The fall-distance
-    # damage bonus is subtracted back out on hit, since vanilla bakes it
-    # into the mace's attack and there is no flag to turn it off.
-    mace-breach-level: 4
-    mace-unbreakable: true
-    mace-reissue-if-lost: true
 
 # =====================================================================
 # NorthOfNowhere -- JoJo-flavoured heavy-cooldown ults
@@ -304,10 +325,11 @@ xcr1t1cx:
     hits-required: 3
     wither-duration-seconds: 3
     wither-amplifier: 0
-    cooldown-seconds: 10
-    # false = real lightning (deals vanilla lightning damage and can set
-    # fires). true = visual strike only, no damage, no fire.
-    cosmetic-lightning-only: false
+    slowness-duration-seconds: 3
+    slowness-level: 3
+    lightning-damage: 4.0          # 2 hearts before armour
+    cooldown-seconds: 0            # Critic requested no Ka-Chow cooldown
+    # Lightning is visual-only; controlled damage above prevents random splash/fire damage.
 
   overdrive:
     # Sprint continuously without taking damage.
@@ -326,9 +348,8 @@ xcr1t1cx:
 
   spear-master:
     # Built on vanilla Iron Spear material (Material.IRON_SPEAR) from Minecraft 1.21.11.
-    # xCR1T1Cx's "Lunge" (pull + stun on hit with cooldown) is custom -- separate from
-    # vanilla's Lunge enchantment (which self-propels on jabs). The names collide but the
-    # mechanics are unrelated.
+    # The item has the real vanilla Lunge V enchantment for jab movement. The pull + stun
+    # below is Critic's additional custom effect on a successful hit.
     tiers:                         # ASSUMED deltas (spec asks for exact numbers)
       3: { pull-strength: 0.8, stun-seconds: 3.0 }
       4: { pull-strength: 1.1, stun-seconds: 4.0 }
@@ -342,8 +363,7 @@ xcr1t1cx:
     # of a minute". This was briefly 0 under a blanket "no nerfs" pass; the
     # Every successful spear hit lunges and stuns, as specified.
     hit-cooldown-seconds: 0
-    # Player kills only -- was always true with no toggle before, so mob kills silently
-    # upgraded Lunge tiers. Matches techknight's mace.
+    # Player kills only; mob kills do not upgrade Lunge tiers.
     count-player-kills: true
     count-mob-kills: false
 
@@ -367,16 +387,25 @@ itzmetentx:
     rain-counts: true
 
   trident-god:
-    # Vanilla will not riptide out of water or rain, and will not let a
-    # Riptide trident be thrown either -- so nothing happens on release and
-    # there is no event to cancel. The dry launch is re-implemented instead,
-    # using vanilla's own curve: base + per-level * riptide level.
+    # Dry Riptide is driven from right-click so it works consistently in open
+    # air and with a block under the crosshair. Wet Riptide remains vanilla.
     dry-riptide-power-base: 3.0
     dry-riptide-power-per-level: 1.5
+    # Applies in water and open air; all launches use the same manual path.
+    riptide-cooldown-seconds: 30
+    # Three melee hits on the same player inside this window trigger the debuff.
+    combo-window-seconds: 5
+    combo-debuff-seconds: 5
+    combo-attack-speed-reduction: 0.15
     # Anything caught by the spin attack is stunned. It stays hittable, so
     # this is an opening to attack rather than a shield around the target.
     hit-stun-seconds: 3
     stun-players-only: false
+    # Stop the launch and stun when a dry Riptide reaches a target.
+    collision-range: 0.6
+    # Original Poseidon's Trident properties from JadenManGODTrident.
+    spear-speed-damage-multiplier: 5.0
+    lightning-enabled: true
 
 # =====================================================================
 # JJlionjxi -- low / mid / high tier kit
@@ -405,41 +434,46 @@ jjlionjxi:
     cooldown-seconds: 90           # ASSUMED -- no cooldown was given
 
 # =====================================================================
-# domanthegamer -- Limit Break
+# domanthegamer -- Blood Tracker / Bloodlust
 # =====================================================================
 domanthegamer:
-  # Passive: permanent Strength I, Speed I, no fall damage, and a meter filled
-  # by hitting other players. Five hits fills the default meter.
-  limit-break:
-    strength-amplifier: 0
-    speed-amplifier: 0
-    energy-maximum: 100.0
-    energy-per-player-hit: 20.0
+  passive:
+    resistance-level: 1
+    regeneration-level: 1
 
-  # Main ability. Two-second charge, then a piercing blue beam.
-  kamehameha:
-    charge-ticks: 40
-    range: 35.0
-    damage: 16.0                   # 8 hearts before armour
-    knockback: 2.4
-    hit-radius: 0.9
-    cooldown-seconds: 35
+  tracking:
+    # Keeps ordinary emeralds valid for villager trades and replenishes them after use.
+    minimum-emeralds: 64
+    # Every other player gets zero receive range, making Locator Bar access exclusive.
+    locator-range: 1024.0
 
-  ascended-flight:
-    duration-seconds: 10
-    speed-amplifier: 2             # Speed III
-    fly-speed: 0.18
-    dash-power: 2.0
-    dash-cooldown-seconds: 1.0
-    cooldown-seconds: 25
-
-  final-burst:
-    charge-ticks: 60               # 3 seconds
-    radius: 9.0
-    damage: 18.0                   # 9 hearts before armour
-    knockback: 2.8
-    resistance-amplifier: 2        # Resistance III during charge
-    cooldown-seconds: 90
+  # Faithful Arc 1 progression: bleed at base, then one upgrade per player kill.
+  bloodlust:
+    bleed-chance: 0.15
+    bleed-damage: 1.0
+    # The source plugin applies two pulses per second for ten seconds.
+    bleed-pulses: 20
+    bleed-interval-ticks: 10
+    speed-kills: 1                 # Speed II while held
+    blood-sense-kills: 2
+    blood-sense-range: 30.0
+    blood-trail-kills: 3
+    blood-trail-duration-seconds: 10
+    # The trail lingers after Doman moves through an area. Enemies touching it
+    # take half a heart every pulse and receive Slowness II; teammates are safe.
+    blood-trail-linger-seconds: 5
+    blood-trail-pulse-ticks: 10
+    blood-trail-point-spacing: 0.75
+    blood-trail-radius: 1.5
+    blood-trail-damage: 1.0
+    blood-trail-slowness-level: 2
+    blood-trail-slowness-seconds: 2
+    blood-trail-cooldown-seconds: 60
+    strength-kills: 4              # Strength I while held
+    blood-chain-kills: 5
+    blood-chain-range: 20.0
+    blood-chain-pull: 3.0
+    blood-chain-cooldown-seconds: 30
 
 # =====================================================================
 # Sparkkkkkkkk -- The Atom
@@ -468,34 +502,27 @@ sparkkkkkkkk:
     cooldown-seconds: 300
 
 # =====================================================================
-# Night_Scar3 -- Mace Master
+# Night_Scar3 -- Infernal Vitality / Shadow Bomb / Cutlass
 # =====================================================================
-# Separate from TechKnightGaming's mace kit -- different player, different
-# rules, no shared state.
 night_scar3:
   # LOW TIER
-  strength:
-    amplifier: 0                   # Permanent Strength I
+  infernal-vitality:
+    hearts: 12                     # 24 health points total
+    fire-resistance: true
 
   # MID TIER
-  dash:
-    charges: 3
-    distance-blocks: 15.0          # Moves 15 blocks in the direction looking (including up)
-    recharge-seconds: 10           # Charges return one at a time
-    wind-burst-level: 1            # "gives me (Wind Burst)" -- on the mace
+  shadow-bomb:
+    combo-hits: 3
+    combo-window-seconds: 3.0
+    duration-seconds: 5
+    slowness-level: 4
+    hearts: 15                     # upgrades max health to 30 points
 
   # HIGH TIER
-  mace:
-    # "Every kill = +1 density Max (Density 8)"
-    max-density: 8
-    # "After the mace is Maxed every kill = 1 extra heart" -- 2.0 health = 1 heart.
-    health-per-kill-after-max: 2.0
-    max-bonus-health: 40.0         # ASSUMED cap, 20 extra hearts
-    unbreakable: true
-    # Player kills only -- was always true with no toggle before, so mob kills silently
-    # raised density. Matches techknight's mace.
-    count-player-kills: true
-    count-mob-kills: false
+  cutlass:
+    hearts: 20                     # final max: 40 health points
+    material: IRON_SWORD           # no native Java cutlass; custom soulbound iron sword
+    sweeping-edge-level: 3
 
 # =====================================================================
 # Marb13_ -- Miner's Haven / Ender Magic / Portal and Shadow Master
@@ -525,8 +552,8 @@ marb13:
     # Off by default: a portal that overwrites solid blocks is a demolition
     # tool, not a movement power. Air and replaceables only unless enabled.
     portal-replaces-solid-blocks: false
-    # Turns the held item into a permanent shadow of itself in place --
-    # not a copy, so there is nothing to duplicate and nothing to expire.
+    # Creates one permanent shadow copy. The copy vanishes if its linked
+    # original breaks, burns, explodes, or despawns.
     shadow-cooldown-seconds: 60
 
 # =====================================================================
@@ -623,28 +650,22 @@ monkeyman:
     fire-resistance: true
 
 # =====================================================================
-# TechKnightGaming -- Mace Massacre
+# TechKnightGaming -- gadget combat / Restock
 # =====================================================================
 techknight:
-  mace:
-    # "1 kill density 1 and so on" runs out of vanilla at 5 kills.
-    #
-    # LADDER  -> Density I-V (kills 1-5), then Breach I-IV (6-9), then
-    #            Wind Burst I-III (10-12). Stays inside vanilla levels and
-    #            keeps escalating past kill 5.
-    # LITERAL -> Density literally equals the kill count, past the vanilla
-    #            cap, up to literal-max-density. Density scales damage with
-    #            fall distance, so this becomes a one-shot machine quickly.
-    mode: LITERAL                  # "and so on", taken literally
-    # 255 is the hard ceiling of the enchantment data component, not a
-    # balance choice -- the format cannot store more than that.
-    literal-max-density: 255
-
-    # "every kill" taken literally: mobs and players, mace in hand or not.
-    count-player-kills: true
-    count-mob-kills: true
-    require-mace-in-hand: false
-    unbreakable: true
+  # Passive signature weapon. Only player kills count because the shared
+  # PvP kill counter is used; mobs cannot advance Titan Protocol.
+  titan-protocol:
+    tier-2-player-kills: 2
+    tier-3-player-kills: 10
+    tier-1-damage-bonus: 2.0
+    tier-2-damage-bonus: 5.0
+    tier-3-damage-bonus: 9.0
+    # Tier I (0 kills): Sharpness III and +2 damage over its Netherite Sword base.
+    # Tier II (2 kills): Sharpness V, Strength II, Speed I, Fire Resistance I.
+    # Tier III (10 kills): Sharpness VIII, Strength II, Speed II,
+    # Fire Resistance I and Resistance II.
+    # Buffs refresh while the tagged blade is anywhere in the player inventory.
 
   restock:
     # 5 hours. Persisted to data.yml, so a restart does not refund it.
@@ -668,60 +689,25 @@ techknight:
     fill-inventory: true
     max-stacks: 36
 
-  # Added after the fact -- the original three read as gear/utility rather than a "power" you press
-  # a button for. Leap up, slam down. Radius and damage scale with the same mace-kills counter
-  # Density already rides, so it grows alongside the rest of the kit.
-  earthbreaker:
-    leap-power: 1.3                # ASSUMED -- vertical launch strength
-    delay-ticks: 12                # ASSUMED -- ~0.6s hang time before the slam lands
-    radius: 5.0                    # ASSUMED -- base AoE radius at 0 mace kills
-    radius-per-level: 0.2          # ASSUMED -- extra radius per mace-kill level, capped by scaling-cap
-    damage: 6.0                    # ASSUMED -- base damage (3 hearts) at 0 mace kills
-    damage-per-level: 0.4          # ASSUMED -- extra damage per mace-kill level
-    scaling-cap: 10                # mace-kill levels beyond this add nothing further
-    knockup-power: 0.8             # ASSUMED -- minimum upward velocity applied to everyone caught
-    cooldown-seconds: 25           # ASSUMED
-
-  # Passive, no cooldown, no toggle. Only fires with his own soulbound mace in hand.
+  # Passive, no cooldown, no toggle. Applies to blocked melee hits.
   shield-break:
     enabled: true
     chance: 0.5                    # half of blocked hits ignore the shield entirely
 
-  fortify:
-    duration-seconds: 8
-    resistance-amplifier: 1        # Resistance II
-    knockback-resistance: 0.75
-    cooldown-seconds: 30
-
-  reflect-shield:
-    duration-seconds: 10
-    damage-ratio: 0.5              # returns half of post-mitigation incoming damage
-    cooldown-seconds: 40
-
-  shockwave:
-    range: 10.0
-    half-angle-degrees: 45.0       # 90-degree cone in front
-    damage: 6.0
-    knockup-power: 0.9
-    cooldown-seconds: 20
-
-  overload:
-    window-seconds: 20
-    damage-multiplier: 2.0
-    wither-seconds: 5
-    wither-amplifier: 0             # Wither I
-    cooldown-seconds: 45
-
-  decoy:
-    duration-seconds: 10
-    taunt-radius: 16.0
-    cooldown-seconds: 30
-
   grapple-shot:
-    range: 24.0
     pull-power: 1.35
     pulse-ticks: 30
-    cooldown-seconds: 15
+    range: 100.0
+    cooldown-seconds: 0
+
+  # Original Altar Arc 1 Bone Blade actives, layered under Titan Protocol.
+  bone-blade:
+    skeletal-leap-cooldown-seconds: 15
+    skeletal-leap-power: 2.5
+    skeletal-leap-speed-seconds: 6
+    bone-cage-cooldown-seconds: 20
+    bone-cage-projectile-speed: 4.0
+    bone-cage-stun-seconds: 10
 
 # =====================================================================
 # Voidwalker (ahriahn) -- Shadow Step / Grasp of Eylis / Illusory Realm
@@ -811,29 +797,42 @@ illusory-realm:
     weaving: 0
 
 # =====================================================================
-# disasterflames -- Instant Exchange / Brother Bond / Swap Surge
+# disasterflames -- Shadows Technique
 # =====================================================================
 disasterflames:
-  instant-exchange:
-    # No range value by design: all currently loaded entities are considered.
-    cooldown-seconds: 0.0
-    # Expands entity hitboxes slightly so aiming is practical without selecting
-    # something merely near the crosshair.
-    target-assist-radius: 0.25
+  divine-dogs:
+    cooldown-seconds: 120
+  rabbit-escape:
+    duration-seconds: 15
+    cooldown-seconds: 60
+  mahoraga:
+    summoning-seconds: 5
+    duration-seconds: 120
+    cooldown-seconds: 600
+    warning-radius: 48
 
-  brother-bond:
-    # "Near" was not given a number. Teammates are players on the same
-    # scoreboard team; both players receive these effects while in range.
-    radius: 10.0                      # ASSUMED
-    strength-amplifier: 0             # Strength I
-    speed-amplifier: 0                # Speed I
-    resistance-amplifier: 0           # Resistance I
+# =====================================================================
+# FunnySounds -- Village Charmer
+# =====================================================================
+funnysounds:
+  range: 8.0
+  cooldown-seconds: 60
 
-  swap-surge:
-    strength-amplifier: 1             # Strength II
-    speed-amplifier: 1                # Speed II
-    buff-seconds: 10.0                 # ASSUMED
-    invincibility-seconds: 2.0         # ASSUMED -- "brief"
+# =====================================================================
+# ThePoultryMan10 -- Damage Adaptation
+# =====================================================================
+poultryman:
+  damage-per-armor: 1000.0
+  max-bonus-armor: 10
+
+# =====================================================================
+# masterquizla -- Immortal Arsenal
+# =====================================================================
+masterquizla:
+  glock:
+    range: 80.0
+    damage: 14.0
+    fire-cooldown-seconds: 0.35
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form
@@ -848,10 +847,10 @@ theghost:
     attack-cooldown-seconds: 1.0    # ASSUMED -- roughly a normal attack speed
 
   spectral-body:
-    # How many blocks out from him get checked every move. Cubed, so this is
-    # not cheap -- 2 is a 5x5x5 box (125 blocks) checked on every movement
-    # event. Raising it much further starts to cost real packet traffic.
-    scan-radius: 2
+    # Holding sneak explicitly engages phase. Sneak alone descends; sneak +
+    # WASD phases horizontally. A 4-block fake-air bubble plus temporary
+    # Night Vision keeps the underground route visible.
+    scan-radius: 4
     # These stay solid even to him. Names must match a real Material.
     impassable-blocks: [OBSIDIAN, BEDROCK, REINFORCED_DEEPSLATE]
 
@@ -891,6 +890,27 @@ lifestealer:
     multiplier: 2
 
 # =====================================================================
+# I_BL0W_STUFF_UP -- Bites the Dust
+# =====================================================================
+bites-the-dust:
+  sticky-tnt:
+    max-stock: 5
+    recharge-seconds: 6
+    empty-refill-seconds: 30
+    fuse-seconds: 1
+    radius: 7
+    damage: 20
+  stab-shot:
+    range: 60
+    radius: 5
+    damage: 24
+    cooldown-seconds: 30
+  nuke-shot:
+    radius: 12
+    damage: 36
+    cooldown-seconds: 45
+
+# =====================================================================
 # crazyTNT2cool -- The Honored One / complete Limitless kit
 # =====================================================================
 # Intentionally overtuned: the request was to give him the full Gojo power set.
@@ -920,9 +940,9 @@ crazytnt2cool:
     cooldown-seconds: 18
 
   hollow-purple:
-    range: 64.0
-    radius: 2.25
-    damage: 32.0                   # 16 hearts before armour
+    range: 100.0
+    radius: 4.0
+    damage: 60.0                   # 30 hearts before armour; passes through walls
     knockback: 3.0
     cooldown-seconds: 90
 
@@ -935,7 +955,26 @@ crazytnt2cool:
     cooldown-seconds: 45
 
   unlimited-void:
-    radius: 16.0
-    duration-seconds: 8
-    damage: 6.0                    # initial overload damage
+    radius: 24.0
+    duration-seconds: 12
+    damage: 4.0                    # sure-hit overload every second
     cooldown-seconds: 180
+
+# =====================================================================
+# Ldledeathgamble -- Idle Death Gamble
+# =====================================================================
+idledeathgamble:
+  base-win-chance-percent: 14
+  post-win-reset-percent: 15
+  failure-increase-percent: 14     # Intentionally uncapped
+  fever-chance-percent: 50
+  # Failed rolls use the normal 35s cooldown.
+  cooldown-seconds: 35
+  # Starts after the 4m 11s Jackpot buffs expire.
+  jackpot-cooldown-seconds: 120
+  # Informational: Jackpot is enforced in code at exactly 251s (4m 11s), so an
+  # older server-side kits.yml cannot accidentally shorten it after an update.
+  buff-seconds: 251
+  strength-amplifier: 2           # Strength III
+  regeneration-amplifier: 4       # Regeneration V
+  speed-amplifier: 2              # Speed III

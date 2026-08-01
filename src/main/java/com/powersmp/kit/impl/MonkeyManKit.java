@@ -6,6 +6,7 @@ import com.powersmp.kit.PowerKit;
 import com.powersmp.mirage.ArmorStandMirageProvider;
 import com.powersmp.mirage.MirageProvider;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.List;
@@ -208,7 +209,8 @@ public class MonkeyManKit implements PowerKit, Listener {
         if (!plugin.kits().isOwner(player, ID) || !plugin.unlocks().isUnlocked(player, Power.FLASH)) {
             return;
         }
-        if (!(event.getEntity() instanceof LivingEntity target)) {
+        if (!(event.getEntity() instanceof LivingEntity target)
+                || !TeamRules.canAffect(player, target)) {
             return;
         }
         // Internal cooldown, or every swing in a combo re-blinds and it never wears off.
@@ -293,7 +295,8 @@ public class MonkeyManKit implements PowerKit, Listener {
         int blinded = 0;
         for (org.bukkit.entity.Entity nearby : owner.getNearbyEntities(
                 flashActivateRadius, flashActivateRadius, flashActivateRadius)) {
-            if (nearby instanceof LivingEntity target && !target.equals(owner)) {
+            if (nearby instanceof LivingEntity target && !target.equals(owner)
+                    && TeamRules.canAffect(owner, target)) {
                 Effects.apply(target, PotionEffectType.BLINDNESS, flashBlindSeconds * 20, 0);
                 blinded++;
             }

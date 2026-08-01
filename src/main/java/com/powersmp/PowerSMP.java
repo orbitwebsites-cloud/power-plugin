@@ -12,6 +12,7 @@ import com.powersmp.food.MushroomHungerService;
 import com.powersmp.item.BoundItemListener;
 import com.powersmp.item.ResourcePackItems;
 import com.powersmp.kit.AbilityTriggerListener;
+import com.powersmp.kit.Ability;
 import com.powersmp.kit.KitRegistry;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.command.XpCommand;
@@ -20,6 +21,7 @@ import com.powersmp.kit.impl.DisasterflamesKit;
 import com.powersmp.kit.impl.DomanKit;
 import com.powersmp.kit.impl.TheGhostKit;
 import com.powersmp.kit.impl.ItzMeTentxKit;
+import com.powersmp.kit.impl.IdleDeathGambleKit;
 import com.powersmp.kit.impl.JJLionKit;
 import com.powersmp.kit.impl.KornFlakisKit;
 import com.powersmp.kit.impl.LifeStealerKit;
@@ -35,16 +37,22 @@ import com.powersmp.kit.impl.TechKnightKit;
 import com.powersmp.kit.impl.VoidwalkerKit;
 import com.powersmp.kit.impl.XCriticKit;
 import com.powersmp.kit.impl.CrazyTNT2CoolKit;
+import com.powersmp.kit.impl.BitesTheDustKit;
+import com.powersmp.kit.impl.FunnySoundsKit;
+import com.powersmp.kit.impl.PoultryManKit;
+import com.powersmp.kit.impl.MasterQuizlaKit;
 import com.powersmp.menu.KeybindMenu;
 import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
 import com.powersmp.progression.Power;
 import com.powersmp.stance.StanceCommand;
 import com.powersmp.stance.StanceManager;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.MovementExemption;
+import com.powersmp.util.Text;
 import java.io.File;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -119,6 +127,11 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private LuckyKit lucky;
     private LifeStealerKit lifestealer;
     private CrazyTNT2CoolKit crazyTNT2Cool;
+    private IdleDeathGambleKit idleDeathGamble;
+    private BitesTheDustKit bitesTheDust;
+    private FunnySoundsKit funnySounds;
+    private PoultryManKit poultryMan;
+    private MasterQuizlaKit masterQuizla;
 
     private int tickInterval = 20;
     private BukkitTask kitTickTask;
@@ -171,6 +184,11 @@ public class PowerSMP extends JavaPlugin implements Listener {
         lucky = new LuckyKit(this);
         lifestealer = new LifeStealerKit(this);
         crazyTNT2Cool = new CrazyTNT2CoolKit(this);
+        idleDeathGamble = new IdleDeathGambleKit(this);
+        bitesTheDust = new BitesTheDustKit(this);
+        funnySounds = new FunnySoundsKit(this);
+        poultryMan = new PoultryManKit(this);
+        masterQuizla = new MasterQuizlaKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -191,6 +209,11 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(lucky);
         kits.register(lifestealer);
         kits.register(crazyTNT2Cool);
+        kits.register(idleDeathGamble);
+        kits.register(bitesTheDust);
+        kits.register(funnySounds);
+        kits.register(poultryMan);
+        kits.register(masterQuizla);
 
         cooldowns.attachStore(data);
 
@@ -207,6 +230,12 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(keybindMenu, this);
         Bukkit.getPluginManager().registerEvents(abilityTriggers, this);
         Bukkit.getPluginManager().registerEvents(boundItems, this);
+        Bukkit.getPluginManager().registerEvents(new TeamRules(), this);
+        removeMaceRecipes();
+        int removedMaces = boundItems.purgeLoadedMaces();
+        if (removedMaces > 0) {
+            getLogger().info("Removed " + removedMaces + " mace(s) from loaded worlds.");
+        }
         Bukkit.getPluginManager().registerEvents(mavricc, this);
         Bukkit.getPluginManager().registerEvents(northOfNowhere, this);
         Bukkit.getPluginManager().registerEvents(xcritic, this);
@@ -228,6 +257,9 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(lucky, this);
         Bukkit.getPluginManager().registerEvents(lifestealer, this);
         Bukkit.getPluginManager().registerEvents(crazyTNT2Cool, this);
+        Bukkit.getPluginManager().registerEvents(bitesTheDust, this);
+        Bukkit.getPluginManager().registerEvents(poultryMan, this);
+        Bukkit.getPluginManager().registerEvents(masterQuizla, this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
@@ -301,7 +333,10 @@ public class PowerSMP extends JavaPlugin implements Listener {
     /** Pushes the current kits.yml into every service. Safe to call repeatedly. */
     private void applyConfig() {
         tickInterval = Math.max(1, kitsConfig.getInt("general.tick-interval-ticks", 20));
+        TeamRules.reload(kitsConfig.getConfigurationSection("teams"));
         cooldowns.actionBarMaxSeconds(kitsConfig.getLong("general.cooldown-action-bar-max-seconds", 600L));
+        cooldowns.readyNotifications(
+                kitsConfig.getBoolean("general.cooldown-ready-notifications", true));
         kits.loadAssignments(kitsConfig.getConfigurationSection("assignments"));
         unlocks.reload(kitsConfig.getConfigurationSection("progression"));
         stances.reload(kitsConfig.getConfigurationSection("mavricc"));
@@ -328,6 +363,11 @@ public class PowerSMP extends JavaPlugin implements Listener {
         lucky.reload(kitsConfig.getConfigurationSection("lucky"));
         lifestealer.reload(kitsConfig.getConfigurationSection("lifestealer"));
         crazyTNT2Cool.reload(kitsConfig.getConfigurationSection("crazytnt2cool"));
+        idleDeathGamble.reload(kitsConfig.getConfigurationSection("idledeathgamble"));
+        bitesTheDust.reload(kitsConfig.getConfigurationSection("bites-the-dust"));
+        funnySounds.reload(kitsConfig.getConfigurationSection("funnysounds"));
+        poultryMan.reload(kitsConfig.getConfigurationSection("poultryman"));
+        masterQuizla.reload(kitsConfig.getConfigurationSection("masterquizla"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */
@@ -365,6 +405,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
                     kit.onJoin(player);
                 }
             }
+            sanitizeAbilityBindings(player);
         }
 
         // Only restart the recurring services whose cadence/config changed. cancelTasks(this)
@@ -391,12 +432,25 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.addRecipe(recipe);
     }
 
+    /** Removes vanilla and datapack crafting recipes whose result is a mace. */
+    private void removeMaceRecipes() {
+        List<NamespacedKey> maceRecipes = new java.util.ArrayList<>();
+        Bukkit.recipeIterator().forEachRemaining(recipe -> {
+            if (recipe.getResult().getType() == Material.MACE
+                    && recipe instanceof org.bukkit.Keyed keyed) {
+                maceRecipes.add(keyed.getKey());
+            }
+        });
+        maceRecipes.forEach(Bukkit::removeRecipe);
+    }
+
     private void startKitTick() {
         if (kitTickTask != null) {
             kitTickTask.cancel();
         }
         kitTickTask = Bukkit.getScheduler().runTaskTimer(this, () -> {
             for (Player player : Bukkit.getOnlinePlayers()) {
+                boundItems.purgeMaces(player);
                 for (PowerKit kit : kits.kitsOf(player)) {
                     try {
                         kit.tick(player);
@@ -439,12 +493,50 @@ public class PowerSMP extends JavaPlugin implements Listener {
 
     private void handleJoin(Player player) {
         MovementExemption.restore(player);
+        // Temporary combat modifiers are scheduled for removal, but a crash can interrupt that
+        // task. Repair them for every player before their assigned kit is reapplied.
+        Attributes.clear(player, Attributes.ATTACK_SPEED, Keys.TIDAL_COMBO_ATTACK_SPEED);
+        boundItems.purgeMaces(player);
         data.get(player.getUniqueId()).lastKnownName(player.getName());
         data.markDirty();
         cooldowns.hydrate(player.getUniqueId());
+        sanitizeAbilityBindings(player);
         for (PowerKit kit : kits.kitsOf(player)) {
             kit.onJoin(player);
         }
+    }
+
+    /**
+     * Removes bindings to abilities the player no longer owns after a kit removal or upgrade.
+     *
+     * @return number of stale binding entries removed
+     */
+    public int sanitizeAbilityBindings(Player player) {
+        Set<String> valid = new HashSet<>();
+        valid.add(KeybindMenu.UNBOUND);
+        for (PowerKit kit : kits.assignedKitsOf(player)) {
+            for (Ability ability : kit.abilities()) {
+                valid.add(ability.id().toLowerCase(java.util.Locale.ROOT));
+            }
+        }
+        com.powersmp.data.PlayerData playerData = data.get(player.getUniqueId());
+        int before = playerData.abilityBindings().size();
+        playerData.abilityBindings().entrySet().removeIf(entry ->
+                !valid.contains(entry.getValue().toLowerCase(java.util.Locale.ROOT)));
+        boolean removedPrimary = !playerData.primaryAbility().isBlank()
+                && !valid.contains(playerData.primaryAbility().toLowerCase(java.util.Locale.ROOT));
+        if (removedPrimary) {
+            playerData.primaryAbility("");
+        }
+        int removed = before - playerData.abilityBindings().size();
+        if (removed > 0 || removedPrimary) {
+            data.markDirty();
+            int total = removed + (removedPrimary ? 1 : 0);
+            Text.msg(player, "<yellow>Removed " + total
+                    + " stale ability control" + (total == 1 ? "" : "s")
+                    + " from an old kit.</yellow>");
+        }
+        return removed + (removedPrimary ? 1 : 0);
     }
 
     @EventHandler

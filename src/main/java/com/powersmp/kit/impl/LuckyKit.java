@@ -5,6 +5,9 @@ import com.powersmp.item.DraconicItems;
 import com.powersmp.item.MaceItem;
 import com.powersmp.item.SpearItem;
 import com.powersmp.item.TridentItem;
+import com.powersmp.item.TitanBladeItem;
+import com.powersmp.item.BloodlustItem;
+import com.powersmp.item.CutlassItem;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
 import com.powersmp.util.Keys;
@@ -135,7 +138,8 @@ public class LuckyKit implements PowerKit, Listener {
      * The signature bound weapon a rolled kit handed out is dead weight once the roll moves on --
      * its own kit's protections and activation checks all key off {@code isOwner}, which stops
      * matching the moment the override changes. Removing it keeps Lucky's inventory from slowly
-     * filling up with inert reskinned tridents, spears, maces and crossbows over a long session.
+     * filling up with inert signature items. The mace checks below only clean up retired items
+     * from older plugin versions; no current kit issues one.
      */
     private void stripSignatureItems(Player owner) {
         ItemStack[] contents = owner.getInventory().getContents();
@@ -164,7 +168,9 @@ public class LuckyKit implements PowerKit, Listener {
         if (item == null) {
             return false;
         }
-        if (TridentItem.isBoundTrident(item) || SpearItem.isSpear(item) || MaceItem.isSoulbound(item)
+        if (TitanBladeItem.isBoneBlade(item) || BloodlustItem.isBloodlust(item)
+                || CutlassItem.isCutlass(item) || TridentItem.isBoundTrident(item)
+                || SpearItem.isSpear(item) || MaceItem.isSoulbound(item)
                 || DraconicItems.isDraconicMace(item) || MarbKit.isShadow(item)) {
             return true;
         }

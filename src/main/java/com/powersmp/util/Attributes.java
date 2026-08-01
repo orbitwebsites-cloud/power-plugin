@@ -33,6 +33,10 @@ public final class Attributes {
             resolve("block_interaction_range", "player.block_interaction_range");
     public static final Attribute ENTITY_INTERACTION_RANGE =
             resolve("entity_interaction_range", "player.entity_interaction_range");
+    public static final Attribute WAYPOINT_TRANSMIT_RANGE =
+            resolve("waypoint_transmit_range", "player.waypoint_transmit_range");
+    public static final Attribute WAYPOINT_RECEIVE_RANGE =
+            resolve("waypoint_receive_range", "player.waypoint_receive_range");
 
     private Attributes() {
     }
@@ -61,6 +65,8 @@ public final class Attributes {
         check(logger, SCALE, "scale");
         check(logger, BLOCK_INTERACTION_RANGE, "block_interaction_range");
         check(logger, ENTITY_INTERACTION_RANGE, "entity_interaction_range");
+        // Locator Bar attributes were added later in the 1.21 line. They are optional so older
+        // 1.21 servers can still load the plugin; Doman's Tracking power logs its own fallback.
     }
 
     private static void check(Logger logger, Attribute attribute, String name) {

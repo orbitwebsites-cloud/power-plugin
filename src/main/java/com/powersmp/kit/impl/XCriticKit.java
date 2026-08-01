@@ -7,6 +7,7 @@ import com.powersmp.item.SpearItem;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.HashMap;
@@ -65,13 +66,17 @@ public class XCriticKit implements PowerKit, Listener {
     private final Map<UUID, Boolean> tier2Granted = new ConcurrentHashMap<>();
     /** Tier-2 Strength effects currently owned by this kit, including after the sprint ends. */
     private final Set<UUID> activeTier2 = ConcurrentHashMap.newKeySet();
+    /** Prevents Ka-Chow's controlled lightning damage from counting as another combo/spear hit. */
+    private final Set<UUID> applyingKaChowDamage = ConcurrentHashMap.newKeySet();
 
     // Tuning
     private int kaChowHits = 3;
     private int kaChowWitherSeconds = 3;
     private int kaChowWitherAmplifier = 0;
+    private int kaChowSlownessSeconds = 3;
+    private int kaChowSlownessAmplifier = 2;
+    private double kaChowLightningDamage = 4.0d;
     private double kaChowCooldown = 10.0d;
-    private boolean cosmeticLightning;
 
     private int tier1Seconds = 30;
     private int tier1Speed = 2;
@@ -113,8 +118,14 @@ public class XCriticKit implements PowerKit, Listener {
             kaChowHits = Math.max(1, ka.getInt("hits-required", kaChowHits));
             kaChowWitherSeconds = ka.getInt("wither-duration-seconds", kaChowWitherSeconds);
             kaChowWitherAmplifier = ka.getInt("wither-amplifier", kaChowWitherAmplifier);
-            kaChowCooldown = ka.getDouble("cooldown-seconds", kaChowCooldown);
-            cosmeticLightning = ka.getBoolean("cosmetic-lightning-only", false);
+            kaChowSlownessSeconds = Math.max(1,
+                    ka.getInt("slowness-duration-seconds", kaChowSlownessSeconds));
+            kaChowSlownessAmplifier = Math.max(0,
+                    ka.getInt("slowness-level", kaChowSlownessAmplifier + 1) - 1);
+            kaChowLightningDamage = Math.max(0.0d,
+                    ka.getDouble("lightning-damage", kaChowLightningDamage));
+            kaChowCooldown = Math.max(0.0d,
+                    ka.getDouble("cooldown-seconds", kaChowCooldown));
         }
         ConfigurationSection over = section.getConfigurationSection("overdrive");
         if (over != null) {
@@ -253,10 +264,13 @@ public class XCriticKit implements PowerKit, Listener {
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onHit(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player) || !plugin.kits().isOwner(player, ID)) {
+        if (!(event.getDamager() instanceof Player player)
+                || applyingKaChowDamage.contains(player.getUniqueId())
+                || !plugin.kits().isOwner(player, ID)) {
             return;
         }
-        if (!(event.getEntity() instanceof LivingEntity target)) {
+        if (!(event.getEntity() instanceof LivingEntity target)
+                || !TeamRules.canAffect(player, target)) {
             return;
         }
         ItemStack weapon = player.getInventory().getItemInMainHand();
@@ -280,14 +294,18 @@ public class XCriticKit implements PowerKit, Listener {
         combos.reset(player.getUniqueId());
         plugin.cooldowns().setSeconds(player.getUniqueId(), COOLDOWN_KA_CHOW, kaChowCooldown);
 
-        if (target.getWorld() != null) {
-            if (cosmeticLightning) {
-                target.getWorld().strikeLightningEffect(target.getLocation());
-            } else {
-                target.getWorld().strikeLightning(target.getLocation());
-            }
+        // A real lightning entity has variable damage, ignition, and splash damage. Use its
+        // visual/sound only, then apply the requested two-heart hit to the combo target exactly.
+        target.getWorld().strikeLightningEffect(target.getLocation());
+        applyingKaChowDamage.add(player.getUniqueId());
+        try {
+            TeamRules.runProtected(player, () -> target.damage(kaChowLightningDamage, player));
+        } finally {
+            applyingKaChowDamage.remove(player.getUniqueId());
         }
         Effects.apply(target, PotionEffectType.WITHER, kaChowWitherSeconds * 20, kaChowWitherAmplifier);
+        Effects.apply(target, PotionEffectType.SLOWNESS,
+                kaChowSlownessSeconds * 20, kaChowSlownessAmplifier);
         Text.actionBar(player, "<yellow><bold>KA-CHOW!</bold></yellow>");
     }
 
@@ -330,7 +348,8 @@ public class XCriticKit implements PowerKit, Listener {
         target.getWorld().spawnParticle(Particle.SWEEP_ATTACK, target.getLocation().add(0, 1, 0), 3, 0.2, 0.2, 0.2, 0.0);
 
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (!target.isDead() && target.isValid()) {
+            if (!target.isDead() && target.isValid()
+                    && TeamRules.canAffect(player, target)) {
                 // stunSeconds, not freezeSeconds: a stunned target must stay hittable.
                 plugin.freeze().stunSeconds(target, stunSeconds);
             }
@@ -381,8 +400,8 @@ public class XCriticKit implements PowerKit, Listener {
     // ---- "can't be taken away, even if I die" ---------------------------
     // The spear previously had no reissue-on-join at all, unlike every other bound item in this
     // plugin -- if it was ever lost, xCR1T1Cx simply had no way to get it back. It also had none
-    // of techknight's mace's drop/death/container guards, which is how a duplicate happens: the
-    // original ends up on the ground or in a chest while something else hands out a second one.
+    // of the standard drop/death/container guards, which is how a duplicate happens: the original
+    // ends up on the ground or in a chest while something else hands out a second one.
 
     @Override
     public void onJoin(Player owner) {
@@ -393,13 +412,22 @@ public class XCriticKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(owner, Power.SPEAR_MASTER)) {
             return;
         }
-        for (ItemStack item : owner.getInventory().getContents()) {
+        PlayerData data = plugin.data().get(owner.getUniqueId());
+        if (data.spearTier() != SpearItem.MAX_TIER) {
+            data.spearTier(SpearItem.MAX_TIER);
+            plugin.data().markDirty();
+        }
+        ItemStack[] contents = owner.getInventory().getContents();
+        for (int slot = 0; slot < contents.length; slot++) {
+            ItemStack item = contents[slot];
             if (owner.getUniqueId().equals(SpearItem.ownerOf(item))) {
+                // Refresh old items too: keeps ownership/progression while applying current art.
+                SpearItem.applyTier(item, SpearItem.MAX_TIER);
+                owner.getInventory().setItem(slot, item);
                 return;
             }
         }
-        PlayerData data = plugin.data().get(owner.getUniqueId());
-        ItemStack spear = SpearItem.create(owner.getUniqueId(), data.spearTier());
+        ItemStack spear = SpearItem.create(owner.getUniqueId(), SpearItem.MAX_TIER);
         // Never drop a soulbound replacement: the next shared tick retries once room exists.
         owner.getInventory().addItem(spear);
     }
@@ -496,14 +524,16 @@ public class XCriticKit implements PowerKit, Listener {
             }
         }
         PlayerData data = plugin.data().get(owner.getUniqueId());
-        ItemStack spear = SpearItem.create(owner.getUniqueId(), data.spearTier());
+        data.spearTier(SpearItem.MAX_TIER);
+        plugin.data().markDirty();
+        ItemStack spear = SpearItem.create(owner.getUniqueId(), SpearItem.MAX_TIER);
         Map<Integer, ItemStack> leftover = owner.getInventory().addItem(spear);
         if (!leftover.isEmpty()) {
             Text.msg(owner, "<red>No room in your inventory.");
             return false;
         }
         Text.msg(owner, "<gold>Spear of Momentum</gold> <gray>(Lunge "
-                + SpearItem.numeral(data.spearTier()) + ")</gray> <gray>claimed.</gray>");
+                + SpearItem.numeral(SpearItem.MAX_TIER) + ")</gray> <gray>claimed.</gray>");
         return true;
     }
 

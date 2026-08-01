@@ -53,7 +53,7 @@ public class PowerSMPCommand implements CommandExecutor, TabCompleter {
         Text.msg(sender, "<gray>PowerSMP admin</gray>");
         Text.raw(sender, "<dark_gray>  •</dark_gray> <white>/powersmp reload</white>");
         Text.raw(sender, "<dark_gray>  •</dark_gray> <white>/powersmp info [player]</white>");
-        Text.raw(sender, "<dark_gray>  •</dark_gray> <white>/powersmp grant|revoke <player> <power></white>");
+        Text.raw(sender, "<dark_gray>  •</dark_gray> <white>/powersmp grant|revoke <player> <kit-or-owner-IGN></white>");
         Text.raw(sender, "<dark_gray>  •</dark_gray> <white>/powersmp kills <player> [amount]</white>");
         Text.raw(sender, "<dark_gray>  •</dark_gray> <white>/powersmp spear [player]</white>");
     }
@@ -90,26 +90,51 @@ public class PowerSMPCommand implements CommandExecutor, TabCompleter {
 
     private void grantOrRevoke(CommandSender sender, String[] args, boolean grant) {
         if (args.length < 3) {
-            Text.msg(sender, "<red>Usage: /powersmp " + (grant ? "grant" : "revoke") + " <player> <power>");
+            Text.msg(sender, "<red>Usage: /powersmp " + (grant ? "grant" : "revoke")
+                    + " <player> <kit-or-owner-IGN>");
             return;
         }
         Player target = resolve(sender, args, 1);
         if (target == null) {
             return;
         }
-        Power power = Power.byId(args[2]);
-        if (power == null) {
-            Text.msg(sender, "<red>Unknown power <white>" + Text.plain(args[2]) + "</white>.");
+        PowerKit kit = plugin.kits().resolveSelector(args[2]);
+        if (kit == null) {
+            Text.msg(sender, "<red>Unknown kit or owner IGN <white>"
+                    + Text.plain(args[2]) + "</white>.");
             return;
         }
-        boolean changed = grant
-                ? plugin.unlocks().grant(target, power)
-                : plugin.unlocks().revoke(target, power);
+        PlayerData data = plugin.data().get(target.getUniqueId());
+        boolean changed = false;
+        if (grant) {
+            changed |= data.grantedKits().add(kit.id());
+            for (Power power : Power.values()) {
+                if (power.kitId().equalsIgnoreCase(kit.id())) {
+                    changed |= plugin.unlocks().grant(target, power);
+                }
+            }
+            kit.onJoin(target);
+        } else {
+            // Revoke before removing ownership so the kit can clean up its items and effects.
+            for (Power power : Power.values()) {
+                if (power.kitId().equalsIgnoreCase(kit.id())) {
+                    changed |= plugin.unlocks().revoke(target, power);
+                }
+            }
+            changed |= data.grantedKits().remove(kit.id());
+            kit.onQuit(target);
+        }
+        if (changed) {
+            plugin.data().markDirty();
+            plugin.sanitizeAbilityBindings(target);
+        }
         Text.msg(sender, changed
-                ? "<green>" + (grant ? "Granted" : "Revoked") + " <white>" + Text.plain(power.displayName())
-                        + "</white> " + (grant ? "to" : "from") + " <white>" + Text.plain(target.getName()) + "</white>."
+                ? "<green>" + (grant ? "Granted" : "Revoked") + " the full <white>"
+                        + Text.plain(kit.displayName()) + "</white> "
+                        + (grant ? "to" : "from") + " <white>"
+                        + Text.plain(target.getName()) + "</white>."
                 : "<yellow>No change -- " + Text.plain(target.getName()) + " already "
-                        + (grant ? "had" : "lacked") + " that power.");
+                        + (grant ? "had" : "lacked") + " that kit.");
     }
 
     private void kills(CommandSender sender, String[] args) {
@@ -185,9 +210,9 @@ public class PowerSMPCommand implements CommandExecutor, TabCompleter {
         } else if (args.length == 3
                 && (args[0].equalsIgnoreCase("grant") || args[0].equalsIgnoreCase("revoke"))) {
             String prefix = args[2].toLowerCase(Locale.ROOT);
-            for (Power power : Power.values()) {
-                if (power.id().startsWith(prefix)) {
-                    out.add(power.id());
+            for (PowerKit kit : plugin.kits().all()) {
+                if (kit.id().startsWith(prefix)) {
+                    out.add(kit.id());
                 }
             }
         }

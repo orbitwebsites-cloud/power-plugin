@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.Sound;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -39,6 +40,7 @@ public class CooldownManager {
      * message to their screen. Long cooldowns are reported on use instead.
      */
     private long actionBarMaxMillis = 600_000L;
+    private boolean readyNotifications = true;
 
     public CooldownManager(Plugin plugin) {
         this.plugin = plugin;
@@ -50,6 +52,10 @@ public class CooldownManager {
 
     public void actionBarMaxSeconds(long seconds) {
         this.actionBarMaxMillis = Math.max(0L, seconds) * 1000L;
+    }
+
+    public void readyNotifications(boolean enabled) {
+        this.readyNotifications = enabled;
     }
 
     public void registerLabel(String abilityId, String label) {
@@ -182,14 +188,22 @@ public class CooldownManager {
             }
             long now = System.currentTimeMillis();
             List<Map.Entry<String, Long>> active = new ArrayList<>();
+            List<String> becameReady = new ArrayList<>();
             for (Iterator<Map.Entry<String, Long>> it = forPlayer.entrySet().iterator(); it.hasNext(); ) {
                 Map.Entry<String, Long> entry = it.next();
                 long remaining = entry.getValue() - now;
                 if (remaining <= 0L) {
+                    becameReady.add(label(entry.getKey()));
                     it.remove();
                 } else if (remaining <= actionBarMaxMillis) {
                     active.add(entry);
                 }
+            }
+            if (readyNotifications && !becameReady.isEmpty()) {
+                Text.actionBar(player, "<green><bold>READY</bold></green> <white>"
+                        + Text.plain(String.join(", ", becameReady)) + "</white>");
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_PLING, 0.45f, 1.75f);
+                continue;
             }
             if (active.isEmpty()) {
                 continue;

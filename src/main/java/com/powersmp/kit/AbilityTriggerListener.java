@@ -15,7 +15,7 @@ import org.bukkit.inventory.EquipmentSlot;
  * trigger -- see {@link AbilityTrigger} and {@code /power keybind}.
  *
  * <p>Previously this was hardcoded to sneak + right-click <em>with an empty hand</em>, which quietly
- * broke the shortcut for anyone holding gear (a weapon, their bound mace, a shield) -- which is most
+ * broke the shortcut for anyone holding gear (a weapon, a shield) -- which is most
  * players, most of the time. There is no hand check here at all now: whatever trigger is configured
  * fires regardless of what is held, and the underlying click is cancelled only when it actually
  * matches so held items keep working normally the rest of the time.
@@ -28,7 +28,7 @@ public class AbilityTriggerListener implements Listener {
         this.plugin = plugin;
     }
 
-    @EventHandler(ignoreCancelled = true)
+    @EventHandler(priority = org.bukkit.event.EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEvent event) {
         // A single physical click fires this once per hand; only ever react to the main hand, or a
         // trigger would fire (and spend a cooldown) twice per click.
@@ -41,16 +41,19 @@ public class AbilityTriggerListener implements Listener {
         if (!right && !left) {
             return;
         }
+        // Some clients/servers pre-cancel air clicks for items that cannot normally be used in
+        // air. Those are precisely the clicks our custom powers need. Respect cancellation for
+        // block interactions, though, so protection plugins still own protected containers/blocks.
+        if (event.isCancelled()
+                && (action == Action.RIGHT_CLICK_BLOCK || action == Action.LEFT_CLICK_BLOCK)) {
+            return;
+        }
         Player player = event.getPlayer();
         boolean sneaking = player.isSneaking();
-        boolean matches = switch (triggerOf(player)) {
-            case SNEAK_RIGHT_CLICK -> right && sneaking;
-            case RIGHT_CLICK -> right;
-            case SNEAK_LEFT_CLICK -> left && sneaking;
-            case LEFT_CLICK -> left;
-            case SWAP_HANDS, SNEAK_SWAP_HANDS -> false;
-        };
-        if (matches && fire(player)) {
+        AbilityTrigger trigger = right
+                ? (sneaking ? AbilityTrigger.SNEAK_RIGHT_CLICK : AbilityTrigger.RIGHT_CLICK)
+                : (sneaking ? AbilityTrigger.SNEAK_LEFT_CLICK : AbilityTrigger.LEFT_CLICK);
+        if (fire(player, trigger)) {
             event.setCancelled(true);
         }
     }
@@ -58,19 +61,11 @@ public class AbilityTriggerListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onSwapHands(PlayerSwapHandItemsEvent event) {
         Player player = event.getPlayer();
-        boolean matches = switch (triggerOf(player)) {
-            case SWAP_HANDS -> true;
-            case SNEAK_SWAP_HANDS -> player.isSneaking();
-            default -> false;
-        };
-        if (matches && fire(player)) {
+        AbilityTrigger trigger = player.isSneaking()
+                ? AbilityTrigger.SNEAK_SWAP_HANDS : AbilityTrigger.SWAP_HANDS;
+        if (fire(player, trigger)) {
             event.setCancelled(true);
         }
-    }
-
-    private AbilityTrigger triggerOf(Player player) {
-        return AbilityTrigger.fromName(
-                plugin.data().get(player.getUniqueId()).abilityTrigger(), AbilityTrigger.SNEAK_RIGHT_CLICK);
     }
 
     /**
@@ -78,12 +73,18 @@ public class AbilityTriggerListener implements Listener {
      * When a player has more than one kit at once (e.g. Phantom + Life Stealer), the chosen ability
      * is looked up across all of them so the bound ability fires on whichever kit actually owns it.
      */
-    private boolean fire(Player player) {
+    private boolean fire(Player player, AbilityTrigger trigger) {
         List<PowerKit> kits = plugin.kits().kitsOf(player);
         if (kits.isEmpty()) {
             return false;
         }
-        String chosen = plugin.data().get(player.getUniqueId()).primaryAbility();
+        com.powersmp.data.PlayerData data = plugin.data().get(player.getUniqueId());
+        String chosen = data.abilityBindings().getOrDefault(trigger.name(), "");
+        if (chosen.isBlank() && data.abilityBindings().isEmpty()
+                && trigger == AbilityTrigger.fromName(
+                        data.abilityTrigger(), AbilityTrigger.SNEAK_RIGHT_CLICK)) {
+            chosen = data.primaryAbility();
+        }
         if (!chosen.isBlank()) {
             for (PowerKit kit : kits) {
                 if (hasAbility(kit, chosen)) {
@@ -91,6 +92,10 @@ public class AbilityTriggerListener implements Listener {
                     return true;
                 }
             }
+            return false;
+        }
+        if (!data.abilityBindings().isEmpty() || trigger != AbilityTrigger.SNEAK_RIGHT_CLICK) {
+            return false;
         }
         PowerKit first = kits.get(0);
         String primary = first.primaryAbilityId();
