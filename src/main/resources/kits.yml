@@ -134,6 +134,10 @@ progression:
     miners_haven: 0
     ender_magic: 4
     shadow_master: 8
+    # Shadows Technique: dogs at the start, utility at 4 kills, Mahoraga at 10.
+    rabbit_escape: 4
+    shadow_storage: 4
+    mahoraga: 10
   # Announce unlocks in chat to the whole server.
   broadcast-unlocks: true
 
@@ -790,32 +794,19 @@ illusory-realm:
     weaving: 0
 
 # =====================================================================
-# disasterflames -- Instant Exchange / Brother Bond / Swap Surge
+# disasterflames -- Shadows Technique
 # =====================================================================
 disasterflames:
-  instant-exchange:
-    # No range value by design: all currently loaded entities are considered.
-    cooldown-seconds: 0.0
-    # Expands entity hitboxes slightly so aiming is practical without selecting
-    # something merely near the crosshair.
-    target-assist-radius: 0.25
-    # A failed target check uses the action bar, never chat, and only once per
-    # this window even if the player holds their ability key down.
-    target-hint-cooldown-seconds: 1.5
-
-  brother-bond:
-    # "Near" was not given a number. Teammates are players on the same
-    # scoreboard team; both players receive these effects while in range.
-    radius: 10.0                      # ASSUMED
-    strength-amplifier: 0             # Strength I
-    speed-amplifier: 0                # Speed I
-    resistance-amplifier: 0           # Resistance I
-
-  swap-surge:
-    strength-amplifier: 1             # Strength II
-    speed-amplifier: 1                # Speed II
-    buff-seconds: 10.0                 # ASSUMED
-    invincibility-seconds: 2.0         # ASSUMED -- "brief"
+  divine-dogs:
+    cooldown-seconds: 60
+  rabbit-escape:
+    duration-seconds: 15
+    cooldown-seconds: 60
+  mahoraga:
+    summoning-seconds: 5
+    duration-seconds: 120
+    cooldown-seconds: 600
+    warning-radius: 48
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form

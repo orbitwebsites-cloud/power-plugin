@@ -86,11 +86,11 @@ public enum Power {
     GRASP_OF_EYLIS("grasp_of_eylis", "Grasp of Eylis", "voidwalker", Gate.ALWAYS),
     ILLUSORY_REALM("illusory_realm", "Illusory Realm", "voidwalker", Gate.ALWAYS),
 
-    // --- disasterflames -----------------------------------------------------
-    // No tiers were given, so all three are part of the kit immediately.
-    SWAP_POSITIONS("swap_positions", "Instant Exchange", "disasterflames", Gate.ALWAYS),
-    BROTHER_BOND("brother_bond", "Brother Bond", "disasterflames", Gate.ALWAYS),
-    SWAP_SURGE("swap_surge", "Swap Surge", "disasterflames", Gate.ALWAYS),
+    // --- disasterflames / Shadows Technique --------------------------------
+    DIVINE_DOGS("divine_dogs", "Divine Dogs", "disasterflames", Gate.ALWAYS),
+    RABBIT_ESCAPE("rabbit_escape", "Rabbit Escape", "disasterflames", Gate.KILLS),
+    SHADOW_STORAGE("shadow_storage", "Cursed Reinforcement & Shadow Storage", "disasterflames", Gate.KILLS),
+    MAHORAGA("mahoraga", "Mahoraga", "disasterflames", Gate.KILLS),
 
     // --- The Ghost ---------------------------------------------------------
     // No tiers were given, so all three are simply part of the kit -- same call as

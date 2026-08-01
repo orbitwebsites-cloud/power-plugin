@@ -75,6 +75,7 @@ public class DataStore {
             data.bloodlustKills(section.getInt("bloodlust-kills", 0));
             data.jackpotChance(section.getInt("jackpot-chance", 14));
             data.jackpotFeverArmed(section.getBoolean("jackpot-fever-armed", false));
+            data.mahoragaTamed(section.getBoolean("mahoraga-tamed", false));
             data.stanceConsolidated(section.getBoolean("stance-consolidated", false));
             data.omeletGranted(section.getBoolean("omelet-granted", false));
             data.lastKnownName(section.getString("name", ""));
@@ -151,6 +152,15 @@ public class DataStore {
                     plugin.getLogger().warning("Dropping an unreadable restock item for " + rawUuid);
                 }
             }
+            for (String encoded : section.getStringList("shadow-storage")) {
+                try {
+                    data.shadowStorage().add(ItemStack.deserializeBytes(
+                            Base64.getDecoder().decode(encoded)));
+                } catch (Throwable ex) {
+                    plugin.getLogger().log(Level.WARNING,
+                            "Could not load an item from shadow storage for " + uuid, ex);
+                }
+            }
 
             ConfigurationSection cooldowns = section.getConfigurationSection("cooldowns");
             if (cooldowns != null) {
@@ -196,6 +206,7 @@ public class DataStore {
         return switch (id.toLowerCase(java.util.Locale.ROOT)) {
             case "kamehameha", "ascended_flight" -> "blood_trail";
             case "final_burst" -> "blood_chain";
+            case "instant_exchange" -> "divine_dogs";
             default -> id;
         };
     }
@@ -256,6 +267,7 @@ public class DataStore {
             yaml.set(path + ".bloodlust-kills", data.bloodlustKills());
             yaml.set(path + ".jackpot-chance", data.jackpotChance());
             yaml.set(path + ".jackpot-fever-armed", data.jackpotFeverArmed());
+            yaml.set(path + ".mahoraga-tamed", data.mahoragaTamed());
             yaml.set(path + ".stance-consolidated", data.stanceConsolidated());
             yaml.set(path + ".omelet-granted", data.omeletGranted());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
@@ -274,6 +286,14 @@ public class DataStore {
                 }
             }
             yaml.set(path + ".restock-loadout", loadout);
+
+            List<String> shadowStorage = new ArrayList<>();
+            for (ItemStack item : data.shadowStorage()) {
+                if (item != null && !item.getType().isAir()) {
+                    shadowStorage.add(Base64.getEncoder().encodeToString(item.serializeAsBytes()));
+                }
+            }
+            yaml.set(path + ".shadow-storage", shadowStorage);
 
             long now = System.currentTimeMillis();
             for (Map.Entry<String, Long> entry : data.cooldowns().entrySet()) {

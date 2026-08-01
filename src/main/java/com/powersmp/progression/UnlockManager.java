@@ -81,7 +81,9 @@ public class UnlockManager implements Listener {
         return switch (power.gate()) {
             case ALWAYS -> true;
             case TRIGGER -> data.hasUnlocked(power.id());
-            case KILLS -> unlockAll
+            // Shadows Technique explicitly starts with Divine Dogs and earns its later tiers;
+            // the server-wide development shortcut must not hand out Mahoraga immediately.
+            case KILLS -> (unlockAll && !"disasterflames".equals(power.kitId()))
                     || data.hasUnlocked(power.id())
                     || data.kills() >= threshold(power);
         };
@@ -164,12 +166,12 @@ public class UnlockManager implements Listener {
 
     /** Persists any kill-gated power whose threshold the player has now passed. */
     public void checkKillUnlocks(Player player) {
-        if (unlockAll) {
-            return;
-        }
         PlayerData data = plugin.data().get(player.getUniqueId());
         for (Power power : Power.values()) {
             if (power.gate() != Power.Gate.KILLS || !plugin.kits().isOwner(player, power.kitId())) {
+                continue;
+            }
+            if (unlockAll && !"disasterflames".equals(power.kitId())) {
                 continue;
             }
             if (!data.isRevoked(power.id())

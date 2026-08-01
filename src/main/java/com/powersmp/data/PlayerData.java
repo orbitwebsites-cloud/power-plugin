@@ -56,6 +56,10 @@ public class PlayerData {
     private final Map<String, Long> cooldowns = new HashMap<>();
     /** Player-chosen Restock kit. Empty means fall back to the server default in kits.yml. */
     private final List<ItemStack> restockLoadout = new ArrayList<>();
+    /** Shadows Technique: private inventory that survives death and restarts. */
+    private final List<ItemStack> shadowStorage = new ArrayList<>();
+    /** Whether the owner has personally defeated the untamed Mahoraga ritual. */
+    private boolean mahoragaTamed;
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -171,6 +175,18 @@ public class PlayerData {
 
     public List<ItemStack> restockLoadout() {
         return restockLoadout;
+    }
+
+    public List<ItemStack> shadowStorage() {
+        return shadowStorage;
+    }
+
+    public boolean mahoragaTamed() {
+        return mahoragaTamed;
+    }
+
+    public void mahoragaTamed(boolean mahoragaTamed) {
+        this.mahoragaTamed = mahoragaTamed;
     }
 
     public boolean stanceConsolidated() {
