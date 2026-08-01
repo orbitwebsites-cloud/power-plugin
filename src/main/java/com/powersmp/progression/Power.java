@@ -150,7 +150,10 @@ public enum Power {
     // --- I_BL0W_STUFF_UP -------------------------------------------------
     BLAST_PROOF("blast_proof", "Blast Proof", "bites_the_dust", Gate.ALWAYS),
     STICKY_TNT("sticky_tnt", "Sticky TNT", "bites_the_dust", Gate.ALWAYS),
-    BITES_THE_DUST("bites_the_dust", "Bites the Dust", "bites_the_dust", Gate.ALWAYS);
+    BITES_THE_DUST("bites_the_dust", "Bites the Dust", "bites_the_dust", Gate.ALWAYS),
+
+    // --- FunnySounds -----------------------------------------------------
+    VILLAGE_CHARMER("village_charmer", "Village Charmer", "funnysounds", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

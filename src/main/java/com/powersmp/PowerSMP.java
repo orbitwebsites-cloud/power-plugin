@@ -38,6 +38,7 @@ import com.powersmp.kit.impl.VoidwalkerKit;
 import com.powersmp.kit.impl.XCriticKit;
 import com.powersmp.kit.impl.CrazyTNT2CoolKit;
 import com.powersmp.kit.impl.BitesTheDustKit;
+import com.powersmp.kit.impl.FunnySoundsKit;
 import com.powersmp.menu.KeybindMenu;
 import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
@@ -126,6 +127,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private CrazyTNT2CoolKit crazyTNT2Cool;
     private IdleDeathGambleKit idleDeathGamble;
     private BitesTheDustKit bitesTheDust;
+    private FunnySoundsKit funnySounds;
 
     private int tickInterval = 20;
     private BukkitTask kitTickTask;
@@ -180,6 +182,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         crazyTNT2Cool = new CrazyTNT2CoolKit(this);
         idleDeathGamble = new IdleDeathGambleKit(this);
         bitesTheDust = new BitesTheDustKit(this);
+        funnySounds = new FunnySoundsKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -202,6 +205,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(crazyTNT2Cool);
         kits.register(idleDeathGamble);
         kits.register(bitesTheDust);
+        kits.register(funnySounds);
 
         cooldowns.attachStore(data);
 
@@ -351,6 +355,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         crazyTNT2Cool.reload(kitsConfig.getConfigurationSection("crazytnt2cool"));
         idleDeathGamble.reload(kitsConfig.getConfigurationSection("idledeathgamble"));
         bitesTheDust.reload(kitsConfig.getConfigurationSection("bites-the-dust"));
+        funnySounds.reload(kitsConfig.getConfigurationSection("funnysounds"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */

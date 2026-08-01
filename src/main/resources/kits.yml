@@ -80,6 +80,7 @@ assignments:
   TechKnightGaming: techknight
   ahriahn: voidwalker
   disasterflames: disasterflames
+  FunnySounds: funnysounds
   _glueman: theghost
   crazyTNT2cool: crazytnt2cool
   I_BL0W_STUFF_UP: bites_the_dust
@@ -807,6 +808,13 @@ disasterflames:
     duration-seconds: 120
     cooldown-seconds: 600
     warning-radius: 48
+
+# =====================================================================
+# FunnySounds -- Village Charmer
+# =====================================================================
+funnysounds:
+  range: 8.0
+  cooldown-seconds: 60
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form
