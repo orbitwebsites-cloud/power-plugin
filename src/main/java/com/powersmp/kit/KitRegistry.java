@@ -51,6 +51,7 @@ public class KitRegistry {
             Map.entry("disasterflames", List.of("disasterflames")),
             Map.entry("funnysounds", List.of("funnysounds")),
             Map.entry("thepoultryman10", List.of("poultryman")),
+            Map.entry("masterquizla", List.of("masterquizla")),
             Map.entry("_glueman", List.of("theghost")),
             Map.entry("crazytnt2cool", List.of("crazytnt2cool")),
             Map.entry("idledeathgamble", List.of("idledeathgamble")),

@@ -156,7 +156,12 @@ public enum Power {
     VILLAGE_CHARMER("village_charmer", "Village Charmer", "funnysounds", Gate.ALWAYS),
 
     // --- ThePoultryMan10 -------------------------------------------------
-    DAMAGE_ADAPTATION("damage_adaptation", "Damage Adaptation", "poultryman", Gate.ALWAYS);
+    DAMAGE_ADAPTATION("damage_adaptation", "Damage Adaptation", "poultryman", Gate.ALWAYS),
+
+    // --- masterquizla ----------------------------------------------------
+    IMMORTALITY_TOTEM("immortality_totem", "Immortality Totem", "masterquizla", Gate.ALWAYS),
+    INFINITE_GLOCK("infinite_glock", "Infinite Glock", "masterquizla", Gate.ALWAYS),
+    INFINITE_LEMONADE("infinite_lemonade", "Infinite Lemonade", "masterquizla", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

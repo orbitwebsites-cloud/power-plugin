@@ -23,6 +23,7 @@ public final class ResourcePackItems {
     public static final int NIGHTSCAR_CUTLASS = 27009;
     public static final int TIDE_TRIDENT = 27010;
     public static final int MOMENTUM_SPEAR = 27011;
+    public static final int MASTERQUIZLA_GLOCK = 27012;
 
     private ResourcePackItems() {
     }

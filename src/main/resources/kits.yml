@@ -82,6 +82,7 @@ assignments:
   disasterflames: disasterflames
   FunnySounds: funnysounds
   ThePoultryMan10: poultryman
+  masterquizla: masterquizla
   _glueman: theghost
   crazyTNT2cool: crazytnt2cool
   I_BL0W_STUFF_UP: bites_the_dust
@@ -823,6 +824,15 @@ funnysounds:
 poultryman:
   damage-per-armor: 1000.0
   max-bonus-armor: 10
+
+# =====================================================================
+# masterquizla -- Immortal Arsenal
+# =====================================================================
+masterquizla:
+  glock:
+    range: 80.0
+    damage: 14.0
+    fire-cooldown-seconds: 0.35
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form

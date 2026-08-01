@@ -40,6 +40,7 @@ import com.powersmp.kit.impl.CrazyTNT2CoolKit;
 import com.powersmp.kit.impl.BitesTheDustKit;
 import com.powersmp.kit.impl.FunnySoundsKit;
 import com.powersmp.kit.impl.PoultryManKit;
+import com.powersmp.kit.impl.MasterQuizlaKit;
 import com.powersmp.menu.KeybindMenu;
 import com.powersmp.menu.PowerMenu;
 import com.powersmp.progression.UnlockManager;
@@ -130,6 +131,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
     private BitesTheDustKit bitesTheDust;
     private FunnySoundsKit funnySounds;
     private PoultryManKit poultryMan;
+    private MasterQuizlaKit masterQuizla;
 
     private int tickInterval = 20;
     private BukkitTask kitTickTask;
@@ -186,6 +188,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         bitesTheDust = new BitesTheDustKit(this);
         funnySounds = new FunnySoundsKit(this);
         poultryMan = new PoultryManKit(this);
+        masterQuizla = new MasterQuizlaKit(this);
         kits.register(mavricc);
         kits.register(northOfNowhere);
         kits.register(xcritic);
@@ -210,6 +213,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         kits.register(bitesTheDust);
         kits.register(funnySounds);
         kits.register(poultryMan);
+        kits.register(masterQuizla);
 
         cooldowns.attachStore(data);
 
@@ -255,6 +259,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(crazyTNT2Cool, this);
         Bukkit.getPluginManager().registerEvents(bitesTheDust, this);
         Bukkit.getPluginManager().registerEvents(poultryMan, this);
+        Bukkit.getPluginManager().registerEvents(masterQuizla, this);
 
         bind("stance", new StanceCommand(this));
         bind("power", new PowerCommand(this));
@@ -362,6 +367,7 @@ public class PowerSMP extends JavaPlugin implements Listener {
         bitesTheDust.reload(kitsConfig.getConfigurationSection("bites-the-dust"));
         funnySounds.reload(kitsConfig.getConfigurationSection("funnysounds"));
         poultryMan.reload(kitsConfig.getConfigurationSection("poultryman"));
+        masterQuizla.reload(kitsConfig.getConfigurationSection("masterquizla"));
     }
 
     /** {@code /powersmp reload}: re-reads kits.yml and restarts the tick at the new interval. */

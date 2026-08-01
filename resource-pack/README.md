@@ -13,6 +13,9 @@ For an individual install:
 The pack supplies animated energy-core frames, ascended wings, and the **Relic Arsenal**: Bone
 Blade, Bloodlust, Night Scar Cutlass, Trident of the Tide, and Spear of Momentum.
 
+The pack also includes masterquizla's dedicated Infinite Glock model and texture. It uses an iron
+horse armor custom-model slot—not a bow—and the plugin supplies hitscan firing behavior.
+
 It also supplies a Mahoraga-inspired Iron Golem texture for the Shadows Technique summon. Vanilla
 resource packs apply entity textures globally, so ordinary Iron Golems use this appearance too.
 
