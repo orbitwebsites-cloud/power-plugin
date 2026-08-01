@@ -33,6 +33,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
 
@@ -78,9 +79,9 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
     private double redKnockback = 2.4d;
     private double redCooldown = 18.0d;
 
-    private double purpleRange = 64.0d;
-    private double purpleRadius = 2.25d;
-    private double purpleDamage = 32.0d;
+    private double purpleRange = 100.0d;
+    private double purpleRadius = 4.0d;
+    private double purpleDamage = 60.0d;
     private double purpleKnockback = 3.0d;
     private double purpleCooldown = 90.0d;
 
@@ -89,9 +90,10 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
 
     private double reverseCooldown = 45.0d;
 
-    private double domainRadius = 16.0d;
-    private double domainDurationSeconds = 8.0d;
-    private double domainDamage = 6.0d;
+    private double domainRadius = 24.0d;
+    private double domainDurationSeconds = 12.0d;
+    /** Sure-hit overload damage dealt once per second while trapped. */
+    private double domainDamage = 4.0d;
     private double domainCooldown = 180.0d;
 
     public CrazyTNT2CoolKit(PowerSMP plugin) {
@@ -143,9 +145,11 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
             }
             ConfigurationSection purple = section.getConfigurationSection("hollow-purple");
             if (purple != null) {
-                purpleRange = purple.getDouble("range", purpleRange);
-                purpleRadius = purple.getDouble("radius", purpleRadius);
-                purpleDamage = purple.getDouble("damage", purpleDamage);
+                // Preserve the overhaul's minimum power even when an existing server still has
+                // the older, much weaker values in plugins/PowerSMP/kits.yml.
+                purpleRange = Math.max(100.0d, purple.getDouble("range", purpleRange));
+                purpleRadius = Math.max(4.0d, purple.getDouble("radius", purpleRadius));
+                purpleDamage = Math.max(60.0d, purple.getDouble("damage", purpleDamage));
                 purpleKnockback = purple.getDouble("knockback", purpleKnockback);
                 purpleCooldown = purple.getDouble("cooldown-seconds", purpleCooldown);
             }
@@ -160,10 +164,10 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
             }
             ConfigurationSection domain = section.getConfigurationSection("unlimited-void");
             if (domain != null) {
-                domainRadius = domain.getDouble("radius", domainRadius);
-                domainDurationSeconds =
-                        domain.getDouble("duration-seconds", domainDurationSeconds);
-                domainDamage = domain.getDouble("damage", domainDamage);
+                domainRadius = Math.max(24.0d, domain.getDouble("radius", domainRadius));
+                domainDurationSeconds = Math.max(12.0d,
+                        domain.getDouble("duration-seconds", domainDurationSeconds));
+                domainDamage = Math.max(4.0d, domain.getDouble("damage", domainDamage));
                 domainCooldown = domain.getDouble("cooldown-seconds", domainCooldown);
             }
         }
@@ -318,41 +322,69 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
             return false;
         }
 
-        Location start = owner.getEyeLocation();
+        Location start = owner.getEyeLocation().clone();
         Vector direction = start.getDirection().normalize();
         Set<UUID> hit = new HashSet<>();
-        Location last = start;
-        for (double distance = 1.0d; distance <= purpleRange; distance += 0.75d) {
-            Location point = start.clone().add(direction.clone().multiply(distance));
-            Block block = point.getBlock();
-            if (!block.isPassable()) {
-                break;
-            }
-            last = point;
-            point.getWorld().spawnParticle(Particle.DUST, point, 5,
-                    0.22d, 0.22d, 0.22d, 0.0d, PURPLE_DUST);
-            point.getWorld().spawnParticle(Particle.END_ROD, point, 1,
-                    0.12d, 0.12d, 0.12d, 0.01d);
-            for (Entity entity : point.getWorld().getNearbyEntities(
-                    point, purpleRadius, purpleRadius, purpleRadius)) {
-                if (!(entity instanceof LivingEntity target)
-                        || target.equals(owner)
-                        || !TeamRules.canAffect(owner, target)
-                        || !hit.add(target.getUniqueId())) {
-                    continue;
-                }
-                target.damage(purpleDamage, owner);
-                target.setVelocity(direction.clone().multiply(purpleKnockback).setY(0.35d));
-            }
-        }
-
-        owner.getWorld().spawnParticle(Particle.FLASH, last, 1);
-        owner.getWorld().spawnParticle(Particle.EXPLOSION, last, 6,
-                0.8d, 0.8d, 0.8d, 0.0d);
+        World world = owner.getWorld();
+        world.spawnParticle(Particle.DUST, start, 180, 1.0d, 1.0d, 1.0d, 0.0d, PURPLE_DUST);
+        world.spawnParticle(Particle.REVERSE_PORTAL, start, 100, 1.0d, 1.0d, 1.0d, 0.3d);
         owner.getWorld().playSound(owner.getLocation(), Sound.ENTITY_WARDEN_SONIC_BOOM, 2.0f, 0.65f);
-        owner.getWorld().playSound(last, Sound.ENTITY_GENERIC_EXPLODE, 1.8f, 0.5f);
-        Text.actionBar(owner, "<gradient:#3d8bff:#db35ff><bold>HOLLOW PURPLE</bold></gradient>"
-                + " <gray>-- " + hit.size() + " erased</gray>");
+        owner.showTitle(Title.title(
+                Text.mm("<gradient:#338cff:#e229ff><bold>HOLLOW PURPLE</bold></gradient>"),
+                Text.mm("<dark_purple>Imaginary Technique</dark_purple>")));
+
+        // A fast, visible annihilation sphere. It deliberately passes through blocks: terrain is
+        // preserved, but hiding behind a wall does not negate an ultimate technique.
+        new BukkitRunnable() {
+            private double distance = 1.5d;
+
+            @Override
+            public void run() {
+                if (!owner.isOnline() || distance > purpleRange) {
+                    Location end = start.clone().add(direction.clone()
+                            .multiply(Math.min(distance, purpleRange)));
+                    world.spawnParticle(Particle.FLASH, end, 1);
+                    world.spawnParticle(Particle.EXPLOSION, end, 12,
+                            1.5d, 1.5d, 1.5d, 0.0d);
+                    world.playSound(end, Sound.ENTITY_GENERIC_EXPLODE, 2.0f, 0.45f);
+                    Text.actionBar(owner,
+                            "<gradient:#3d8bff:#db35ff><bold>HOLLOW PURPLE</bold></gradient>"
+                                    + " <gray>-- " + hit.size() + " erased</gray>");
+                    cancel();
+                    return;
+                }
+
+                // Sweep several points per tick so high projectile speed never leaves collision
+                // gaps between server ticks.
+                for (int step = 0; step < 3 && distance <= purpleRange; step++, distance += 1.5d) {
+                    Location point = start.clone().add(direction.clone().multiply(distance));
+                    world.spawnParticle(Particle.DUST, point, 30,
+                            purpleRadius * 0.35d, purpleRadius * 0.35d,
+                            purpleRadius * 0.35d, 0.0d, PURPLE_DUST);
+                    world.spawnParticle(Particle.REVERSE_PORTAL, point, 12,
+                            purpleRadius * 0.3d, purpleRadius * 0.3d,
+                            purpleRadius * 0.3d, 0.12d);
+                    world.spawnParticle(Particle.END_ROD, point, 5,
+                            purpleRadius * 0.25d, purpleRadius * 0.25d,
+                            purpleRadius * 0.25d, 0.02d);
+                    for (Entity entity : world.getNearbyEntities(
+                            point, purpleRadius, purpleRadius, purpleRadius)) {
+                        if (!(entity instanceof LivingEntity target)
+                                || target.equals(owner)
+                                || !TeamRules.canAffect(owner, target)
+                                || !hit.add(target.getUniqueId())) {
+                            continue;
+                        }
+                        target.setNoDamageTicks(0);
+                        target.damage(purpleDamage, owner);
+                        target.setVelocity(direction.clone().multiply(purpleKnockback).setY(0.45d));
+                        target.getWorld().spawnParticle(Particle.EXPLOSION,
+                                target.getLocation().add(0.0d, 1.0d, 0.0d),
+                                4, 0.5d, 0.7d, 0.5d, 0.0d);
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
         return true;
     }
 
@@ -415,39 +447,100 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
             return false;
         }
 
-        int caught = 0;
+        Set<UUID> caught = new HashSet<>();
         int durationTicks = Math.max(1, (int) Math.round(domainDurationSeconds * 20.0d));
+        Location center = owner.getLocation().clone();
         for (Entity entity : owner.getNearbyEntities(domainRadius, domainRadius, domainRadius)) {
             if (!(entity instanceof LivingEntity target) || target.equals(owner)
                     || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
-            plugin.freeze().stunSeconds(target, domainDurationSeconds);
-            Effects.apply(target, PotionEffectType.DARKNESS, durationTicks, 0);
-            Effects.apply(target, PotionEffectType.BLINDNESS, durationTicks, 0);
-            Effects.apply(target, PotionEffectType.NAUSEA, durationTicks, 1);
-            target.damage(domainDamage, owner);
+            caught.add(target.getUniqueId());
             if (target instanceof Player player) {
                 player.showTitle(Title.title(
                         Text.mm("<dark_aqua><bold>UNLIMITED VOID</bold></dark_aqua>"),
                         Text.mm("<gray>Everything. Everywhere. All at once.</gray>")));
             }
-            caught++;
         }
 
-        Location center = owner.getLocation().add(0.0d, 1.0d, 0.0d);
         World world = owner.getWorld();
-        world.spawnParticle(Particle.SCULK_SOUL, center, 220,
+        world.spawnParticle(Particle.SCULK_SOUL, center.clone().add(0.0d, 1.0d, 0.0d), 400,
                 domainRadius / 2.0d, 2.5d, domainRadius / 2.0d, 0.08d);
-        world.spawnParticle(Particle.END_ROD, center, 180,
+        world.spawnParticle(Particle.END_ROD, center.clone().add(0.0d, 1.0d, 0.0d), 300,
                 domainRadius / 2.0d, 2.5d, domainRadius / 2.0d, 0.04d);
         world.playSound(owner.getLocation(), Sound.ENTITY_WARDEN_ROAR, 2.0f, 0.55f);
         owner.showTitle(Title.title(
                 Text.mm("<gradient:#52d7ff:#7c4dff><bold>DOMAIN EXPANSION</bold></gradient>"),
                 Text.mm("<white>UNLIMITED VOID</white>")));
         Text.actionBar(owner, "<dark_aqua><bold>UNLIMITED VOID</bold></dark_aqua>"
-                + " <gray>-- " + caught + " minds overloaded</gray>");
+                + " <gray>-- " + caught.size() + " minds trapped</gray>");
+
+        // Unlimited Void is a sustained sure-hit domain. Victims are held inside its boundary,
+        // continuously disabled, and overloaded once per second until the barrier collapses.
+        new BukkitRunnable() {
+            private int elapsedTicks;
+
+            @Override
+            public void run() {
+                if (!owner.isOnline() || elapsedTicks >= durationTicks) {
+                    world.spawnParticle(Particle.FLASH,
+                            center.clone().add(0.0d, 1.0d, 0.0d), 2);
+                    world.playSound(center, Sound.BLOCK_BEACON_DEACTIVATE, 1.8f, 0.55f);
+                    cancel();
+                    return;
+                }
+
+                drawDomainRing(world, center, domainRadius, elapsedTicks);
+                for (UUID targetId : Set.copyOf(caught)) {
+                    Entity entity = plugin.getServer().getEntity(targetId);
+                    if (!(entity instanceof LivingEntity target) || !target.isValid()
+                            || !target.getWorld().equals(world)) {
+                        caught.remove(targetId);
+                        continue;
+                    }
+                    Vector offset = target.getLocation().toVector().subtract(center.toVector());
+                    if (offset.lengthSquared() > domainRadius * domainRadius) {
+                        Vector inside = offset.lengthSquared() < 0.0001d
+                                ? new Vector() : offset.normalize().multiply(domainRadius - 2.0d);
+                        Location contained = center.clone().add(inside);
+                        contained.setYaw(target.getYaw());
+                        contained.setPitch(target.getPitch());
+                        target.teleport(contained);
+                    }
+                    plugin.freeze().stunSeconds(target, 0.75d);
+                    Effects.apply(target, PotionEffectType.DARKNESS, 30, 0);
+                    Effects.apply(target, PotionEffectType.BLINDNESS, 30, 0);
+                    Effects.apply(target, PotionEffectType.NAUSEA, 30, 2);
+                    Effects.apply(target, PotionEffectType.WEAKNESS, 30, 4);
+                    Effects.apply(target, PotionEffectType.MINING_FATIGUE, 30, 4);
+                    if (elapsedTicks % 20 == 0) {
+                        target.setNoDamageTicks(0);
+                        target.damage(domainDamage, owner);
+                        world.spawnParticle(Particle.SCULK_SOUL,
+                                target.getLocation().add(0.0d, 1.0d, 0.0d),
+                                20, 0.35d, 0.6d, 0.35d, 0.05d);
+                    }
+                }
+                elapsedTicks += 5;
+            }
+        }.runTaskTimer(plugin, 0L, 5L);
         return true;
+    }
+
+    private static void drawDomainRing(World world, Location center, double radius, int tick) {
+        double rotation = tick * 0.035d;
+        for (int i = 0; i < 48; i++) {
+            double angle = rotation + (Math.PI * 2.0d * i / 48.0d);
+            Location edge = center.clone().add(
+                    Math.cos(angle) * radius, 0.25d + (i % 4) * 0.65d,
+                    Math.sin(angle) * radius);
+            world.spawnParticle(Particle.DUST, edge, 2,
+                    0.08d, 0.18d, 0.08d, 0.0d, PURPLE_DUST);
+            if (i % 4 == 0) {
+                world.spawnParticle(Particle.END_ROD, edge, 1,
+                        0.05d, 0.1d, 0.05d, 0.0d);
+            }
+        }
     }
 
     private boolean unlocked(Player owner, Power power) {

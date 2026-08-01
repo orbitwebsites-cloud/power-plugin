@@ -923,9 +923,9 @@ crazytnt2cool:
     cooldown-seconds: 18
 
   hollow-purple:
-    range: 64.0
-    radius: 2.25
-    damage: 32.0                   # 16 hearts before armour
+    range: 100.0
+    radius: 4.0
+    damage: 60.0                   # 30 hearts before armour; passes through walls
     knockback: 3.0
     cooldown-seconds: 90
 
@@ -938,9 +938,9 @@ crazytnt2cool:
     cooldown-seconds: 45
 
   unlimited-void:
-    radius: 16.0
-    duration-seconds: 8
-    damage: 6.0                    # initial overload damage
+    radius: 24.0
+    duration-seconds: 12
+    damage: 4.0                    # sure-hit overload every second
     cooldown-seconds: 180
 
 # =====================================================================
