@@ -51,9 +51,9 @@ public enum Power {
     GREEDY_HEAL("greedy_heal", "Greedy Heal", "jjlionjxi", Gate.KILLS),
 
     // --- domanthegamer ---------------------------------------------------
-    LIMIT_BREAK("limit_break", "Limit Break", "domanthegamer", Gate.KILLS),
-    ASCENDED_FLIGHT("ascended_flight", "Ascended Flight", "domanthegamer", Gate.KILLS),
-    FINAL_BURST("final_burst", "Final Burst", "domanthegamer", Gate.KILLS),
+    BLOOD_BOUND("blood_bound", "Blood-Bound Vitality", "domanthegamer", Gate.KILLS),
+    TRACKING("tracking", "Tracking", "domanthegamer", Gate.KILLS),
+    BLOODLUST("bloodlust", "Bloodlust Sword", "domanthegamer", Gate.KILLS),
 
     // --- Sparkkkkkkkk ----------------------------------------------------
     GUNPOWDER("gunpowder", "Creeper Harvest", "sparkkkkkkkk", Gate.KILLS),
@@ -61,9 +61,9 @@ public enum Power {
     ATOM_BOMB("atom_bomb", "Atom Bomb", "sparkkkkkkkk", Gate.KILLS),
 
     // --- Night_Scar3 -----------------------------------------------------
-    PERMANENT_STRENGTH("permanent_strength", "Permanent Strength", "night_scar3", Gate.KILLS),
-    DASH("dash", "Dash", "night_scar3", Gate.KILLS),
-    DENSITY_MACE("density_mace", "Mace Master", "night_scar3", Gate.KILLS),
+    INFERNAL_VITALITY("infernal_vitality", "Infernal Vitality", "night_scar3", Gate.KILLS),
+    SHADOW_BOMB("shadow_bomb", "Shadow Bomb", "night_scar3", Gate.KILLS),
+    CUTLASS_MASTER("cutlass_master", "Cutlass Sword", "night_scar3", Gate.KILLS),
 
     // --- Marb13_ ---------------------------------------------------------
     MINERS_HAVEN("miners_haven", "Miner's Haven", "marb13", Gate.KILLS),
@@ -102,19 +102,12 @@ public enum Power {
     // --- TechKnightGaming -------------------------------------------------
     // All three are ALWAYS: the spec describes them as things he simply has,
     // with no unlock condition mentioned.
-    MACE_MASSACRE("mace_massacre", "Mace Massacre", "techknight", Gate.ALWAYS),
+    SHIELD_BREAKER("shield_breaker", "Shield Breaker", "techknight", Gate.ALWAYS),
+    TITAN_PROTOCOL("titan_protocol", "Titan Protocol", "techknight", Gate.ALWAYS),
     RESTOCK("restock", "Restock", "techknight", Gate.ALWAYS),
     INFINITE_XP("infinite_xp", "Infinite XP Bottles", "techknight", Gate.ALWAYS),
     // Added after the fact: the original three read as stat/utility gear rather than a "power" you
-    // press a button for. Earthbreaker is that button, and its damage rides the same mace-kills
-    // counter Density already does, so it grows alongside the rest of the kit instead of sitting
-    // next to it as an unrelated bolt-on.
-    EARTHBREAKER("earthbreaker", "Earthbreaker", "techknight", Gate.ALWAYS),
-    FORTIFY("fortify", "Fortify", "techknight", Gate.ALWAYS),
-    REFLECT_SHIELD("reflect_shield", "Reflect Shield", "techknight", Gate.ALWAYS),
-    SHOCKWAVE("shockwave", "Shockwave", "techknight", Gate.ALWAYS),
-    OVERLOAD("overload", "Overload", "techknight", Gate.ALWAYS),
-    DECOY("decoy", "Decoy", "techknight", Gate.ALWAYS),
+    // press a button for. Earthbreaker is that button and scales with total kills.
     GRAPPLE_SHOT("grapple_shot", "Grapple Shot", "techknight", Gate.ALWAYS),
 
     // --- Phantom -----------------------------------------------------------
@@ -127,6 +120,12 @@ public enum Power {
     // --- Lucky ---------------------------------------------------------------
     // Just the one power -- there is nothing to tier.
     LUCKY_ROLL("lucky_roll", "Lucky Roll", "lucky", Gate.ALWAYS),
+
+    // --- Ldledeathgamble -----------------------------------------------------
+    // Jackpot is the button; Fever and Rising Odds are always-on modifiers to its next roll.
+    JACKPOT("jackpot", "Jackpot", "idledeathgamble", Gate.ALWAYS),
+    FEVER("fever", "Fever", "idledeathgamble", Gate.ALWAYS),
+    RISING_ODDS("rising_odds", "Rising Odds", "idledeathgamble", Gate.ALWAYS),
 
     // --- Life Stealer --------------------------------------------------------
     // No tiers were given, so all three are simply part of the kit.
@@ -146,7 +145,12 @@ public enum Power {
     LIMITLESS_WARP("limitless_warp", "Limitless Warp", "crazytnt2cool", Gate.ALWAYS),
     REVERSE_CURSED_TECHNIQUE(
             "reverse_cursed_technique", "Reverse Cursed Technique", "crazytnt2cool", Gate.ALWAYS),
-    UNLIMITED_VOID("unlimited_void", "Domain Expansion: Unlimited Void", "crazytnt2cool", Gate.ALWAYS);
+    UNLIMITED_VOID("unlimited_void", "Domain Expansion: Unlimited Void", "crazytnt2cool", Gate.ALWAYS),
+
+    // --- I_BL0W_STUFF_UP -------------------------------------------------
+    BLAST_PROOF("blast_proof", "Blast Proof", "bites_the_dust", Gate.ALWAYS),
+    STICKY_TNT("sticky_tnt", "Sticky TNT", "bites_the_dust", Gate.ALWAYS),
+    BITES_THE_DUST("bites_the_dust", "Bites the Dust", "bites_the_dust", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

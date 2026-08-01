@@ -4,12 +4,12 @@ import com.powersmp.PowerSMP;
 import com.powersmp.item.TridentItem;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Enchants;
 import com.powersmp.util.Keys;
 import com.powersmp.util.Text;
-import io.papermc.paper.event.player.PlayerStopUsingItemEvent;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -22,6 +22,7 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -37,9 +38,13 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.event.block.Action;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
+import org.bukkit.attribute.AttributeModifier;
 
 /**
  * ItzMeTentx: the water kit.
@@ -54,27 +59,34 @@ import org.bukkit.potion.PotionEffectType;
  *
  * <p>Riptide is hard-gated on the player being in water or rain -- when dry, releasing a Riptide
  * trident does nothing at all, and the trident cannot be thrown either, so there is no vanilla
- * behaviour to intercept or cancel. The launch is therefore re-implemented: Paper's
- * {@link PlayerStopUsingItemEvent} reports how long the trident was charged,
- * and if it was held past vanilla's charge time while dry, the player is thrown along their look
- * vector using vanilla's own power curve.
+ * behaviour to intercept or cancel. Dry use is driven from right-click directly, with a fixed
+ * vanilla-matching charge delay and a proximity watch that stops the launch on contact.
  */
 public class ItzMeTentxKit implements PowerKit, Listener {
 
     public static final String ID = "itzmetentx";
+    private static final String ABILITY_RIPTIDE = "poseidon_riptide";
 
     /** Vanilla charges a riptide throw for 10 ticks before it will fire. */
     private static final int RIPTIDE_CHARGE_TICKS = 10;
+    private static final long MANUAL_RIPTIDE_MILLIS = 1500L;
+    private static final int COLLISION_WATCH_MAX_TICKS = 30;
 
     private final PowerSMP plugin;
     /** Players inside a manual (dry) riptide, since {@code isRiptiding()} stays false for those. */
     private final Map<UUID, Long> manualRiptide = new ConcurrentHashMap<>();
-    /** Fallback charge handles for dry tridents; some clients do not emit stop-use reliably. */
-    private final Map<UUID, Integer> pendingRiptide = new ConcurrentHashMap<>();
+    /** Players mid-charge on a dry riptide -- one click, one scheduled launch. */
+    private final Map<UUID, BukkitTask> chargingRiptide = new ConcurrentHashMap<>();
+    /** Tick-by-tick proximity checks that stop a dry riptide on contact. */
+    private final Map<UUID, BukkitTask> riptideCollisionWatch = new ConcurrentHashMap<>();
     /** Last attack-speed value written, so the attribute is not rewritten every tick. */
     private final Map<UUID, Double> appliedAttackSpeed = new ConcurrentHashMap<>();
     /** Tridents pulled out of death drops, held until the owner respawns. */
     private final Map<UUID, ItemStack> deathStash = new ConcurrentHashMap<>();
+    /** Opponent -> current consecutive melee-hit chain. */
+    private final Map<UUID, HitCombo> hitCombos = new ConcurrentHashMap<>();
+    /** Opponent -> time at which Tentx's attack-speed penalty expires. */
+    private final Map<UUID, Long> comboSlowedUntil = new ConcurrentHashMap<>();
 
     private int waterBreathingAmplifier;
     private int dolphinsGraceAmplifier;
@@ -85,6 +97,13 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     private double riptidePowerPerLevel = 1.5d;
     private double riptideStunSeconds = 3.0d;
     private boolean riptideStunPlayersOnly;
+    private double riptideCollisionRange = 0.6d;
+    private double spearDamageMultiplier = 5.0d;
+    private boolean poseidonLightningEnabled = true;
+    private double riptideCooldownSeconds = 30.0d;
+    private double comboWindowSeconds = 5.0d;
+    private double comboDebuffSeconds = 5.0d;
+    private double comboAttackSpeedReduction = 0.15d;
 
     public ItzMeTentxKit(PowerSMP plugin) {
         this.plugin = plugin;
@@ -122,7 +141,22 @@ public class ItzMeTentxKit implements PowerKit, Listener {
                     trident.getDouble("dry-riptide-power-per-level", riptidePowerPerLevel);
             riptideStunSeconds = trident.getDouble("hit-stun-seconds", riptideStunSeconds);
             riptideStunPlayersOnly = trident.getBoolean("stun-players-only", false);
+            riptideCollisionRange = Math.max(0.1d,
+                    trident.getDouble("collision-range", riptideCollisionRange));
+            spearDamageMultiplier = Math.max(0.0d,
+                    trident.getDouble("spear-speed-damage-multiplier", spearDamageMultiplier));
+            poseidonLightningEnabled =
+                    trident.getBoolean("lightning-enabled", poseidonLightningEnabled);
+            riptideCooldownSeconds = Math.max(0.0d,
+                    trident.getDouble("riptide-cooldown-seconds", riptideCooldownSeconds));
+            comboWindowSeconds = Math.max(0.1d,
+                    trident.getDouble("combo-window-seconds", comboWindowSeconds));
+            comboDebuffSeconds = Math.max(0.1d,
+                    trident.getDouble("combo-debuff-seconds", comboDebuffSeconds));
+            comboAttackSpeedReduction = Math.max(0.0d, Math.min(0.95d,
+                    trident.getDouble("combo-attack-speed-reduction", comboAttackSpeedReduction)));
         }
+        plugin.cooldowns().registerLabel(ABILITY_RIPTIDE, "Poseidon's Riptide");
     }
 
     // ---- passives -------------------------------------------------------
@@ -192,12 +226,18 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     // ---- Trident God ----------------------------------------------------
 
     /**
-     * Dry riptide. Vanilla will not fire one out of water or rain and will not let a Riptide trident
-     * be thrown either, so nothing happens on release and there is no event to cancel -- the launch
-     * has to be performed here from scratch.
+     * Vanilla only starts Riptide reliably while wet. Dry use is handled from the click itself so
+     * open-air clicks and block-targeted clicks behave identically.
      */
-    @EventHandler(priority = EventPriority.MONITOR)
-    public void onReleaseTrident(PlayerStopUsingItemEvent event) {
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onTridentInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
+            return;
+        }
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
         Player player = event.getPlayer();
         if (!plugin.kits().isOwner(player, ID)
                 || !plugin.unlocks().isUnlocked(player, Power.TRIDENT_GOD)) {
@@ -205,63 +245,48 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         ItemStack item = event.getItem();
         if (item == null || item.getType() != Material.TRIDENT
-                || !player.getUniqueId().equals(TridentItem.ownerOf(item))) {
-            return;
-        }
-        if (Enchants.RIPTIDE == null) {
+                || !player.getUniqueId().equals(TridentItem.ownerOf(item))
+                || Enchants.RIPTIDE == null) {
             return;
         }
         int level = item.getEnchantmentLevel(Enchants.RIPTIDE);
-        if (level <= 0 || event.getTicksHeldFor() < RIPTIDE_CHARGE_TICKS) {
-            return;
-        }
-        if (isRiptiding(player)) {
-            return; // The fallback charge already launched it.
-        }
-        launchDryRiptide(player, level);
-    }
-
-    /** Starts a dry-riptide charge even when the client never sends Paper's stop-use event. */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
-    public void onStartUsingTrident(PlayerInteractEvent event) {
-        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
-            return;
-        }
-        Player player = event.getPlayer();
-        ItemStack item = event.getItem();
-        if (!plugin.kits().isOwner(player, ID)
-                || !plugin.unlocks().isUnlocked(player, Power.TRIDENT_GOD)
-                || item == null || !player.getUniqueId().equals(TridentItem.ownerOf(item))
-                || pendingRiptide.containsKey(player.getUniqueId())) {
-            return;
-        }
-        // Replace vanilla's water/rain-only Riptide gate with one consistent charge path that
-        // works in water, rain, and completely dry air/land.
-        event.setCancelled(true);
-        UUID id = player.getUniqueId();
-        int taskId = Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            pendingRiptide.remove(id);
-            if (!player.isOnline()
-                    || !player.getInventory().getItemInMainHand().isSimilar(item)) {
-                return;
-            }
-            launchDryRiptide(player, item.getEnchantmentLevel(Enchants.RIPTIDE));
-        }, RIPTIDE_CHARGE_TICKS).getTaskId();
-        pendingRiptide.put(id, taskId);
-    }
-
-    private void launchDryRiptide(Player player, int level) {
         if (level <= 0) {
             return;
         }
-        pendingRiptide.remove(player.getUniqueId());
+        UUID id = player.getUniqueId();
+        if (chargingRiptide.containsKey(id)) {
+            return;
+        }
+        event.setCancelled(true);
+        if (!plugin.cooldowns().tryUse(player, ABILITY_RIPTIDE, riptideCooldownSeconds)) {
+            return;
+        }
+        player.getWorld().playSound(player.getLocation(), Sound.ITEM_TRIDENT_RIPTIDE_1, 0.6f, 0.8f);
+        BukkitTask task = Bukkit.getScheduler().runTaskLater(
+                (Plugin) plugin, () -> launchDryRiptide(player, level), RIPTIDE_CHARGE_TICKS);
+        chargingRiptide.put(id, task);
+    }
+
+    private void launchDryRiptide(Player player, int level) {
+        UUID id = player.getUniqueId();
+        chargingRiptide.remove(id);
+        if (!player.isOnline()) {
+            plugin.cooldowns().clear(id, ABILITY_RIPTIDE);
+            return;
+        }
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held.getType() != Material.TRIDENT || !id.equals(TridentItem.ownerOf(held))) {
+            plugin.cooldowns().clear(id, ABILITY_RIPTIDE);
+            return;
+        }
         double power = riptidePowerBase + riptidePowerPerLevel * level;
         player.setVelocity(player.getLocation().getDirection().multiply(power / 3.0d));
         player.setFallDistance(0.0f);
-        manualRiptide.put(player.getUniqueId(), System.currentTimeMillis() + 1500L);
+        manualRiptide.put(id, System.currentTimeMillis() + MANUAL_RIPTIDE_MILLIS);
         player.getWorld().playSound(player.getLocation(), soundFor(level), 1.0f, 1.0f);
-        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 30, 0.4, 0.3, 0.4, 0.2);
-        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 10, 0.3, 0.2, 0.3, 0.05);
+        player.getWorld().spawnParticle(Particle.SPLASH, player.getLocation(), 60, 0.4, 0.3, 0.4, 0.2);
+        player.getWorld().spawnParticle(Particle.BUBBLE_COLUMN_UP, player.getLocation(), 20, 0.3, 0.2, 0.3, 0.05);
+        startCollisionWatch(player);
     }
 
     private Sound soundFor(int level) {
@@ -272,8 +297,52 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         };
     }
 
-    /** Anything caught by the spin attack is stunned -- but stays hittable, so it is an opening. */
-    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    /** Stops a dry Riptide on contact instead of carrying the player through the target. */
+    private void startCollisionWatch(Player player) {
+        UUID id = player.getUniqueId();
+        cancelTask(riptideCollisionWatch, id);
+        BukkitTask task = Bukkit.getScheduler().runTaskTimer((Plugin) plugin, new Runnable() {
+            private int ticks;
+
+            @Override
+            public void run() {
+                if (++ticks > COLLISION_WATCH_MAX_TICKS
+                        || !player.isOnline() || !isRiptiding(player)) {
+                    cancelTask(riptideCollisionWatch, id);
+                    return;
+                }
+                for (Entity nearby : player.getNearbyEntities(
+                        riptideCollisionRange, riptideCollisionRange, riptideCollisionRange)) {
+                    if (nearby.equals(player) || !(nearby instanceof LivingEntity target)
+                            || (riptideStunPlayersOnly && !(target instanceof Player))
+                            || !TeamRules.canAffect(player, target)) {
+                        continue;
+                    }
+                    manualRiptide.remove(id);
+                    Vector velocity = player.getVelocity();
+                    double spearDamage = velocity.length() * spearDamageMultiplier;
+                    if (spearDamage > 0.0d) {
+                        target.damage(spearDamage, player);
+                    }
+                    player.setVelocity(new Vector(0.0d, Math.min(0.0d, velocity.getY()), 0.0d));
+                    plugin.freeze().stunSeconds(target, riptideStunSeconds);
+                    target.getWorld().playSound(
+                            target.getLocation(), Sound.ITEM_TRIDENT_HIT, 1.0f, 0.8f);
+                    target.getWorld().spawnParticle(Particle.SPLASH,
+                            target.getLocation().add(0, 1, 0), 40,
+                            0.5, 0.5, 0.5, 0.25);
+                    player.getWorld().playSound(
+                            player.getLocation(), Sound.ITEM_TRIDENT_HIT_GROUND, 1.0f, 1.0f);
+                    cancelTask(riptideCollisionWatch, id);
+                    return;
+                }
+            }
+        }, 1L, 1L);
+        riptideCollisionWatch.put(id, task);
+    }
+
+    /** Anything caught by vanilla's spin attack is stunned but stays hittable. */
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onRiptideHit(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Player player)
                 || !plugin.kits().isOwner(player, ID)
@@ -286,9 +355,19 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         if (riptideStunPlayersOnly && !(target instanceof Player)) {
             return;
         }
-        if (!isRiptiding(player)) {
+        if (!TeamRules.canAffect(player, target)) {
             return;
         }
+        if (!isRiptiding(player)) {
+            ItemStack held = player.getInventory().getItemInMainHand();
+            if (poseidonLightningEnabled
+                    && player.getUniqueId().equals(TridentItem.ownerOf(held))) {
+                TeamRules.runProtected(player,
+                        () -> target.getWorld().strikeLightning(target.getLocation()));
+            }
+            return;
+        }
+        event.setDamage(player.getVelocity().length() * spearDamageMultiplier);
         plugin.freeze().stunSeconds(target, riptideStunSeconds);
         target.getWorld().playSound(target.getLocation(), Sound.ITEM_TRIDENT_HIT, 1.0f, 0.8f);
         target.getWorld().spawnParticle(Particle.SPLASH, target.getLocation().add(0, 1, 0), 40, 0.5, 0.5, 0.5, 0.25);
@@ -322,6 +401,7 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         for (ItemStack item : owner.getInventory().getContents()) {
             if (owner.getUniqueId().equals(TridentItem.ownerOf(item))) {
+                TridentItem.refresh(item);
                 return;
             }
         }
@@ -400,19 +480,80 @@ public class ItzMeTentxKit implements PowerKit, Listener {
     public void onJoin(Player owner) {
         // Attribute modifiers survive in player NBT; clear ours before re-deriving.
         Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
+        // Repairs stale combat modifiers if the server stopped while the five-second timer ran.
+        Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_COMBO_ATTACK_SPEED);
+        comboSlowedUntil.remove(owner.getUniqueId());
         Effects.remove(owner, PotionEffectType.WATER_BREATHING);
         Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
         appliedAttackSpeed.remove(owner.getUniqueId());
         ensureTrident(owner);
     }
 
+    /** Three consecutive melee hits debuff that opponent, independent of Riptide contact. */
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onThreeHitCombo(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Player owner)
+                || !(event.getEntity() instanceof Player target)
+                || !plugin.kits().isOwner(owner, ID)
+                || !plugin.unlocks().isUnlocked(owner, Power.TRIDENT_GOD)
+                || !TeamRules.canAffect(owner, target)) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        long windowMillis = Math.round(comboWindowSeconds * 1000.0d);
+        HitCombo previous = hitCombos.get(target.getUniqueId());
+        int hits = previous == null || now - previous.lastHitAt > windowMillis
+                ? 1 : previous.hits + 1;
+        if (hits < 3) {
+            hitCombos.put(target.getUniqueId(), new HitCombo(hits, now));
+            Text.actionBar(owner, "<aqua>Tidal combo: <white>" + hits + "/3</white></aqua>");
+            return;
+        }
+        hitCombos.remove(target.getUniqueId());
+        int durationTicks = Math.max(1, (int) Math.round(comboDebuffSeconds * 20.0d));
+        Effects.apply(target, PotionEffectType.MINING_FATIGUE, durationTicks, 0);
+        Attributes.set(target, Attributes.ATTACK_SPEED, Keys.TIDAL_COMBO_ATTACK_SPEED,
+                -comboAttackSpeedReduction, AttributeModifier.Operation.MULTIPLY_SCALAR_1);
+        long expires = now + Math.round(comboDebuffSeconds * 1000.0d);
+        comboSlowedUntil.put(target.getUniqueId(), expires);
+        Bukkit.getScheduler().runTaskLater((Plugin) plugin, () -> {
+            Long current = comboSlowedUntil.get(target.getUniqueId());
+            if (current != null && current == expires) {
+                comboSlowedUntil.remove(target.getUniqueId());
+                Attributes.clear(target, Attributes.ATTACK_SPEED, Keys.TIDAL_COMBO_ATTACK_SPEED);
+            }
+        }, durationTicks);
+        Text.actionBar(owner, "<aqua><bold>3-HIT TIDAL COMBO</bold></aqua>");
+        Text.actionBar(target, "<blue>Mining Fatigue + 15% slower attacks</blue>");
+        target.getWorld().spawnParticle(Particle.SPLASH,
+                target.getLocation().add(0, 1, 0), 45, 0.5, 0.7, 0.5, 0.2);
+        target.playSound(target.getLocation(), Sound.ITEM_TRIDENT_THUNDER, 0.8f, 1.4f);
+    }
+
     @Override
     public void onQuit(Player owner) {
         Attributes.clear(owner, Attributes.ATTACK_SPEED, Keys.TIDAL_ATTACK_SPEED);
+        for (UUID targetId : comboSlowedUntil.keySet()) {
+            Player target = Bukkit.getPlayer(targetId);
+            if (target != null) {
+                Attributes.clear(target, Attributes.ATTACK_SPEED, Keys.TIDAL_COMBO_ATTACK_SPEED);
+            }
+        }
+        comboSlowedUntil.clear();
+        hitCombos.clear();
         Effects.remove(owner, PotionEffectType.WATER_BREATHING);
         Effects.remove(owner, PotionEffectType.DOLPHINS_GRACE);
         appliedAttackSpeed.remove(owner.getUniqueId());
         manualRiptide.remove(owner.getUniqueId());
+        cancelTask(chargingRiptide, owner.getUniqueId());
+        cancelTask(riptideCollisionWatch, owner.getUniqueId());
+    }
+
+    private void cancelTask(Map<UUID, BukkitTask> tasks, UUID id) {
+        BukkitTask task = tasks.remove(id);
+        if (task != null) {
+            task.cancel();
+        }
     }
 
     @Override
@@ -437,5 +578,16 @@ public class ItzMeTentxKit implements PowerKit, Listener {
         }
         appliedAttackSpeed.clear();
         manualRiptide.clear();
+        chargingRiptide.values().forEach(BukkitTask::cancel);
+        chargingRiptide.clear();
+        riptideCollisionWatch.values().forEach(BukkitTask::cancel);
+        riptideCollisionWatch.clear();
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Attributes.clear(player, Attributes.ATTACK_SPEED, Keys.TIDAL_COMBO_ATTACK_SPEED);
+        }
+        hitCombos.clear();
+        comboSlowedUntil.clear();
     }
+
+    private record HitCombo(int hits, long lastHitAt) { }
 }

@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Text;
 import java.util.List;
 import java.util.Map;
@@ -106,6 +107,10 @@ public class KornFlakisKit implements PowerKit, Listener {
         }
         if (target.equals(owner)) {
             Text.msg(owner, "<red>Not on yourself -- that would burn the whole cooldown.");
+            return false;
+        }
+        if (!TeamRules.canAffect(owner, target)) {
+            Text.msg(owner, "<yellow>You cannot execute a teammate.</yellow>");
             return false;
         }
         if (!plugin.cooldowns().tryUse(owner, ABILITY_EXECUTE, cooldownSeconds)) {

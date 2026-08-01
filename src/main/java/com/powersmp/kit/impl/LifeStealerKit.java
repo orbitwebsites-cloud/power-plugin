@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.combat.ComboTracker;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
@@ -84,7 +85,8 @@ public class LifeStealerKit implements PowerKit, Listener {
         if (!(event.getDamager() instanceof Player player) || !plugin.kits().isOwner(player, ID)) {
             return;
         }
-        if (!(event.getEntity() instanceof LivingEntity target) || target.isDead()) {
+        if (!(event.getEntity() instanceof LivingEntity target) || target.isDead()
+                || !TeamRules.canAffect(player, target)) {
             return;
         }
         if (plugin.unlocks().isUnlocked(player, Power.MARKED_PREY)) {

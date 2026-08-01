@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.HashSet;
@@ -211,6 +212,10 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
         }
         Entity source = event.getDamager();
         event.setCancelled(true);
+        Player attacker = TeamRules.playerSource(source);
+        if (attacker != null && TeamRules.areTeammates(owner, attacker)) {
+            return;
+        }
         showInfinity(owner);
         if (source instanceof Projectile projectile) {
             projectile.remove();
@@ -242,7 +247,8 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
         int caught = 0;
         for (Entity entity : center.getWorld().getNearbyEntities(
                 center, blueRadius, blueRadius, blueRadius)) {
-            if (!(entity instanceof LivingEntity target) || target.equals(owner)) {
+            if (!(entity instanceof LivingEntity target) || target.equals(owner)
+                    || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
             Vector pull = center.toVector().subtract(target.getLocation().toVector());
@@ -275,7 +281,8 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
         double minimumDot = Math.cos(Math.toRadians(redHalfAngleDegrees));
         int hit = 0;
         for (Entity entity : owner.getNearbyEntities(redRange, redRange, redRange)) {
-            if (!(entity instanceof LivingEntity target) || target.equals(owner)) {
+            if (!(entity instanceof LivingEntity target) || target.equals(owner)
+                    || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
             Vector offset = target.getEyeLocation().toVector().subtract(eye.toVector());
@@ -330,6 +337,7 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
                     point, purpleRadius, purpleRadius, purpleRadius)) {
                 if (!(entity instanceof LivingEntity target)
                         || target.equals(owner)
+                        || !TeamRules.canAffect(owner, target)
                         || !hit.add(target.getUniqueId())) {
                     continue;
                 }
@@ -410,7 +418,8 @@ public class CrazyTNT2CoolKit implements PowerKit, Listener {
         int caught = 0;
         int durationTicks = Math.max(1, (int) Math.round(domainDurationSeconds * 20.0d));
         for (Entity entity : owner.getNearbyEntities(domainRadius, domainRadius, domainRadius)) {
-            if (!(entity instanceof LivingEntity target) || target.equals(owner)) {
+            if (!(entity instanceof LivingEntity target) || target.equals(owner)
+                    || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
             plugin.freeze().stunSeconds(target, domainDurationSeconds);

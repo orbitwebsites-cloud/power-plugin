@@ -20,10 +20,18 @@ public class PlayerData {
     private final Set<String> unlocked = new LinkedHashSet<>();
     /** Admin overrides that keep a normally automatic power disabled until it is granted again. */
     private final Set<String> revoked = new LinkedHashSet<>();
+    /** Whole kits explicitly added with /powersmp grant; normal IGN assignments remain separate. */
+    private final Set<String> grantedKits = new LinkedHashSet<>();
     private int kills;
     private int spearKills;
-    private int spearTier = 3;
+    private int spearTier = 5;
     private int maceKills;
+    /** Doman: player kills made with the Bloodlust Sword. */
+    private int bloodlustKills;
+    /** Idle Death Gamble: percentage chance carried into the next Jackpot roll. */
+    private int jackpotChance = 14;
+    /** Idle Death Gamble: whether the next Jackpot roll uses Fever's 50% chance. */
+    private boolean jackpotFeverArmed;
     /** Draconic Evolution: the omelet has been eaten, so all three stances run at once. */
     private boolean stanceConsolidated;
     /** The omelet has been handed out once; it is not re-issued after being eaten. */
@@ -36,6 +44,8 @@ public class PlayerData {
      * {@code primaryAbilityId()}. Empty means "use the kit default".
      */
     private String primaryAbility = "";
+    /** Trigger enum name -> ability id, allowing every gesture to fire a different ability. */
+    private final Map<String, String> abilityBindings = new HashMap<>();
     /**
      * Serialised location to send someone home to if the Illusory Realm loses track of them --
      * a crash or a forced shutdown mid-domain must not strand anyone in the arena world. Cleared
@@ -73,6 +83,10 @@ public class PlayerData {
 
     public Set<String> revoked() {
         return revoked;
+    }
+
+    public Set<String> grantedKits() {
+        return grantedKits;
     }
 
     public boolean isRevoked(String powerId) {
@@ -126,6 +140,31 @@ public class PlayerData {
         this.maceKills = Math.max(0, maceKills);
     }
 
+    public int bloodlustKills() {
+        return bloodlustKills;
+    }
+
+    public void bloodlustKills(int bloodlustKills) {
+        this.bloodlustKills = Math.max(0, bloodlustKills);
+    }
+
+    public int jackpotChance() {
+        return jackpotChance;
+    }
+
+    public void jackpotChance(int jackpotChance) {
+        // Rising Odds intentionally has no percentage cap.
+        this.jackpotChance = Math.max(1, jackpotChance);
+    }
+
+    public boolean jackpotFeverArmed() {
+        return jackpotFeverArmed;
+    }
+
+    public void jackpotFeverArmed(boolean jackpotFeverArmed) {
+        this.jackpotFeverArmed = jackpotFeverArmed;
+    }
+
     public Map<String, Long> cooldowns() {
         return cooldowns;
     }
@@ -173,6 +212,10 @@ public class PlayerData {
 
     public void primaryAbility(String primaryAbility) {
         this.primaryAbility = primaryAbility == null ? "" : primaryAbility;
+    }
+
+    public Map<String, String> abilityBindings() {
+        return abilityBindings;
     }
 
     public String realmReturn() {

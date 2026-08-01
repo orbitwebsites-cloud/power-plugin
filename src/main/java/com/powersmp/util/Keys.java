@@ -24,6 +24,7 @@ public final class Keys {
     public static NamespacedKey ADAPTATION_HEALTH;
     public static NamespacedKey MIH_ATTACK_SPEED;
     public static NamespacedKey TIDAL_ATTACK_SPEED;
+    public static NamespacedKey TIDAL_COMBO_ATTACK_SPEED;
     public static NamespacedKey SCAR_BONUS_HEALTH;
     public static NamespacedKey REALM_BONUS_HEALTH;
     public static NamespacedKey TECH_FORTIFY_KNOCKBACK;
@@ -40,7 +41,15 @@ public final class Keys {
     public static NamespacedKey DRACONIC_MACE;
     public static NamespacedKey WEB_SHOOTER;
     public static NamespacedKey SCAR_MACE;
+    public static NamespacedKey CUTLASS_OWNER;
+    public static NamespacedKey TITAN_BLADE_OWNER;
+    public static NamespacedKey TITAN_BLADE_TIER;
+    public static NamespacedKey VULCANS_CROSSBOW_OWNER;
+    public static NamespacedKey BLOODLUST_OWNER;
+    public static NamespacedKey BLOODLUST_KILLS;
     public static NamespacedKey SHADOW_MARK;
+    public static NamespacedKey SHADOW_ORIGINAL_ID;
+    public static NamespacedKey SHADOW_OWNER;
     public static NamespacedKey BOUND_TRIDENT;
     public static NamespacedKey ENERGY_CORE;
     public static NamespacedKey MOVEMENT_EXEMPT;
@@ -57,6 +66,7 @@ public final class Keys {
         ADAPTATION_HEALTH = new NamespacedKey(plugin, "adaptation_health");
         MIH_ATTACK_SPEED = new NamespacedKey(plugin, "mih_attack_speed");
         TIDAL_ATTACK_SPEED = new NamespacedKey(plugin, "tidal_attack_speed");
+        TIDAL_COMBO_ATTACK_SPEED = new NamespacedKey(plugin, "tidal_combo_attack_speed");
         SCAR_BONUS_HEALTH = new NamespacedKey(plugin, "scar_bonus_health");
         REALM_BONUS_HEALTH = new NamespacedKey(plugin, "realm_bonus_health");
         TECH_FORTIFY_KNOCKBACK = new NamespacedKey(plugin, "tech_fortify_knockback");
@@ -72,7 +82,15 @@ public final class Keys {
         DRACONIC_MACE = new NamespacedKey(plugin, "draconic_mace");
         WEB_SHOOTER = new NamespacedKey(plugin, "web_shooter");
         SCAR_MACE = new NamespacedKey(plugin, "scar_mace");
+        CUTLASS_OWNER = new NamespacedKey(plugin, "cutlass_owner");
+        TITAN_BLADE_OWNER = new NamespacedKey(plugin, "titan_blade_owner");
+        TITAN_BLADE_TIER = new NamespacedKey(plugin, "titan_blade_tier");
+        VULCANS_CROSSBOW_OWNER = new NamespacedKey(plugin, "vulcans_crossbow_owner");
+        BLOODLUST_OWNER = new NamespacedKey(plugin, "bloodlust_owner");
+        BLOODLUST_KILLS = new NamespacedKey(plugin, "bloodlust_kills");
         SHADOW_MARK = new NamespacedKey(plugin, "shadow_mark");
+        SHADOW_ORIGINAL_ID = new NamespacedKey(plugin, "shadow_original_id");
+        SHADOW_OWNER = new NamespacedKey(plugin, "shadow_owner");
         BOUND_TRIDENT = new NamespacedKey(plugin, "bound_trident");
         ENERGY_CORE = new NamespacedKey(plugin, "energy_core");
         MOVEMENT_EXEMPT = new NamespacedKey(plugin, "movement_exempt");

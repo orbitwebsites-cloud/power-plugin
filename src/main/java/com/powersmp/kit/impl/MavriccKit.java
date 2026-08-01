@@ -8,6 +8,7 @@ import com.powersmp.item.ResourcePackItems;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.stance.Stance;
 import com.powersmp.util.Attributes;
 import com.powersmp.util.Crits;
@@ -29,6 +30,7 @@ import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Wither;
 import org.bukkit.event.EventHandler;
@@ -85,10 +87,7 @@ public class MavriccKit implements PowerKit, Listener {
     private double riptidePower = 2.2d;
     private boolean draconicEnabled = true;
     private Material omeletMaterial = Material.PUMPKIN_PIE;
-    private int draconicMaceBreach = 4;
-    private boolean draconicMaceUnbreakable = true;
-    private boolean reissueDraconicMace = true;
-    /** Bound items pulled out of death drops (elytra, draconic mace), held until respawn. */
+    /** Bound elytras pulled out of death drops, held until respawn. */
     private final Map<UUID, List<ItemStack>> deathStash = new ConcurrentHashMap<>();
 
     public MavriccKit(PowerSMP plugin) {
@@ -165,9 +164,6 @@ public class MavriccKit implements PowerKit, Listener {
                 plugin.getLogger().warning("omelet-material '" + parsed
                         + "' is not edible; keeping " + omeletMaterial);
             }
-            draconicMaceBreach = draconic.getInt("mace-breach-level", draconicMaceBreach);
-            draconicMaceUnbreakable = draconic.getBoolean("mace-unbreakable", true);
-            reissueDraconicMace = draconic.getBoolean("mace-reissue-if-lost", true);
         }
 
         plugin.cooldowns().registerLabel(ABILITY_LAUNCH, "Wither Wings");
@@ -185,9 +181,6 @@ public class MavriccKit implements PowerKit, Listener {
         plugin.food().scanPlayer(owner);
         if (plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
             ensureElytra(owner);
-        }
-        if (reissueDraconicMace && plugin.data().get(owner.getUniqueId()).stanceConsolidated()) {
-            grantDraconicMace(owner);
         }
     }
 
@@ -246,10 +239,6 @@ public class MavriccKit implements PowerKit, Listener {
         }
         if (grantElytra && plugin.unlocks().isUnlocked(owner, Power.WITHER_WINGS)) {
             ensureElytra(owner);
-        }
-        if (reissueDraconicMace
-                && plugin.data().get(owner.getUniqueId()).stanceConsolidated()) {
-            grantDraconicMace(owner);
         }
     }
 
@@ -354,14 +343,11 @@ public class MavriccKit implements PowerKit, Listener {
     }
 
     private boolean isBound(ItemStack item) {
-        return isBoundElytra(item) || DraconicItems.isDraconicMace(item);
+        return isBoundElytra(item);
     }
 
     // ---- "can't be taken away, even if I die" ---------------------------
-    // Neither bound item (the elytra, the draconic mace) had drop/death/container guards -- only
-    // the reissue-on-join. That combination is how a duplicate happens: the original ends up on
-    // the ground or in a chest while ensureElytra()/grantDraconicMace(), seeing nothing bound in
-    // inventory, hand out a second one. Mirrors techknight's mace protection.
+    // The bound elytra cannot be dropped or moved into a container.
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDeath(PlayerDeathEvent event) {
@@ -386,9 +372,8 @@ public class MavriccKit implements PowerKit, Listener {
     public void onRespawn(PlayerRespawnEvent event) {
         Player player = event.getPlayer();
         List<ItemStack> stashed = deathStash.remove(player.getUniqueId());
-        // Curse of Vanishing means there is usually nothing to restore from drops -- the elytra
-        // would self-heal via tick() anyway, but the draconic mace only otherwise reissues on
-        // join, so both get an immediate fallback here rather than waiting.
+        // Curse of Vanishing means there is usually nothing to restore from drops; the elytra
+        // also self-heals via tick(), with this immediate respawn fallback.
         org.bukkit.Bukkit.getScheduler().runTask((Plugin) plugin, () -> {
             if (!player.isOnline()) {
                 return;
@@ -396,9 +381,6 @@ public class MavriccKit implements PowerKit, Listener {
             if (stashed == null || stashed.isEmpty()) {
                 if (plugin.unlocks().isUnlocked(player, Power.WITHER_WINGS)) {
                     ensureElytra(player);
-                }
-                if (reissueDraconicMace && plugin.data().get(player.getUniqueId()).stanceConsolidated()) {
-                    grantDraconicMace(player);
                 }
                 return;
             }
@@ -464,6 +446,10 @@ public class MavriccKit implements PowerKit, Listener {
         if (!(event.getDamager() instanceof Player player) || !plugin.kits().isOwner(player, ID)) {
             return;
         }
+        if (event.getEntity() instanceof LivingEntity target
+                && !TeamRules.canAffect(player, target)) {
+            return;
+        }
         if (!plugin.unlocks().isUnlocked(player, Power.SPORIC_OF_THE_SEA)) {
             return;
         }
@@ -484,7 +470,8 @@ public class MavriccKit implements PowerKit, Listener {
         axeCrits.put(player.getUniqueId(), 0);
         Entity target = event.getEntity();
         if (target.getWorld() != null) {
-            target.getWorld().strikeLightning(target.getLocation());
+            TeamRules.runProtected(player,
+                    () -> target.getWorld().strikeLightning(target.getLocation()));
         }
     }
 
@@ -539,7 +526,7 @@ public class MavriccKit implements PowerKit, Listener {
         owner.playSound(owner.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 0.7f, 1.2f);
     }
 
-    /** Eating the omelet is the one-way door: all three stances from here on, plus the mace. */
+    /** Eating the omelet is the one-way door: all three stances from here on. */
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onOmeletEaten(PlayerItemConsumeEvent event) {
         Player player = event.getPlayer();
@@ -554,8 +541,6 @@ public class MavriccKit implements PowerKit, Listener {
         data.stanceConsolidated(true);
         plugin.data().markDirty();
 
-        grantDraconicMace(player);
-
         Text.msg(player, "<gradient:#c77dff:#7b2cbf><bold>DRACONIC EVOLUTION</bold></gradient> "
                 + "<gray>-- red, blue and green are one. Every perk, all at once.</gray>");
         player.getWorld().playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_DEATH, 0.6f, 1.6f);
@@ -563,39 +548,6 @@ public class MavriccKit implements PowerKit, Listener {
         // IllegalArgumentException at runtime the same way Particle.FLASH did.
         player.getWorld().spawnParticle(org.bukkit.Particle.DRAGON_BREATH,
                 player.getLocation().add(0, 1, 0), 80, 0.6d, 1.0d, 0.6d, 0.05d, 1.0f);
-    }
-
-    /** Re-issued if lost, matching how the bound elytra behaves. */
-    private void grantDraconicMace(Player owner) {
-        for (ItemStack item : owner.getInventory().getContents()) {
-            if (DraconicItems.isDraconicMace(item)) {
-                return;
-            }
-        }
-        ItemStack mace = DraconicItems.mace(draconicMaceBreach, draconicMaceUnbreakable);
-        // Never drop a bound replacement: the next shared tick retries once room exists.
-        owner.getInventory().addItem(mace);
-    }
-
-    /**
-     * Strips the slam. Vanilla bakes the fall-distance bonus into the mace's attack, so it is
-     * subtracted back out here rather than capping the total -- capping would eat Strength and
-     * Breach along with it.
-     */
-    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-    public void onDraconicMaceHit(EntityDamageByEntityEvent event) {
-        if (!(event.getDamager() instanceof Player player)
-                || !plugin.kits().isOwner(player, ID)
-                || !plugin.data().get(player.getUniqueId()).stanceConsolidated()) {
-            return;
-        }
-        if (!DraconicItems.isDraconicMace(player.getInventory().getItemInMainHand())) {
-            return;
-        }
-        double bonus = DraconicItems.slamBonus(player.getFallDistance());
-        if (bonus > 0.0d) {
-            event.setDamage(Math.max(1.0d, event.getDamage() - bonus));
-        }
     }
 
     // ---- abilities ------------------------------------------------------

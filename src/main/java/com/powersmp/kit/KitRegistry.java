@@ -1,5 +1,6 @@
 package com.powersmp.kit;
 
+import com.powersmp.PowerSMP;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -10,7 +11,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Player;
-import org.bukkit.plugin.Plugin;
 
 /**
  * Maps players to kits.
@@ -51,11 +51,13 @@ public class KitRegistry {
             Map.entry("disasterflames", List.of("disasterflames")),
             Map.entry("_glueman", List.of("theghost")),
             Map.entry("crazytnt2cool", List.of("crazytnt2cool")),
+            Map.entry("idledeathgamble", List.of("idledeathgamble")),
+            Map.entry("ldledeathgamble", List.of("idledeathgamble")),
             // Phantom + Life Stealer run all the time; Lucky's own reroll timer overrides both
             // (see #overrides) with a single rolled kit for its duration, then reverts to all three.
             Map.entry("justsooptbh", List.of("phantom", "lifestealer", "lucky")));
 
-    private final Plugin plugin;
+    private final PowerSMP plugin;
     private final Map<String, PowerKit> kitsById = new LinkedHashMap<>();
     /** lowercase IGN -> kit ids */
     private final Map<String, List<String>> nameAssignments = new ConcurrentHashMap<>();
@@ -71,7 +73,7 @@ public class KitRegistry {
      */
     private final Map<UUID, String> overrides = new ConcurrentHashMap<>();
 
-    public KitRegistry(Plugin plugin) {
+    public KitRegistry(PowerSMP plugin) {
         this.plugin = plugin;
     }
 
@@ -136,11 +138,21 @@ public class KitRegistry {
                 uuidAssignments.put(player.getUniqueId(), kitIds);
             }
         }
-        if (kitIds == null || kitIds.isEmpty()) {
+        List<String> combinedIds = new ArrayList<>();
+        if (kitIds != null) {
+            combinedIds.addAll(kitIds);
+        }
+        for (String granted : plugin.data().get(player.getUniqueId()).grantedKits()) {
+            String normalized = granted.toLowerCase(Locale.ROOT);
+            if (kitsById.containsKey(normalized) && !combinedIds.contains(normalized)) {
+                combinedIds.add(normalized);
+            }
+        }
+        if (combinedIds.isEmpty()) {
             return List.of();
         }
-        List<PowerKit> kits = new ArrayList<>(kitIds.size());
-        for (String kitId : kitIds) {
+        List<PowerKit> kits = new ArrayList<>(combinedIds.size());
+        for (String kitId : combinedIds) {
             PowerKit kit = kitsById.get(kitId);
             if (kit != null) {
                 kits.add(kit);
@@ -170,6 +182,20 @@ public class KitRegistry {
 
     public Collection<PowerKit> all() {
         return List.copyOf(kitsById.values());
+    }
+
+    /** Resolves either a kit id or the IGN normally assigned to a single kit. */
+    public PowerKit resolveSelector(String selector) {
+        if (selector == null) {
+            return null;
+        }
+        String normalized = selector.toLowerCase(Locale.ROOT);
+        PowerKit direct = kitsById.get(normalized);
+        if (direct != null) {
+            return direct;
+        }
+        List<String> assignment = nameAssignments.get(normalized);
+        return assignment != null && assignment.size() == 1 ? kitsById.get(assignment.get(0)) : null;
     }
 
     /** Sets (or replaces) an in-memory kit override for this player. See {@link #overrides}. */

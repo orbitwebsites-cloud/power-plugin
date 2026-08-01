@@ -15,14 +15,13 @@ import org.bukkit.persistence.PersistentDataType;
  *
  * <p>Built on vanilla spear materials (e.g. {@code Material.IRON_SPEAR}) added in Minecraft 1.21.11
  * Mounts of Mayhem. Stores a custom tier in its {@code PersistentDataContainer} to track upgrade
- * level (Lunge I-V) separately from vanilla mechanics. The tier is stored on the item rather than
+ * level separately from vanilla mechanics. The tier is stored on the item rather than
  * only on the player so the weapon keeps its upgrades if it is dropped and picked back up, which
  * is what "the spear upgrades" implies. Player data mirrors it as the source of truth for
  * re-issuing a lost spear.
  *
- * <p>xCR1T1Cx's custom "Lunge" (pull + stun on hit with cooldown) is entirely separate from
- * vanilla's Lunge enchantment (self-propel on jab). The names happen to collide but the mechanics
- * are unrelated.
+ * <p>The spear carries the real vanilla Lunge V enchantment for its jab movement. xCR1T1Cx's
+ * custom on-hit effect then adds the target pull and stun.
  */
 public final class SpearItem {
 
@@ -43,7 +42,7 @@ public final class SpearItem {
                 .set(Keys.SPEAR_OWNER, PersistentDataType.STRING, owner.toString());
         Enchants.applyVanishing(meta);
         spear.setItemMeta(meta);
-        ResourcePackItems.apply(spear, ResourcePackItems.GRAPPLE_HOOK);
+        ResourcePackItems.apply(spear, ResourcePackItems.MOMENTUM_SPEAR);
         return spear;
     }
 
@@ -89,13 +88,30 @@ public final class SpearItem {
             return;
         }
         meta.getPersistentDataContainer().set(Keys.SPEAR_TIER, PersistentDataType.INTEGER, clamped);
+        if (Enchants.LUNGE != null) {
+            if (meta.hasEnchant(Enchants.LUNGE)) {
+                meta.removeEnchant(Enchants.LUNGE);
+            }
+            // Lunge normally caps below V; Critic explicitly gets Lunge V, so bypass the vanilla
+            // enchanting-table restriction while preserving the enchantment's real behavior.
+            meta.addEnchant(Enchants.LUNGE, MAX_TIER, true);
+        }
         meta.displayName(Text.mm("<gold>Spear of Momentum</gold> <gray>(Lunge "
-                + NUMERALS[clamped] + ")</gray>"));
+                + NUMERALS[MAX_TIER] + ")</gray>"));
         meta.lore(List.of(
-                Text.mm("<dark_gray>Lunge " + NUMERALS[clamped] + "</dark_gray>"),
+                Text.mm("<dark_gray>Lunge " + NUMERALS[MAX_TIER] + "</dark_gray>"),
                 Text.mm("<gray>On hit: yanks the target in and stuns it.</gray>"),
-                Text.mm("<dark_gray>Upgrades with kills.</dark_gray>")));
+                Text.mm("<gray>Jab to launch forward.</gray>")));
         item.setItemMeta(meta);
+        ResourcePackItems.apply(item, ResourcePackItems.MOMENTUM_SPEAR);
+    }
+
+    /** True when a spear already has both the current custom tier and real Lunge V enchantment. */
+    public static boolean isCurrent(ItemStack item) {
+        if (!isSpear(item) || tierOf(item) != MAX_TIER || Enchants.LUNGE == null) {
+            return false;
+        }
+        return item.getItemMeta().getEnchantLevel(Enchants.LUNGE) == MAX_TIER;
     }
 
     public static String numeral(int tier) {

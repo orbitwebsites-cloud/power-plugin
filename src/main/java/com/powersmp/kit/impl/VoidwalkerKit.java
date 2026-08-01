@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
@@ -142,7 +143,8 @@ public class VoidwalkerKit implements PowerKit, Listener {
         if (!plugin.unlocks().isUnlocked(player, Power.SHADOW_STEP)) {
             return;
         }
-        if (!(event.getEntity() instanceof LivingEntity target) || target.equals(player)) {
+        if (!(event.getEntity() instanceof LivingEntity target) || target.equals(player)
+                || !TeamRules.canAffect(player, target)) {
             return;
         }
         shadowStepArmed.put(player.getUniqueId(), new Armed(target.getUniqueId(),
@@ -165,7 +167,8 @@ public class VoidwalkerKit implements PowerKit, Listener {
             return false;
         }
         Entity targetEntity = Bukkit.getEntity(armed.target);
-        if (!(targetEntity instanceof LivingEntity target) || target.isDead() || !target.isValid()) {
+        if (!(targetEntity instanceof LivingEntity target) || target.isDead() || !target.isValid()
+                || !TeamRules.canAffect(owner, target)) {
             shadowStepArmed.remove(owner.getUniqueId());
             Text.msg(owner, "<red>Your target is gone.");
             return false;
@@ -231,7 +234,8 @@ public class VoidwalkerKit implements PowerKit, Listener {
 
         int caught = 0;
         for (Entity nearby : owner.getNearbyEntities(graspRadius, graspRadius, graspRadius)) {
-            if (!(nearby instanceof LivingEntity target) || target.equals(owner)) {
+            if (!(nearby instanceof LivingEntity target) || target.equals(owner)
+                    || !TeamRules.canAffect(owner, target)) {
                 continue;
             }
             Effects.apply(target, PotionEffectType.SLOWNESS, graspSlowTicks, graspSlowAmplifier);
@@ -279,6 +283,7 @@ public class VoidwalkerKit implements PowerKit, Listener {
         for (Entity nearby : owner.getNearbyEntities(
                 plugin.realm().gatherRadius(), plugin.realm().gatherRadius(), plugin.realm().gatherRadius())) {
             if (nearby instanceof Player other && !other.equals(owner)
+                    && TeamRules.canAffect(owner, other)
                     && !plugin.realm().isInside(other)) {
                 participants.add(other);
             }
@@ -309,6 +314,7 @@ public class VoidwalkerKit implements PowerKit, Listener {
             for (Player player : participants) {
                 if (player.isOnline()
                         && !plugin.realm().isInside(player)
+                        && (player.equals(owner) || TeamRules.canAffect(owner, player))
                         && player.getWorld().equals(owner.getWorld())
                         && player.getLocation().distanceSquared(owner.getLocation())
                         <= plugin.realm().gatherRadius() * plugin.realm().gatherRadius() * 4) {

@@ -2,7 +2,18 @@
   "model": {
     "type": "minecraft:range_dispatch",
     "property": "minecraft:custom_model_data",
-    "entries": [{"threshold": 27002, "model": {"type": "minecraft:model", "model": "powersmp:item/grapple_hook"}}],
-    "fallback": {"type": "minecraft:model", "model": "minecraft:item/iron_spear"}
-  }
+    "entries": [{"threshold": 27011, "model": {"type": "minecraft:model", "model": "powersmp:item/momentum_spear"}}],
+    "fallback": {
+      "type": "minecraft:select",
+      "property": "minecraft:display_context",
+      "cases": [
+        {
+          "when": ["gui", "ground", "fixed", "on_shelf"],
+          "model": {"type": "minecraft:model", "model": "minecraft:item/iron_spear"}
+        }
+      ],
+      "fallback": {"type": "minecraft:model", "model": "minecraft:item/iron_spear_in_hand"}
+    }
+  },
+  "swap_animation_scale": 1.95
 }

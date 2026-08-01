@@ -47,6 +47,21 @@ public class UnlockManager implements Listener {
             for (String key : thresholds.getKeys(false)) {
                 killThresholds.put(key.toLowerCase(java.util.Locale.ROOT), thresholds.getInt(key, 0));
             }
+            // Preserve Night Scar's old 0/4/8 progression when an existing server updates.
+            migrateThreshold("infernal_vitality", "permanent_strength");
+            migrateThreshold("shadow_bomb", "dash");
+            migrateThreshold("cutlass_master", "density_mace");
+            migrateThreshold("cutlass_master", "combat_vitality");
+            // Preserve Doman's existing 0/4/8 progress while replacing the old Limit Break kit.
+            migrateThreshold("blood_bound", "limit_break");
+            migrateThreshold("tracking", "ascended_flight");
+            migrateThreshold("bloodlust", "final_burst");
+        }
+    }
+
+    private void migrateThreshold(String current, String legacy) {
+        if (!killThresholds.containsKey(current) && killThresholds.containsKey(legacy)) {
+            killThresholds.put(current, killThresholds.get(legacy));
         }
     }
 

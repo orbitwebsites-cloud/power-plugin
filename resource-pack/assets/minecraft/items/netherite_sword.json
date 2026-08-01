@@ -1,0 +1,11 @@
+{
+  "model": {
+    "type": "minecraft:range_dispatch",
+    "property": "minecraft:custom_model_data",
+    "entries": [
+      {"threshold": 27007, "model": {"type": "minecraft:model", "model": "powersmp:item/bone_blade"}},
+      {"threshold": 27008, "model": {"type": "minecraft:model", "model": "powersmp:item/bloodlust"}}
+    ],
+    "fallback": {"type": "minecraft:model", "model": "minecraft:item/netherite_sword"}
+  }
+}

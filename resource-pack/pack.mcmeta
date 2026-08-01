@@ -1,7 +1,8 @@
 {
   "pack": {
     "pack_format": 75,
-    "supported_formats": {"min_inclusive": 55, "max_inclusive": 75},
-    "description": "PowerSMP lightweight pixel-art gear and energy effects"
+    "min_format": 75,
+    "max_format": 75,
+    "description": "PowerSMP Relic Arsenal - forged for legends"
   }
 }

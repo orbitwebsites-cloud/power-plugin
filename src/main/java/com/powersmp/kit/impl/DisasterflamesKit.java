@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.List;
@@ -16,14 +17,13 @@ import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.potion.PotionEffectType;
-import org.bukkit.scoreboard.Scoreboard;
-import org.bukkit.scoreboard.Team;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Vector;
@@ -44,9 +44,12 @@ public class DisasterflamesKit implements PowerKit, Listener {
 
     private final PowerSMP plugin;
     private final Map<UUID, Long> invincibleUntil = new ConcurrentHashMap<>();
+    /** Prevents a held key or click macro from turning a failed target check into chat spam. */
+    private final Map<UUID, Long> nextTargetHintAt = new ConcurrentHashMap<>();
 
     private double swapCooldownSeconds;
     private double targetAssistRadius = 0.25d;
+    private long targetHintCooldownMillis = 1_500L;
 
     private double bondRadius = 10.0d;
     private int bondStrengthAmplifier;
@@ -82,6 +85,10 @@ public class DisasterflamesKit implements PowerKit, Listener {
                     swap.getDouble("cooldown-seconds", swapCooldownSeconds));
             targetAssistRadius = Math.max(0.0d,
                     swap.getDouble("target-assist-radius", targetAssistRadius));
+            targetHintCooldownMillis = Math.max(0L,
+                    Math.round(swap.getDouble(
+                            "target-hint-cooldown-seconds", targetHintCooldownMillis / 1000.0d)
+                            * 1000.0d));
         }
         ConfigurationSection bond = section.getConfigurationSection("brother-bond");
         if (bond != null) {
@@ -136,7 +143,7 @@ public class DisasterflamesKit implements PowerKit, Listener {
 
         Entity target = findLookTarget(owner);
         if (target == null) {
-            Text.msg(owner, "<red>Look directly at a loaded entity to swap with it.");
+            showTargetHint(owner);
             return false;
         }
         if (swapCooldownSeconds > 0.0d
@@ -165,7 +172,9 @@ public class DisasterflamesKit implements PowerKit, Listener {
         double bestDistanceSquared = Double.MAX_VALUE;
 
         for (Entity candidate : owner.getWorld().getEntities()) {
-            if (candidate.equals(owner) || !candidate.isValid() || candidate.isDead()) {
+            if (candidate.equals(owner) || !candidate.isValid() || candidate.isDead()
+                    || (candidate instanceof LivingEntity living
+                            && !TeamRules.canAffect(owner, living))) {
                 continue;
             }
             BoundingBox hitbox = candidate.getBoundingBox().expand(targetAssistRadius);
@@ -180,6 +189,18 @@ public class DisasterflamesKit implements PowerKit, Listener {
             }
         }
         return best;
+    }
+
+    /** Shows one short action-bar hint, then stays silent until the configured retry window ends. */
+    private void showTargetHint(Player owner) {
+        long now = System.currentTimeMillis();
+        UUID uuid = owner.getUniqueId();
+        Long nextHintAt = nextTargetHintAt.get(uuid);
+        if (nextHintAt != null && nextHintAt > now) {
+            return;
+        }
+        nextTargetHintAt.put(uuid, now + targetHintCooldownMillis);
+        Text.actionBar(owner, "<red>Look at a player or mob to use Instant Exchange.</red>");
     }
 
     private boolean swap(Player owner, Entity target) {
@@ -244,25 +265,12 @@ public class DisasterflamesKit implements PowerKit, Listener {
             if (teammate.equals(owner)
                     || !teammate.getWorld().equals(owner.getWorld())
                     || teammate.getLocation().distanceSquared(owner.getLocation()) > radiusSquared
-                    || !areTeammates(owner, teammate)) {
+                    || !TeamRules.areTeammates(owner, teammate)) {
                 continue;
             }
             applyBond(owner);
             applyBond(teammate);
         }
-    }
-
-    private boolean areTeammates(Player first, Player second) {
-        return sameTeam(first.getScoreboard(), first, second)
-                || sameTeam(Bukkit.getScoreboardManager().getMainScoreboard(), first, second);
-    }
-
-    private boolean sameTeam(Scoreboard scoreboard, Player first, Player second) {
-        Team firstTeam = scoreboard.getEntryTeam(first.getName());
-        Team secondTeam = scoreboard.getEntryTeam(second.getName());
-        return firstTeam != null
-                && secondTeam != null
-                && firstTeam.getName().equals(secondTeam.getName());
     }
 
     private void applyBond(Player player) {
@@ -301,6 +309,7 @@ public class DisasterflamesKit implements PowerKit, Listener {
     @Override
     public void onQuit(Player owner) {
         invincibleUntil.remove(owner.getUniqueId());
+        nextTargetHintAt.remove(owner.getUniqueId());
     }
 
     @Override
@@ -313,5 +322,6 @@ public class DisasterflamesKit implements PowerKit, Listener {
     @Override
     public void onDisable() {
         invincibleUntil.clear();
+        nextTargetHintAt.clear();
     }
 }

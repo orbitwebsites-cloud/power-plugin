@@ -4,6 +4,7 @@ import com.powersmp.PowerSMP;
 import com.powersmp.kit.Ability;
 import com.powersmp.kit.PowerKit;
 import com.powersmp.progression.Power;
+import com.powersmp.team.TeamRules;
 import com.powersmp.util.Effects;
 import com.powersmp.util.Text;
 import java.util.EnumSet;
@@ -60,7 +61,8 @@ import org.bukkit.util.Vector;
  * Real per-player collision does not exist in the Bukkit API, so this reuses the same lie X-ray
  * tells: solid blocks near the Ghost are sent to him alone as air, then current Paper input is used
  * to apply server-authoritative movement only while his hitbox crosses one of those blocks. The real
- * world is never touched, and the fake blocks follow him and get put back as he moves away. This
+ * world is never touched. Holding sneak engages the fake-air bubble; Night Vision and the wider
+ * bubble keep underground travel readable, and both are restored before possession begins. This
  * depends on the {@code powersmp} group's existing {@code nocheatplus.checks.moving.passable}
  * exemption (the same one flight and x-ray already need); without it, NoCheatPlus will flag him for
  * standing inside a block it still thinks is solid.
@@ -105,6 +107,10 @@ public class TheGhostKit implements PowerKit, Listener {
     private final Map<UUID, Set<Location>> fakedBlocks = new ConcurrentHashMap<>();
     /** Per-tick movement drivers active only while a Spectral Body owner is holding movement input. */
     private final Map<UUID, BukkitTask> phaseTasks = new ConcurrentHashMap<>();
+    /** Players whose temporary phase visibility added Night Vision (pre-existing effects are untouched). */
+    private final Set<UUID> phaseNightVisionGranted = ConcurrentHashMap.newKeySet();
+    /** Original entity-collision state, restored whenever Spectral Body is no longer available. */
+    private final Map<UUID, Boolean> collisionMemory = new ConcurrentHashMap<>();
 
     // Possession
     private double possessRange = 20.0d;
@@ -113,7 +119,7 @@ public class TheGhostKit implements PowerKit, Listener {
     private double possessAttackCooldown = 1.0d;
 
     // Spectral Body
-    private int phaseScanRadius = 2;
+    private int phaseScanRadius = 4;
     private Set<Material> impassableBlocks = EnumSet.of(
             Material.OBSIDIAN, Material.BEDROCK, Material.REINFORCED_DEEPSLATE);
 
@@ -161,6 +167,27 @@ public class TheGhostKit implements PowerKit, Listener {
         plugin.cooldowns().registerLabel(COOLDOWN_POSSESS_ATTACK, "Possessed Attack");
     }
 
+    /** Spectral Body also passes through players and mobs instead of being body-blocked. */
+    @Override
+    public void tick(Player owner) {
+        setAntiCollision(owner, plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY));
+    }
+
+    private void setAntiCollision(Player owner, boolean enabled) {
+        UUID id = owner.getUniqueId();
+        if (enabled) {
+            collisionMemory.putIfAbsent(id, owner.isCollidable());
+            if (owner.isCollidable()) {
+                owner.setCollidable(false);
+            }
+            return;
+        }
+        Boolean previous = collisionMemory.remove(id);
+        if (previous != null) {
+            owner.setCollidable(previous);
+        }
+    }
+
     // ---- Possession ---------------------------------------------------
 
     private boolean possess(Player owner) {
@@ -181,6 +208,11 @@ public class TheGhostKit implements PowerKit, Listener {
             Text.msg(owner, "<red>Something already has hold of that one.");
             return false;
         }
+
+        // Possession and Spectral Body are mutually exclusive. Merely pausing phase movement leaves
+        // client-side fake air behind, so restore the real world before taking control of the mob.
+        stopPhaseTask(owner);
+        restorePhaseBubble(owner);
 
         UUID ownerId = owner.getUniqueId();
         possessionMemory.put(ownerId, new PossessionMemory(owner.getGameMode(),
@@ -263,6 +295,10 @@ public class TheGhostKit implements PowerKit, Listener {
         if (message != null && owner.isOnline()) {
             Text.msg(owner, message);
         }
+        if (owner.isOnline() && plugin.kits().isOwner(owner, ID)
+                && plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)) {
+            startPhaseTask(owner);
+        }
     }
 
     /** A swing while possessing -- spectators cannot throw a real attack, so this fakes one by hand. */
@@ -274,6 +310,7 @@ public class TheGhostKit implements PowerKit, Listener {
         double closest = possessAttackRange * possessAttackRange;
         for (Entity nearby : mob.getNearbyEntities(possessAttackRange, possessAttackRange, possessAttackRange)) {
             if (nearby.equals(mob) || nearby.equals(owner) || !(nearby instanceof LivingEntity candidate)
+                    || !TeamRules.canAffect(owner, candidate)
                     || !mob.hasLineOfSight(candidate)) {
                 continue;
             }
@@ -368,12 +405,21 @@ public class TheGhostKit implements PowerKit, Listener {
     @EventHandler(priority = EventPriority.MONITOR)
     public void onInput(PlayerInputEvent event) {
         Player owner = event.getPlayer();
-        if (!hasMovement(event.getInput()) || !plugin.kits().isOwner(owner, ID)
-                || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)
-                || possessedMob.containsKey(owner.getUniqueId())) {
+        if (!plugin.kits().isOwner(owner, ID)
+                || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)) {
+            return;
+        }
+        if (possessedMob.containsKey(owner.getUniqueId())) {
+            stopPhaseTask(owner);
+            restorePhaseBubble(owner);
             return;
         }
         startPhaseTask(owner);
+        if (event.getInput() != null && event.getInput().isSneak()) {
+            updatePhaseBubble(owner);
+        } else if (collisionState(owner, owner.getBoundingBox()) != 1) {
+            restorePhaseBubble(owner);
+        }
     }
 
     private void startPhaseTask(Player owner) {
@@ -387,6 +433,7 @@ public class TheGhostKit implements PowerKit, Listener {
                 if (!owner.isOnline() || !plugin.kits().isOwner(owner, ID)
                         || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)) {
                     phaseTasks.remove(ownerId);
+                    restorePhaseBubble(owner);
                     cancel();
                     return;
                 }
@@ -394,11 +441,23 @@ public class TheGhostKit implements PowerKit, Listener {
                 // changes, not every held-key tick, so cancelling while idle can miss the first
                 // server-corrected movement packet at a wall.
                 if (owner.isDead() || possessedMob.containsKey(ownerId)
-                        || owner.getGameMode() == GameMode.SPECTATOR
-                        || !hasMovement(owner.getCurrentInput())) {
+                        || owner.getGameMode() == GameMode.SPECTATOR) {
+                    restorePhaseBubble(owner);
                     return;
                 }
-                phaseStep(owner, owner.getCurrentInput());
+                Input input = owner.getCurrentInput();
+                boolean alreadyInside = collisionState(owner, owner.getBoundingBox()) == 1;
+                if ((input == null || !input.isSneak()) && !alreadyInside) {
+                    restorePhaseBubble(owner);
+                    return;
+                }
+                if (!fakedBlocks.containsKey(ownerId)) {
+                    updatePhaseBubble(owner);
+                }
+                if (!hasMovement(input)) {
+                    return;
+                }
+                phaseStep(owner, input);
             }
         }.runTaskTimer(plugin, 1L, 1L);
         phaseTasks.put(ownerId, task);
@@ -426,13 +485,16 @@ public class TheGhostKit implements PowerKit, Listener {
         if (input.isLeft()) {
             movement.subtract(right);
         }
-        if (movement.lengthSquared() > 1.0e-6) {
+        boolean hasHorizontalMovement = movement.lengthSquared() > 1.0e-6;
+        if (hasHorizontalMovement) {
             double speed = input.isSneak() ? 0.12d : input.isSprint() ? 0.32d : 0.22d;
             movement.normalize().multiply(speed);
         }
         if (input.isJump()) {
             movement.setY(0.22d);
-        } else if (input.isSneak()) {
+        } else if (input.isSneak() && !hasHorizontalMovement) {
+            // Sneak by itself deliberately phases down. Sneak + WASD phases horizontally without
+            // also dragging the player deeper every tick.
             movement.setY(-0.22d);
         }
         if (movement.lengthSquared() < 1.0e-6) {
@@ -445,6 +507,11 @@ public class TheGhostKit implements PowerKit, Listener {
         int nextCollision = collisionState(owner, nextBox);
         if (nextCollision == 2) {
             Text.actionBar(owner, "<dark_gray>That material resists your Spectral Body.</dark_gray>");
+            return;
+        }
+        // Entering terrain is an explicit action. Once already inside, movement remains available
+        // long enough to get safely back out even if sneak is released.
+        if (currentCollision == 0 && nextCollision == 1 && !input.isSneak()) {
             return;
         }
         // Open-air movement remains vanilla. We intervene only while entering, crossing, or
@@ -514,6 +581,16 @@ public class TheGhostKit implements PowerKit, Listener {
         if (!plugin.kits().isOwner(owner, ID) || !plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY)) {
             return;
         }
+        if (possessedMob.containsKey(owner.getUniqueId())) {
+            restorePhaseBubble(owner);
+            return;
+        }
+        Input input = owner.getCurrentInput();
+        if ((input == null || !input.isSneak())
+                && collisionState(owner, owner.getBoundingBox()) != 1) {
+            restorePhaseBubble(owner);
+            return;
+        }
         // PlayerMoveEvent also fires on a pure camera turn with the feet planted. Rescanning a
         // (2*radius+1)^3 block box -- up to 729 blocks at the max radius -- on every single one of
         // those, for a power that is always on once unlocked, is exactly the kind of thing that reads
@@ -529,6 +606,7 @@ public class TheGhostKit implements PowerKit, Listener {
     }
 
     private void updatePhaseBubble(Player owner) {
+        enablePhaseVision(owner);
         Set<Location> faked = fakedBlocks.computeIfAbsent(owner.getUniqueId(), k -> new HashSet<>());
         Set<Location> shouldBeFaked = new HashSet<>();
         Block center = owner.getLocation().getBlock();
@@ -565,6 +643,7 @@ public class TheGhostKit implements PowerKit, Listener {
     }
 
     private void restorePhaseBubble(Player owner) {
+        disablePhaseVision(owner);
         Set<Location> faked = fakedBlocks.remove(owner.getUniqueId());
         if (faked == null || !owner.isOnline()) {
             return;
@@ -574,11 +653,33 @@ public class TheGhostKit implements PowerKit, Listener {
         }
     }
 
+    private void enablePhaseVision(Player owner) {
+        if (owner.hasPotionEffect(PotionEffectType.NIGHT_VISION)
+                || !phaseNightVisionGranted.add(owner.getUniqueId())) {
+            return;
+        }
+        owner.addPotionEffect(new PotionEffect(
+                PotionEffectType.NIGHT_VISION, PotionEffect.INFINITE_DURATION,
+                0, true, false, false));
+    }
+
+    private void disablePhaseVision(Player owner) {
+        if (!phaseNightVisionGranted.remove(owner.getUniqueId())) {
+            return;
+        }
+        PotionEffect current = owner.getPotionEffect(PotionEffectType.NIGHT_VISION);
+        if (current != null && current.getAmplifier() == 0
+                && current.getDuration() == PotionEffect.INFINITE_DURATION) {
+            owner.removePotionEffect(PotionEffectType.NIGHT_VISION);
+        }
+    }
+
     /** A ghost floating through terrain should not suffocate in it or take fall damage phasing through a floor. */
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player) || !plugin.kits().isOwner(player, ID)
-                || !plugin.unlocks().isUnlocked(player, Power.SPECTRAL_BODY)) {
+                || !plugin.unlocks().isUnlocked(player, Power.SPECTRAL_BODY)
+                || possessedMob.containsKey(player.getUniqueId())) {
             return;
         }
         EntityDamageEvent.DamageCause cause = event.getCause();
@@ -704,6 +805,7 @@ public class TheGhostKit implements PowerKit, Listener {
         Effects.remove(owner, PotionEffectType.INVISIBILITY);
         restorePhaseBubble(owner);
         startPhaseTask(owner);
+        setAntiCollision(owner, plugin.unlocks().isUnlocked(owner, Power.SPECTRAL_BODY));
     }
 
     @Override
@@ -717,6 +819,15 @@ public class TheGhostKit implements PowerKit, Listener {
         }
         stopPhaseTask(owner);
         restorePhaseBubble(owner);
+        setAntiCollision(owner, false);
+    }
+
+    @Override
+    public void onUnlock(Player owner, Power power) {
+        if (power == Power.SPECTRAL_BODY) {
+            startPhaseTask(owner);
+            setAntiCollision(owner, true);
+        }
     }
 
     @Override
@@ -726,6 +837,7 @@ public class TheGhostKit implements PowerKit, Listener {
         } else if (power == Power.SPECTRAL_BODY) {
             stopPhaseTask(owner);
             restorePhaseBubble(owner);
+            setAntiCollision(owner, false);
         } else if (power == Power.ASTRAL_FORM && astralActive.remove(owner.getUniqueId())) {
             setMutualVisibility(owner, true);
             Effects.remove(owner, PotionEffectType.INVISIBILITY);
@@ -747,7 +859,9 @@ public class TheGhostKit implements PowerKit, Listener {
             }
             stopPhaseTask(player);
             restorePhaseBubble(player);
+            setAntiCollision(player, false);
         }
+        collisionMemory.clear();
     }
 
     /** What a possession has to hand back when it ends. */

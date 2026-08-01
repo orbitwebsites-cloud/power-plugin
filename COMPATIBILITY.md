@@ -40,14 +40,13 @@ Every kit moves players by setting velocity directly, which is exactly what NCP 
 Without exemptions, abilities get cancelled and players get flagged and kicked mid-fight.
 
 Run **`server-setup/luckperms-commands.txt`** — it creates a `powersmp` group with the exemptions and
-adds all 17 players. Paste it into console.
+adds all 19 players. Paste it into console.
 
 What breaks without it:
 
 | Kit | Ability | What NCP sees |
 |---|---|---|
-| domanthegamer | grapple, web pull, wall climb | velocity with no input, vertical movement with no ladder |
-| Night_Scar3 | dash | burst velocity in any direction |
+| domanthegamer | Blood Chain | target velocity with no input |
 | ItzMeTentx | dry riptide | a launch with no water — impossible in vanilla |
 | Mavricc | Wither Wings launch, riptide | upward velocity, gliding start |
 | Mavricc | blue stance / consolidation | extended reach via attributes NCP does not read |
@@ -66,7 +65,7 @@ It removes ground items and non-player entities on a timer. Configure it to skip
   *(The ProtocolLib backend is immune — those clones are packets, not entities, so no clearer sees
   them.)*
 - **Named items on the ground.** Every bound item here has a custom name: the bound elytra, Spear of
-  Momentum, Web Shooter, both soulbound maces, the Draconic Mace and the Dragon Omelet. They land on
+  Momentum, Web Shooter, Cutlass Sword, Bloodlust Sword and Dragon Omelet. They land on
   the floor whenever an inventory is full.
 
 > **The one that cannot be undone:** most bound items are re-issued on join if lost. **The Dragon
@@ -80,14 +79,7 @@ Not a technical conflict, but it overlaps his Restock (`/power restock`: 7 confi
 5-hour cooldown). If InstaRestock gives everyone restocking, his signature power stops being his.
 Worth restricting InstaRestock to specific items, or accepting the overlap deliberately.
 
-## 4. EzCobwebs — overlaps Web Strike
-
-domanthegamer's Web Strike places cobwebs and restores the original blocks after 60s. If EzCobwebs
-also manages cobweb placement or breaking they may fight over the same blocks. PowerSMP only reverts
-blocks that are *still* cobweb when the timer ends, so nothing duplicates — but webs may disappear
-early.
-
-## 5. EZGaps — check for custom items
+## 4. EZGaps — check for custom items
 
 Mavricc's food rework exempts `GOLDEN_APPLE` and `ENCHANTED_GOLDEN_APPLE`, so normal gap crafting is
 unaffected. If EZGaps adds *new* gap-like items under different material ids, those fall into the
@@ -125,8 +117,8 @@ advancement that unlocks Sporic Mind Control — that fires on the trade itself.
 1. Drop the 3 jars listed above; install the other 11.
 2. Paste `server-setup/luckperms-commands.txt` into console.
 3. Configure LaggRemoverPlus exclusions.
-4. Start the server and check the log for `PowerSMP enabled with 19 kit(s).`
-5. `/powersmp info <player>` for each of the 17 to confirm assignment and unlock state.
+4. Start the server and check the log for `PowerSMP enabled with 20 kit(s).`
+5. `/powersmp info <player>` for each of the 19 to confirm assignment and unlock state.
 6. Test one movement ability per player — a dash, a grapple, a riptide — to confirm NCP is not
    blocking them.
 7. Have `_glueman` toggle Astral Form near another player and check their tab-list name obfuscates,

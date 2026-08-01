@@ -33,18 +33,21 @@ from a common ability pool.
 | xCR1T1Cx | Momentum | Ka-Chow, Overdrive, Spear Master |
 | KornFlakis | Execution | `/kill`, 7-day cooldown |
 | ItzMeTentx | Tidebound | Infinite Breathing & Dolphin's Grace, Faster Attack Speed, Trident God |
-| domanthegamer | Limit Break | Limit Break + Kamehameha (low), Ascended Flight (mid), Final Burst (high) |
+| domanthegamer | Blood Tracker | Resistance + Regeneration I (low), exclusive Locator Bar + infinite emeralds (mid), kill-scaling Bloodlust Sword (high) |
 | Sparkkkkkkkk | The Atom | Creeper Harvest (low), Explosion (mid), Atom Bomb (high) |
-| Night_Scar3 | Mace Master | Permanent Strength (low), Dash (mid), Density Mace (high) |
+| Night_Scar3 | Night Scar | Infernal Vitality (12 hearts + Fire Resistance), Shadow Bomb (15 hearts), Cutlass Sword (20 hearts) |
 | Marb13_ | Portal and Shadow Master | Miner's Haven (low), Ender Magic (mid), Portal & Shadow (high) |
 | LlamaChas | Kryptonian | Flight, Heat Vision, X-Ray, Freeze Breath, Super Strength |
 | JJlionjxi | Tempest | Wind God (low), Fat Tank (mid), Greedy Heal (high) |
 | MonkeyMan4167 | Light | Flash, Power of the Sun, Mirage |
-| TechKnightGaming | Tech Knight | Mace Massacre, Restock, XP Bottles, Earthbreaker, Fortify, Reflect Shield, Shockwave, Overload, Decoy, Grapple Shot |
+| TechKnightGaming | Tech Knight | Titan Protocol (Bone Blade), Shield Breaker, Restock, XP Bottles, Grapple Shot |
 | ahriahn | Voidwalker | Shadow Step, Grasp of Eylis, Illusory Realm |
 | disasterflames | Disasterflames | Instant Exchange, Brother Bond, Swap Surge |
 | _glueman | The Ghost | Possession, Spectral Body, Astral Form |
 | JustSoopTBH | Phantom | Phantom Speed, Phantom Cloak, Full Vanish |
+| crazyTNT2cool | The Honored One | Six Eyes, Infinity, Blue, Red, Hollow Purple, Warp, Reverse Cursed Technique, Unlimited Void |
+| I_BL0W_STUFF_UP | Bites the Dust | Blast Proof, Sticky TNT, Stab Shot, Nuke Shot |
+| Ldledeathgamble | Idle Death Gamble | Jackpot, Fever, Rising Odds |
 
 ## Commands
 
@@ -54,20 +57,43 @@ from a common ability pool.
 | `/power` / `/power list` | anyone with a kit | List abilities, cooldowns, unlock state |
 | `/power <ability>` | kit owner | Fire an ability |
 | `/power gui` | anyone with a kit | Clickable ability menu -- for console/controller players |
+| `/power keybinds` | anyone with a kit | Bind a different ability to each click/sneak/swap gesture |
 | `/powersmp reload` | admin | Re-read `kits.yml` |
 | `/powersmp info [player]` | admin | Kit, stance, kills, spear tier, unlock state |
-| `/powersmp grant\|revoke <player> <power>` | admin | Hand-manage unlocks |
+| `/powersmp grant\|revoke <player> <kit-or-owner-IGN>` | admin | Persistently add or remove a complete kit |
 | `/powersmp kills <player> [n]` | admin | Read or set the kill counter |
 | `/powersmp spear [player]` | admin | Issue a spear |
 | `/xp` (alias `/xpbottles`) | TechKnightGaming | Fill inventory with XP bottles |
 | `/kill <player>` | KornFlakis | Execute a player, 7-day cooldown |
 
-Sneak + right-click with an empty hand fires your kit's primary ability
-(`general.sneak-right-click-primary`).
+Sneak + right-click fires the kit's primary ability until custom mappings are saved. In
+`/power keybinds`, left-click a gesture, then click the ability it should fire; right-click a
+gesture to clear it. Bindings are independent, so sneak + left-click and sneak + right-click can
+run different powers.
+
+The keybind screen is a guided two-step editor: select a gesture, select its power, then press Done.
+It includes paging, individual unbind, unbind-all, and a Restore Defaults button. An unbound gesture
+is genuinely disabled rather than silently falling back to the primary power.
+
+Cooldown completion gives a short READY action-bar notice and sound. Stale bindings are removed
+automatically when a kit or ability is removed. Saves are written atomically, with the previous
+known-good snapshot retained as `data.yml.bak`.
 
 **Console / controller players:** every gesture-triggered ability (sneak + right-click, sneak +
 swap-hands) also has a command fallback, and `/power gui` turns the whole kit into a clickable
 inventory menu so nobody has to type an exact ability id on an on-screen keyboard mid-fight.
+
+## Teams
+
+PowerSMP uses vanilla scoreboard teams, so no separate team database or command is required:
+`/team add <name>` and `/team join <name> <player>`. Players on the same team are excluded from
+hostile PowerSMP targeting, including damage, pulls, knockback, stuns, freezes, debuffs, domains,
+swaps, executions, explosions, and lightning splash.
+
+Beneficial PowerSMP potion effects are also mirrored to teammates within 50 blocks. Shared copies
+default to a maximum of level II and 15 seconds; passive buffs keep refreshing while the teammate
+stays nearby and expire naturally after they leave. Protection, sharing, range, level cap, and
+duration cap are configurable under `teams` in `kits.yml`.
 
 ---
 
@@ -253,12 +279,8 @@ rather than "is this stance selected", so all three branches of Sporic of the Se
 (lightning crits, riptide, and permanent Conduit Power), and Dimensional Adaptation gets its own
 `consolidated` size and health entry since no single stance applies any more.
 
-*Weapon Modification* — a **Draconic Mace** that keeps Breach IV and loses the slam. Vanilla bakes
-the fall-distance bonus into the mace's attack with no flag to disable it, so the exact vanilla slam
-curve (+4/block for 3 blocks, +2 for the next 5, +1 after) is subtracted back out on hit. Subtracting
-rather than capping matters: a cap would eat Strength and Breach along with the slam.
-
-The omelet is handed out once and never re-issued; the mace is re-issued if lost, like the elytra.
+The omelet is handed out once and never re-issued. Maces are disabled server-wide: vanilla,
+custom, legacy, and kit/loadout maces are removed automatically, and mace recipes are unavailable.
 
 **Trident God** — the only part of ItzMeTentx's kit that fights vanilla. He spawns with a bound
 trident, Riptide III baked in and re-issued if lost, the same way every other signature weapon in
@@ -302,10 +324,16 @@ click is the amount you get, so a stack of 16 pearls configures 16 pearls.
 Loadouts are stored as Base64 of `ItemStack#serializeAsBytes`, not YAML's `ConfigurationSerializable`
 path, which loses newer data components — so enchanted and custom-named gear round-trips intact.
 
-**Mace Massacre** — all vanilla-possible. The mace is soulbound via PDC: pulled out of death drops
-and returned on respawn, undroppable, and blocked from any container inventory. If it is ever lost
-anyway (void, lava, `/clear`), it is re-issued on join at the correct level, because the kill count
-is mirrored in player data as well as on the item.
+**Night Scar's Cutlass** is a custom soulbound iron sword with Sweeping Edge III. Java Edition has
+no native cutlass item, so its identity is stored in PDC and it is re-issued after death or loss.
+
+**Doman's Bloodlust Sword** follows the Altar SMP Arc 1 kill progression: passive bleed, Speed II
+at one player kill, Blood Sense at two, Blood Trail at three, Strength I at four, and Blood Chain at
+five. Blood Trail makes Doman and his armor invisible while leaving a configurable red trail that
+damages and slows enemies but ignores teammates. Its kill count is persisted in `data.yml`; the
+active abilities can be assigned to separate gestures in `/power keybinds`. Tracking uses the
+vanilla 1.21.6+ Locator Bar waypoint attributes: Doman receives waypoints at long range and every
+other player receives none. His ordinary emerald supply is replenished to one stack after trades.
 
 **`/xp` shadows a vanilla command.** `/xp` is vanilla's alias for `/experience`. Registering it here
 takes over the unqualified name; vanilla stays reachable as `/minecraft:xp`, and this one as
@@ -338,14 +366,13 @@ not a rebuild. Replace them once the players weigh in.
 | Requiem | **Enabled** — marb approved it. 2s damage immunity, 10min cooldown | `northofnowhere.requiem` |
 | Ka-Chow combo window | 3s, 3 hits | `xcr1t1cx.ka-chow` |
 | Overdrive damage semantics | Getting hit resets the sprint timer but does **not** strip an already-granted Strength II (the spec's recommended reading) | `damage-strips-tier2: false` |
-| Lunge III→V deltas | pull 0.8/1.1/1.4, stun 3/4/5s; upgrades at 5 and 10 spear kills | `xcr1t1cx.spear-master` |
+| Critic's spear | Real vanilla Lunge V for jab movement; custom tier-V pull and 5s stun on hit | `xcr1t1cx.spear-master` |
 | Spear hit cooldown | **0** — every hit lunges and stuns, as specced | `hit-cooldown-seconds` |
 | Flash trigger | `ON_HIT` (blinds what you hit), no internal cooldown. `ON_ACTIVATE` is also built | `monkeyman.flash.mode` |
 | Ambiguous "Strength I or II" | Strength **II** for both Power of the Sun and Mirage | `strength-amplifier` |
 | Green stance knockback resistance | 1.0 (full immunity) — the spec named the perk but no number | `mavricc.stances.green` |
 | Dimensional Adaptation scale/health | red 1.2/+6, blue 0.8/+4, green 1.4/+10 — invented, no stance loses health | `mavricc.dimensional-adaptation` |
-| Mace levelling past kill 5 | `LITERAL` — Density equals the kill count, past the vanilla cap, to the format ceiling of 255. `LADDER` (Density→Breach→Wind Burst) is the alternative | `techknight.mace.mode` |
-| "every kill" | Mobs and players both count; the mace does not need to be in hand | `techknight.mace` |
+| Night Scar health tiers | 12 hearts, then 15, then a 20-heart cap with the Cutlass | `night_scar3` |
 | The World's damage rule | `block-damage-to-frozen: false` — frozen targets stay hittable, so the time-stop is an opening rather than a shield | `northofnowhere.the-world` |
 | Restock contents | TechKnightGaming picks them himself in a 7-slot GUI (`/power loadout`); the config list is only a fallback until he does | `techknight.restock` |
 | Greedy Heal durations / cooldown | 10s regen, 60s absorption, 90s cooldown — the amplifiers were specified, these were not | `jjlionjxi.greedy-heal` |
@@ -379,7 +406,7 @@ Still genuinely blocked on a human:
 2. ~~**Mirage backend**~~ — resolved: ProtocolLib approved, real clones built. Needs an in-game test
    to confirm the packet layouts, since it could not be compiled here.
 3. ~~**Draconic Evolution**~~ — resolved: Stance Consolidation via the Dragon Omelet, plus the
-   slam-less Draconic Mace.
+   all-stance consolidation.
 4. ~~**Requiem**~~ — resolved: marb approved it, and it is live.
 5. ~~**The `# ASSUMED` numbers**~~ — accepted as-is. Still tunable in `kits.yml` at any time.
 6. ~~**KornFlakis has no kit**~~ — resolved: Ka-Chow, Overdrive and Spear Master belong to

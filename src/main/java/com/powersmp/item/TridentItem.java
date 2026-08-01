@@ -29,20 +29,32 @@ public final class TridentItem {
     public static ItemStack create(UUID owner) {
         ItemStack trident = new ItemStack(Material.TRIDENT);
         ItemMeta meta = trident.getItemMeta();
+        meta.getPersistentDataContainer()
+                .set(Keys.BOUND_TRIDENT, PersistentDataType.STRING, owner.toString());
+        trident.setItemMeta(meta);
+        refresh(trident);
+        return trident;
+    }
+
+    /** Reapplies the current Poseidon metadata and texture while retaining the original owner. */
+    public static void refresh(ItemStack trident) {
+        if (!isBoundTrident(trident)) {
+            return;
+        }
+        ItemMeta meta = trident.getItemMeta();
         meta.setUnbreakable(true);
         if (Enchants.RIPTIDE != null) {
             meta.addEnchant(Enchants.RIPTIDE, RIPTIDE_LEVEL, true);
         }
-        meta.displayName(Text.mm("<aqua><bold>Trident of the Tide</bold></aqua>"));
+        meta.displayName(Text.mm("<blue><bold>Poseidon's Trident</bold></blue>"));
         meta.lore(List.of(
                 Text.mm("<dark_gray>Riptide III</dark_gray>"),
-                Text.mm("<gray>Fires a riptide launch even on dry land.</gray>")));
-        meta.getPersistentDataContainer()
-                .set(Keys.BOUND_TRIDENT, PersistentDataType.STRING, owner.toString());
+                Text.mm("<gray>Riptide works even on dry land.</gray>"),
+                Text.mm("<gray>Momentum empowers spear hits.</gray>"),
+                Text.mm("<gray>Melee strikes call down lightning.</gray>")));
         Enchants.applyVanishing(meta);
         trident.setItemMeta(meta);
-        ResourcePackItems.apply(trident, ResourcePackItems.ENERGY_CORE);
-        return trident;
+        ResourcePackItems.apply(trident, ResourcePackItems.TIDE_TRIDENT);
     }
 
     public static boolean isBoundTrident(ItemStack item) {

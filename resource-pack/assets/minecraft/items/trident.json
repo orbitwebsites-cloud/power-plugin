@@ -2,7 +2,30 @@
   "model": {
     "type": "minecraft:range_dispatch",
     "property": "minecraft:custom_model_data",
-    "entries": [{"threshold": 27001, "model": {"type": "minecraft:model", "model": "powersmp:item/energy_core"}}],
-    "fallback": {"type": "minecraft:special", "base": "minecraft:item/trident", "model": {"type": "minecraft:trident"}}
+    "entries": [{"threshold": 27010, "model": {"type": "minecraft:model", "model": "powersmp:item/tide_trident"}}],
+    "fallback": {
+      "type": "minecraft:select",
+      "property": "minecraft:display_context",
+      "cases": [
+        {
+          "when": ["gui", "ground", "fixed", "on_shelf"],
+          "model": {"type": "minecraft:model", "model": "minecraft:item/trident"}
+        }
+      ],
+      "fallback": {
+        "type": "minecraft:condition",
+        "property": "minecraft:using_item",
+        "on_true": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/trident_throwing",
+          "model": {"type": "minecraft:trident"}
+        },
+        "on_false": {
+          "type": "minecraft:special",
+          "base": "minecraft:item/trident_in_hand",
+          "model": {"type": "minecraft:trident"}
+        }
+      }
+    }
   }
 }

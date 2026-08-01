@@ -1,5 +1,0 @@
-{
-  "parent":"minecraft:item/handheld",
-  "textures":{"layer0":"minecraft:item/iron_spear"},
-  "overrides":[{"predicate":{"custom_model_data":27002},"model":"powersmp:item/grapple_hook"}]
-}

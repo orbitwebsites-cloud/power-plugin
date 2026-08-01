@@ -1,6 +1,7 @@
 package com.powersmp.menu;
 
 import com.powersmp.PowerSMP;
+import com.powersmp.item.BoundItemListener;
 import com.powersmp.util.Text;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,14 @@ public class RestockMenu implements Listener {
         holder.inventory = inventory;
 
         List<ItemStack> saved = plugin.data().get(player.getUniqueId()).restockLoadout();
+        if (saved.removeIf(BoundItemListener::isMace)) {
+            plugin.data().markDirty();
+        }
+        for (ItemStack item : saved) {
+            if (BoundItemListener.purgeMaces(item) > 0) {
+                plugin.data().markDirty();
+            }
+        }
         for (int i = 0; i < slots && i < saved.size(); i++) {
             ItemStack item = saved.get(i);
             if (item != null) {
@@ -117,12 +126,22 @@ public class RestockMenu implements Listener {
         if (clicked == null || clicked.getType().isAir()) {
             return;
         }
+        if (BoundItemListener.isMace(clicked)) {
+            Text.msg(player, "<red>Maces cannot be added because they are disabled.</red>");
+            return;
+        }
         int free = firstFreeSlot(top);
         if (free < 0) {
             Text.msg(player, "<red>All " + slots + " slots are full. Clear one first.");
             return;
         }
-        top.setItem(free, clicked.clone());
+        ItemStack copy = clicked.clone();
+        int nestedMaces = BoundItemListener.purgeMaces(copy);
+        top.setItem(free, copy);
+        if (nestedMaces > 0) {
+            Text.msg(player, "<gray>Removed " + nestedMaces
+                    + " hidden mace(s) from that container.</gray>");
+        }
         player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 0.5f, 1.4f);
     }
 
@@ -154,7 +173,9 @@ public class RestockMenu implements Listener {
         List<ItemStack> loadout = new ArrayList<>();
         for (int i = 0; i < slots; i++) {
             ItemStack item = inventory.getItem(i);
-            if (item != null && !item.getType().isAir()) {
+            if (item != null && !item.getType().isAir()
+                    && !BoundItemListener.isMace(item)) {
+                BoundItemListener.purgeMaces(item);
                 loadout.add(item.clone());
             }
         }

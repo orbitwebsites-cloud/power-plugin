@@ -1,11 +1,19 @@
-# PowerSMP lightweight resource pack
+# PowerSMP resource pack for Minecraft Java 1.21.11
 
-This pack uses hand-authored 16×16 pixel sprites and vanilla custom-model-data overrides. It is
-optional: the plugin remains fully playable without it.
+Install the supplied `power-smp-resource-pack.zip` directly. Do not unzip it and do not put the
+containing project folder into Minecraft.
 
-Install `power-smp-resource-pack.zip` in the server's resource-pack hosting flow, or copy the
-`resource-pack` folder into a local pack and zip its contents. It supplies animated energy-core
-frames plus custom models for the plugin's signature trident, spear, mace, draconic mace, and
-sporeic wings.
+For an individual install:
 
-The pack is intentionally small and has no shaders, fonts, sounds, or mod dependencies.
+1. Close Minecraft.
+2. Press `Win + R`, enter `%appdata%\.minecraft\resourcepacks`, and press Enter.
+3. Copy `power-smp-resource-pack.zip` into that folder.
+4. Start Minecraft 1.21.11, open **Options → Resource Packs**, and enable **PowerSMP Relic Arsenal**.
+
+The pack supplies animated energy-core frames, ascended wings, and the **Relic Arsenal**: Bone
+Blade, Bloodlust, Night Scar Cutlass, Trident of the Tide, and Spear of Momentum.
+
+The weapon visuals are mapped only to PowerSMP's custom-model-data items, so ordinary vanilla
+netherite swords, iron swords, tridents, and spears keep their normal look.
+
+The pack is self-contained: no shaders, fonts, OptiFine, or mod dependencies are required.
