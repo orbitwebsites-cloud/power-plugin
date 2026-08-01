@@ -246,9 +246,13 @@ public final class DisasterflamesKit implements PowerKit, Listener {
             entity.customName(Text.mm("<gold><bold>Eight-Handled Sword Mahoraga</bold>"));
             entity.setCustomNameVisible(true);
             entity.setPlayerCreated(tamed);
-            entity.getAttribute(Attribute.MAX_HEALTH).setBaseValue(200.0d);
-            entity.setHealth(200.0d);
-            entity.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, PotionEffect.INFINITE_DURATION, 1, true, false, true));
+            entity.getAttribute(Attribute.MAX_HEALTH).setBaseValue(400.0d);
+            entity.getAttribute(Attribute.ARMOR).setBaseValue(24.0d);
+            entity.getAttribute(Attribute.ARMOR_TOUGHNESS).setBaseValue(12.0d);
+            entity.getAttribute(Attribute.KNOCKBACK_RESISTANCE).setBaseValue(1.0d);
+            entity.setHealth(400.0d);
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, PotionEffect.INFINITE_DURATION, 2, true, false, true));
+            entity.addPotionEffect(new PotionEffect(PotionEffectType.RESISTANCE, PotionEffect.INFINITE_DURATION, 1, true, false, true));
             entity.addPotionEffect(new PotionEffect(PotionEffectType.STRENGTH, PotionEffect.INFINITE_DURATION, 0, true, false, true));
             entity.addPotionEffect(new PotionEffect(PotionEffectType.SPEED, PotionEffect.INFINITE_DURATION, 1, true, false, true));
             tag(entity, owner, tamed ? "mahoraga_tamed" : "mahoraga_ritual");
