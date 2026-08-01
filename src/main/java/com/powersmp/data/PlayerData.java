@@ -60,6 +60,8 @@ public class PlayerData {
     private final List<ItemStack> shadowStorage = new ArrayList<>();
     /** Whether the owner has personally defeated the untamed Mahoraga ritual. */
     private boolean mahoragaTamed;
+    /** ThePoultryMan10: lifetime uncancelled damage counted toward armor adaptation. */
+    private double adaptationDamage;
 
     public PlayerData(UUID uuid) {
         this.uuid = uuid;
@@ -187,6 +189,14 @@ public class PlayerData {
 
     public void mahoragaTamed(boolean mahoragaTamed) {
         this.mahoragaTamed = mahoragaTamed;
+    }
+
+    public double adaptationDamage() {
+        return adaptationDamage;
+    }
+
+    public void adaptationDamage(double adaptationDamage) {
+        this.adaptationDamage = Math.max(0.0d, adaptationDamage);
     }
 
     public boolean stanceConsolidated() {

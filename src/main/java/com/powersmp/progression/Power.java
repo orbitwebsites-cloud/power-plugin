@@ -153,7 +153,10 @@ public enum Power {
     BITES_THE_DUST("bites_the_dust", "Bites the Dust", "bites_the_dust", Gate.ALWAYS),
 
     // --- FunnySounds -----------------------------------------------------
-    VILLAGE_CHARMER("village_charmer", "Village Charmer", "funnysounds", Gate.ALWAYS);
+    VILLAGE_CHARMER("village_charmer", "Village Charmer", "funnysounds", Gate.ALWAYS),
+
+    // --- ThePoultryMan10 -------------------------------------------------
+    DAMAGE_ADAPTATION("damage_adaptation", "Damage Adaptation", "poultryman", Gate.ALWAYS);
 
     public enum Gate {
         /** Part of the kit from the moment it is assigned. */

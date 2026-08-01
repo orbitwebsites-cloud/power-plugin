@@ -81,6 +81,7 @@ assignments:
   ahriahn: voidwalker
   disasterflames: disasterflames
   FunnySounds: funnysounds
+  ThePoultryMan10: poultryman
   _glueman: theghost
   crazyTNT2cool: crazytnt2cool
   I_BL0W_STUFF_UP: bites_the_dust
@@ -815,6 +816,13 @@ disasterflames:
 funnysounds:
   range: 8.0
   cooldown-seconds: 60
+
+# =====================================================================
+# ThePoultryMan10 -- Damage Adaptation
+# =====================================================================
+poultryman:
+  damage-per-armor: 1000.0
+  max-bonus-armor: 10
 
 # =====================================================================
 # The Ghost (_glueman) -- Possession / Spectral Body / Astral Form

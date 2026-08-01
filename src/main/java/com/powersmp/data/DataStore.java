@@ -76,6 +76,7 @@ public class DataStore {
             data.jackpotChance(section.getInt("jackpot-chance", 14));
             data.jackpotFeverArmed(section.getBoolean("jackpot-fever-armed", false));
             data.mahoragaTamed(section.getBoolean("mahoraga-tamed", false));
+            data.adaptationDamage(section.getDouble("adaptation-damage", 0.0d));
             data.stanceConsolidated(section.getBoolean("stance-consolidated", false));
             data.omeletGranted(section.getBoolean("omelet-granted", false));
             data.lastKnownName(section.getString("name", ""));
@@ -268,6 +269,7 @@ public class DataStore {
             yaml.set(path + ".jackpot-chance", data.jackpotChance());
             yaml.set(path + ".jackpot-fever-armed", data.jackpotFeverArmed());
             yaml.set(path + ".mahoraga-tamed", data.mahoragaTamed());
+            yaml.set(path + ".adaptation-damage", data.adaptationDamage());
             yaml.set(path + ".stance-consolidated", data.stanceConsolidated());
             yaml.set(path + ".omelet-granted", data.omeletGranted());
             yaml.set(path + ".unlocked", new ArrayList<>(data.unlocked()));
