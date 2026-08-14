@@ -1,0 +1,56 @@
+{
+  "type": "origins:active_self",
+  "name": "Cursed Technique Reversal: Red",
+  "description": "Detonate repulsive force through the cone in front of you: heavy damage and everything is thrown clear.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:raycast",
+        "distance": 28,
+        "block": true,
+        "entity": true,
+        "fluid_handling": "none",
+        "command_at_hit": "execute positioned ~ ~ ~ run damage @e[distance=..6,type=!minecraft:item,type=!minecraft:experience_orb] 12 minecraft:explosion",
+        "before_action": {
+          "type": "origins:execute_command",
+          "command": "particle minecraft:explosion ^ ^ ^6 0.6 0.6 0.6 0 4 force @a"
+        }
+      },
+      {
+        "type": "origins:area_of_effect",
+        "radius": 28,
+        "shape": "sphere",
+        "bientity_condition": {
+          "type": "origins:can_see"
+        },
+        "bientity_action": {
+          "type": "origins:target_action",
+          "action": {
+            "type": "origins:add_velocity",
+            "z": 2.4,
+            "y": 0.55,
+            "reference": "position"
+          }
+        }
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.generic.explode",
+        "volume": 1.4,
+        "pitch": 1.45
+      }
+    ]
+  },
+  "cooldown": 360,
+  "key": {
+    "key": "key.origins.primary_active"
+  },
+  "condition": {
+    "type": "origins:sneaking"
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 1
+  }
+}

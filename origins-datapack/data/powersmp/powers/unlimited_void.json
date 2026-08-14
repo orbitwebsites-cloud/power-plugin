@@ -1,0 +1,157 @@
+{
+  "type": "origins:active_self",
+  "name": "Domain Expansion: Unlimited Void",
+  "description": "Everything. Everywhere. All at once. Every mind within 16 blocks is flooded with infinite information and stops working.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:area_of_effect",
+        "radius": 16,
+        "shape": "sphere",
+        "bientity_action": {
+          "type": "origins:target_action",
+          "action": {
+            "type": "origins:and",
+            "actions": [
+              {
+                "type": "origins:and",
+                "actions": [
+                  {
+                    "type": "origins:apply_effect",
+                    "effect": {
+                      "effect": "minecraft:darkness",
+                      "duration": 160,
+                      "amplifier": 0,
+                      "is_ambient": true,
+                      "show_particles": false,
+                      "show_icon": true
+                    }
+                  },
+                  {
+                    "type": "origins:apply_effect",
+                    "effect": {
+                      "effect": "minecraft:blindness",
+                      "duration": 160,
+                      "amplifier": 0,
+                      "is_ambient": true,
+                      "show_particles": false,
+                      "show_icon": true
+                    }
+                  },
+                  {
+                    "type": "origins:apply_effect",
+                    "effect": {
+                      "effect": "minecraft:nausea",
+                      "duration": 160,
+                      "amplifier": 1,
+                      "is_ambient": true,
+                      "show_particles": false,
+                      "show_icon": true
+                    }
+                  },
+                  {
+                    "type": "origins:apply_effect",
+                    "effect": {
+                      "effect": "minecraft:slowness",
+                      "duration": 160,
+                      "amplifier": 250,
+                      "is_ambient": true,
+                      "show_particles": false,
+                      "show_icon": true
+                    }
+                  },
+                  {
+                    "type": "origins:apply_effect",
+                    "effect": {
+                      "effect": "minecraft:mining_fatigue",
+                      "duration": 160,
+                      "amplifier": 250,
+                      "is_ambient": true,
+                      "show_particles": false,
+                      "show_icon": true
+                    }
+                  },
+                  {
+                    "type": "origins:apply_effect",
+                    "effect": {
+                      "effect": "minecraft:jump_boost",
+                      "duration": 160,
+                      "amplifier": 128,
+                      "is_ambient": true,
+                      "show_particles": false,
+                      "show_icon": true
+                    }
+                  }
+                ]
+              },
+              {
+                "type": "origins:damage",
+                "amount": 6.0,
+                "damage_type": "minecraft:magic"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "title @a[distance=..16] title {\"text\":\"DOMAIN EXPANSION\",\"color\":\"aqua\",\"bold\":true}"
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "title @a[distance=..16] subtitle {\"text\":\"UNLIMITED VOID\",\"color\":\"white\"}"
+      },
+      {
+        "type": "origins:spawn_particles",
+        "particle": "minecraft:sculk_soul",
+        "count": 220,
+        "speed": 0.08,
+        "force": true,
+        "spread": {
+          "x": 8.0,
+          "y": 2.5,
+          "z": 8.0
+        }
+      },
+      {
+        "type": "origins:spawn_particles",
+        "particle": "minecraft:end_rod",
+        "count": 180,
+        "speed": 0.04,
+        "force": true,
+        "spread": {
+          "x": 8.0,
+          "y": 2.5,
+          "z": 8.0
+        }
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.warden.roar",
+        "volume": 2.0,
+        "pitch": 0.55
+      }
+    ]
+  },
+  "cooldown": 3600,
+  "key": {
+    "key": "key.origins.secondary_active"
+  },
+  "condition": {
+    "type": "origins:and",
+    "conditions": [
+      {
+        "type": "origins:sprinting"
+      },
+      {
+        "type": "origins:sneaking",
+        "inverted": true
+      }
+    ]
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 5
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "type": "origins:multiple",
+  "name": "Infinity",
+  "description": "An infinite series between you and everything else. Incoming damage all but stops, and whoever swings at you is thrown away.",
+  "negate": {
+    "type": "origins:modify_damage_taken",
+    "modifier": {
+      "name": "Infinity",
+      "operation": "multiply_total_multiplicative",
+      "value": -0.9
+    },
+    "self_action": {
+      "type": "origins:and",
+      "actions": [
+        {
+          "type": "origins:spawn_particles",
+          "particle": "minecraft:reverse_portal",
+          "count": 18,
+          "speed": 0.0,
+          "force": true,
+          "spread": {
+            "x": 0.7,
+            "y": 1.0,
+            "z": 0.7
+          }
+        },
+        {
+          "type": "origins:play_sound",
+          "sound": "minecraft:block.beacon.power_select",
+          "volume": 0.35,
+          "pitch": 1.8
+        }
+      ]
+    }
+  },
+  "repel": {
+    "type": "origins:attacker_action_when_hit",
+    "entity_action": {
+      "type": "origins:and",
+      "actions": [
+        {
+          "type": "origins:add_velocity",
+          "y": 0.35,
+          "z": -1.2,
+          "space": "local_horizontal_normalized"
+        },
+        {
+          "type": "origins:spawn_particles",
+          "particle": "minecraft:end_rod",
+          "count": 12,
+          "speed": 0.0,
+          "force": true,
+          "spread": {
+            "x": 0.4,
+            "y": 0.6,
+            "z": 0.4
+          }
+        }
+      ]
+    },
+    "cooldown": 10
+  }
+}

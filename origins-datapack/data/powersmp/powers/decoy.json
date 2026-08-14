@@ -1,0 +1,44 @@
+{
+  "type": "origins:active_self",
+  "name": "Decoy",
+  "description": "Deploy an armour hologram that stands its ground and holds attention for 10 seconds.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:spawn_entity",
+        "entity_type": "minecraft:armor_stand",
+        "tag": "{Invulnerable:1b,NoGravity:1b,ShowArms:1b,NoBasePlate:1b,CustomName:'{\"text\":\"Tech Decoy\",\"color\":\"aqua\"}',CustomNameVisible:1b,ArmorItems:[{},{id:\"minecraft:netherite_leggings\",Count:1b},{id:\"minecraft:netherite_chestplate\",Count:1b},{id:\"minecraft:netherite_helmet\",Count:1b}],HandItems:[{id:\"minecraft:netherite_axe\",Count:1b},{}],Tags:[\"powersmp_decoy\"]}"
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "execute as @e[type=minecraft:armor_stand,tag=powersmp_decoy,distance=..3] run data merge entity @s {Glowing:1b}"
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "schedule function powersmp:clear_decoys 10s replace"
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.armor_stand.place",
+        "volume": 1.0,
+        "pitch": 1.5
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "title @s actionbar {\"text\":\"DECOY DEPLOYED\",\"color\":\"aqua\",\"bold\":true}"
+      }
+    ]
+  },
+  "cooldown": 600,
+  "key": {
+    "key": "key.swapOffhand"
+  },
+  "condition": {
+    "type": "origins:sneaking"
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 8
+  }
+}

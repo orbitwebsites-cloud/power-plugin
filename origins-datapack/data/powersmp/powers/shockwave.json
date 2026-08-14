@@ -1,0 +1,65 @@
+{
+  "type": "origins:active_self",
+  "name": "Shockwave",
+  "description": "Drive a wave through the ground in front of you: damage, and everything caught is launched upward.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:area_of_effect",
+        "radius": 10,
+        "shape": "sphere",
+        "bientity_condition": {
+          "type": "origins:can_see"
+        },
+        "bientity_action": {
+          "type": "origins:target_action",
+          "action": {
+            "type": "origins:and",
+            "actions": [
+              {
+                "type": "origins:damage",
+                "amount": 6.0,
+                "damage_type": "minecraft:explosion"
+              },
+              {
+                "type": "origins:add_velocity",
+                "y": 0.9
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "particle minecraft:cloud ^ ^ ^4 1.5 0.1 1.5 0.03 40 force @a"
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.generic.explode",
+        "volume": 1.0,
+        "pitch": 1.4
+      }
+    ]
+  },
+  "cooldown": 400,
+  "key": {
+    "key": "key.origins.primary_active"
+  },
+  "condition": {
+    "type": "origins:and",
+    "conditions": [
+      {
+        "type": "origins:sprinting"
+      },
+      {
+        "type": "origins:sneaking",
+        "inverted": true
+      }
+    ]
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 2
+  }
+}

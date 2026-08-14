@@ -1,0 +1,82 @@
+{
+  "type": "origins:action_on_hit",
+  "name": "Overload (charged)",
+  "description": "The charged hit: double damage and Wither.",
+  "bientity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:target_action",
+        "action": {
+          "type": "origins:and",
+          "actions": [
+            {
+              "type": "origins:damage",
+              "amount": 8.0,
+              "damage_type": "minecraft:lightning_bolt"
+            },
+            {
+              "type": "origins:apply_effect",
+              "effect": {
+                "effect": "minecraft:wither",
+                "duration": 100,
+                "amplifier": 0,
+                "is_ambient": true,
+                "show_particles": true,
+                "show_icon": true
+              }
+            },
+            {
+              "type": "origins:spawn_particles",
+              "particle": "minecraft:electric_spark",
+              "count": 35,
+              "speed": 0.12,
+              "force": true,
+              "spread": {
+                "x": 0.4,
+                "y": 0.7,
+                "z": 0.4
+              }
+            }
+          ]
+        }
+      },
+      {
+        "type": "origins:actor_action",
+        "action": {
+          "type": "origins:and",
+          "actions": [
+            {
+              "type": "origins:play_sound",
+              "sound": "minecraft:entity.lightning_bolt.impact",
+              "volume": 0.8,
+              "pitch": 1.6
+            },
+            {
+              "type": "origins:trigger_cooldown",
+              "power": "powersmp:overload_spent"
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "cooldown": 1,
+  "condition": {
+    "type": "origins:and",
+    "conditions": [
+      {
+        "type": "origins:resource",
+        "resource": "powersmp:overload_window",
+        "comparison": ">",
+        "compare_to": 0
+      },
+      {
+        "type": "origins:resource",
+        "resource": "powersmp:overload_spent",
+        "comparison": "==",
+        "compare_to": 0
+      }
+    ]
+  }
+}

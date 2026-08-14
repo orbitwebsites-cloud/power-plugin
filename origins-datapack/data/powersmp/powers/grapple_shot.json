@@ -1,0 +1,66 @@
+{
+  "type": "origins:active_self",
+  "name": "Grapple Shot",
+  "description": "Fire a line at whatever you are looking at up to 24 blocks away and reel yourself to it.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.fishing_bobber.throw",
+        "volume": 1.0,
+        "pitch": 0.7
+      },
+      {
+        "type": "origins:raycast",
+        "distance": 24,
+        "block": true,
+        "entity": true,
+        "fluid_handling": "none",
+        "command_along_ray": "particle minecraft:electric_spark ~ ~ ~ 0 0 0 0 1 force @a",
+        "command_step": 0.65,
+        "command_along_ray_only_on_hit": true,
+        "hit_action": {
+          "type": "origins:and",
+          "actions": [
+            {
+              "type": "origins:add_velocity",
+              "z": 1.35,
+              "y": 0.35,
+              "space": "local_horizontal_normalized",
+              "set": true
+            },
+            {
+              "type": "origins:set_fall_distance",
+              "fall_distance": 0.0
+            }
+          ]
+        },
+        "miss_action": {
+          "type": "origins:execute_command",
+          "command": "title @s actionbar {\"text\":\"No grapple target in range.\",\"color\":\"red\"}"
+        }
+      }
+    ]
+  },
+  "cooldown": 300,
+  "key": {
+    "key": "key.origins.secondary_active"
+  },
+  "condition": {
+    "type": "origins:and",
+    "conditions": [
+      {
+        "type": "origins:sprinting"
+      },
+      {
+        "type": "origins:sneaking",
+        "inverted": true
+      }
+    ]
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 7
+  }
+}

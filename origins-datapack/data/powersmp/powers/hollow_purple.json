@@ -1,0 +1,51 @@
+{
+  "type": "origins:active_self",
+  "name": "Hollow Purple",
+  "description": "Collide Blue and Red and erase everything in a lane up to 64 blocks long.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:raycast",
+        "distance": 64,
+        "block": true,
+        "entity": true,
+        "fluid_handling": "none",
+        "command_along_ray": "damage @e[distance=..2.25,type=!minecraft:item,type=!minecraft:experience_orb] 32 minecraft:sonic_boom",
+        "command_step": 1.0,
+        "command_along_ray_only_on_hit": false,
+        "command_at_hit": "particle minecraft:flash ~ ~ ~ 0 0 0 0 1 force @a"
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "particle minecraft:end_rod ^ ^1 ^2 0.12 0.12 0.12 0.01 60 force @a"
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.warden.sonic_boom",
+        "volume": 2.0,
+        "pitch": 0.65
+      }
+    ]
+  },
+  "cooldown": 1800,
+  "key": {
+    "key": "key.origins.primary_active"
+  },
+  "condition": {
+    "type": "origins:and",
+    "conditions": [
+      {
+        "type": "origins:sprinting"
+      },
+      {
+        "type": "origins:sneaking",
+        "inverted": true
+      }
+    ]
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 2
+  }
+}

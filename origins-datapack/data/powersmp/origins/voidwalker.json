@@ -1,0 +1,14 @@
+{
+  "powers": [
+    "powersmp:shadow_step",
+    "powersmp:grasp_of_eylis",
+    "powersmp:illusory_realm"
+  ],
+  "icon": {
+    "item": "minecraft:echo_shard"
+  },
+  "order": 1,
+  "impact": 3,
+  "name": "Voidwalker",
+  "description": "You step through the dark rather than across the ground. Strike, vanish, and when it suits you, take the fight somewhere no one else can follow."
+}

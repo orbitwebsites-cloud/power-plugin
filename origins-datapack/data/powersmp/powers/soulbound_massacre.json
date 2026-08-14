@@ -1,0 +1,22 @@
+{
+  "type": "origins:action_on_callback",
+  "name": "Massacre",
+  "description": "Your weapon is yours. It is handed back the moment you choose this origin and again every time you respawn.",
+  "entity_action_chosen": {
+    "type": "origins:give",
+    "stack": {
+      "item": "minecraft:netherite_axe",
+      "tag": "{Unbreakable:1b,PowerSMPMassacre:1b,display:{Name:'{\"text\":\"Massacre\",\"color\":\"gold\",\"italic\":false}'},Enchantments:[{id:\"minecraft:sharpness\",lvl:5s},{id:\"minecraft:knockback\",lvl:2s},{id:\"minecraft:vanishing_curse\",lvl:1s}]}"
+    },
+    "preferred_slot": "mainhand"
+  },
+  "entity_action_respawned": {
+    "type": "origins:give",
+    "stack": {
+      "item": "minecraft:netherite_axe",
+      "tag": "{Unbreakable:1b,PowerSMPMassacre:1b,display:{Name:'{\"text\":\"Massacre\",\"color\":\"gold\",\"italic\":false}'},Enchantments:[{id:\"minecraft:sharpness\",lvl:5s},{id:\"minecraft:knockback\",lvl:2s},{id:\"minecraft:vanishing_curse\",lvl:1s}]}"
+    },
+    "preferred_slot": "mainhand"
+  },
+  "execute_chosen_when_orb": true
+}

@@ -1,0 +1,27 @@
+{
+  "powers": [
+    "powersmp:soulbound_massacre",
+    "powersmp:shield_ignore",
+    "powersmp:earthbreaker",
+    "powersmp:fortify",
+    "powersmp:shockwave",
+    "powersmp:reflect_window",
+    "powersmp:reflect_retaliation",
+    "powersmp:reflect_shield",
+    "powersmp:overload_window",
+    "powersmp:overload_spent",
+    "powersmp:overload_strike",
+    "powersmp:overload",
+    "powersmp:grapple_shot",
+    "powersmp:decoy",
+    "powersmp:restock",
+    "powersmp:infinite_xp"
+  ],
+  "icon": {
+    "item": "minecraft:netherite_axe"
+  },
+  "order": 2,
+  "impact": 3,
+  "name": "Mace Massacre",
+  "description": "One weapon, yours forever, and a workshop of hardware around it: leap and slam, lock your armour, reflect what is thrown at you, overload a single swing, and never run out of supplies."
+}

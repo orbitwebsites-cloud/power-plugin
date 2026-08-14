@@ -1,0 +1,70 @@
+{
+  "type": "origins:active_self",
+  "name": "Cursed Technique Lapse: Blue",
+  "description": "Create a singularity where you are looking; everything within 8 blocks of it is dragged in and crushed.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:raycast",
+        "distance": 32,
+        "block": true,
+        "entity": true,
+        "fluid_handling": "none",
+        "command_at_hit": "execute positioned ~ ~ ~ run damage @e[distance=..8,type=!#minecraft:arrows,type=!minecraft:item,type=!minecraft:experience_orb] 8 minecraft:magic",
+        "command_hit_offset": 0.0,
+        "hit_action": {
+          "type": "origins:nothing"
+        },
+        "before_action": {
+          "type": "origins:execute_command",
+          "command": "particle minecraft:reverse_portal ^ ^ ^4 1.4 1.4 1.4 0.15 90 force @a"
+        }
+      },
+      {
+        "type": "origins:area_of_effect",
+        "radius": 24,
+        "shape": "sphere",
+        "bientity_condition": {
+          "type": "origins:can_see"
+        },
+        "bientity_action": {
+          "type": "origins:target_action",
+          "action": {
+            "type": "origins:add_velocity",
+            "z": -1.8,
+            "y": 0.25,
+            "reference": "position"
+          }
+        }
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:block.respawn_anchor.charge",
+        "volume": 1.2,
+        "pitch": 0.55
+      }
+    ]
+  },
+  "cooldown": 240,
+  "key": {
+    "key": "key.origins.primary_active"
+  },
+  "condition": {
+    "type": "origins:and",
+    "conditions": [
+      {
+        "type": "origins:sneaking",
+        "inverted": true
+      },
+      {
+        "type": "origins:sprinting",
+        "inverted": true
+      }
+    ]
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 0
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "type": "origins:multiple",
+  "name": "Six Eyes",
+  "description": "Perfect perception. Permanent night vision, Speed II, Haste II and Regeneration.",
+  "night_vision": {
+    "type": "origins:night_vision",
+    "strength": 1.0
+  },
+  "buffs": {
+    "type": "origins:action_over_time",
+    "interval": 20,
+    "entity_action": {
+      "type": "origins:and",
+      "actions": [
+        {
+          "type": "origins:apply_effect",
+          "effect": {
+            "effect": "minecraft:speed",
+            "duration": 60,
+            "amplifier": 1,
+            "is_ambient": true,
+            "show_particles": false,
+            "show_icon": true
+          }
+        },
+        {
+          "type": "origins:apply_effect",
+          "effect": {
+            "effect": "minecraft:haste",
+            "duration": 60,
+            "amplifier": 1,
+            "is_ambient": true,
+            "show_particles": false,
+            "show_icon": true
+          }
+        },
+        {
+          "type": "origins:apply_effect",
+          "effect": {
+            "effect": "minecraft:regeneration",
+            "duration": 60,
+            "amplifier": 0,
+            "is_ambient": true,
+            "show_particles": false,
+            "show_icon": true
+          }
+        }
+      ]
+    }
+  }
+}

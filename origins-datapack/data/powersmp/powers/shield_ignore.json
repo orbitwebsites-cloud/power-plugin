@@ -1,0 +1,50 @@
+{
+  "type": "origins:action_on_hit",
+  "name": "Shield Ignored",
+  "description": "Half the time, a shield in your way may as well not be there.",
+  "bientity_action": {
+    "type": "origins:chance",
+    "chance": 0.5,
+    "action": {
+      "type": "origins:and",
+      "actions": [
+        {
+          "type": "origins:target_action",
+          "action": {
+            "type": "origins:and",
+            "actions": [
+              {
+                "type": "origins:damage",
+                "amount": 6.0,
+                "damage_type": "minecraft:magic"
+              },
+              {
+                "type": "origins:execute_command",
+                "command": "title @s actionbar {\"text\":\"Your shield did nothing.\",\"color\":\"red\"}"
+              }
+            ]
+          }
+        },
+        {
+          "type": "origins:actor_action",
+          "action": {
+            "type": "origins:and",
+            "actions": [
+              {
+                "type": "origins:play_sound",
+                "sound": "minecraft:item.shield.break",
+                "volume": 1.0,
+                "pitch": 0.8
+              },
+              {
+                "type": "origins:execute_command",
+                "command": "title @s actionbar {\"text\":\"Shield ignored.\",\"color\":\"gold\"}"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "cooldown": 1
+}

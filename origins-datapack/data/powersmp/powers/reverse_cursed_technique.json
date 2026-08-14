@@ -1,0 +1,126 @@
+{
+  "type": "origins:active_self",
+  "name": "Reverse Cursed Technique",
+  "description": "Run cursed energy backwards: full heal, every debuff cleansed, flames out, and absorption on top.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:heal",
+        "amount": 20
+      },
+      {
+        "type": "origins:extinguish"
+      },
+      {
+        "type": "origins:and",
+        "actions": [
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:poison"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:wither"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:slowness"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:weakness"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:mining_fatigue"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:blindness"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:darkness"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:nausea"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:hunger"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:levitation"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:glowing"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:unluck"
+          },
+          {
+            "type": "origins:clear_effect",
+            "effect": "minecraft:bad_omen"
+          }
+        ]
+      },
+      {
+        "type": "origins:apply_effect",
+        "effect": {
+          "effect": "minecraft:absorption",
+          "duration": 1200,
+          "amplifier": 1,
+          "is_ambient": true,
+          "show_particles": false,
+          "show_icon": true
+        }
+      },
+      {
+        "type": "origins:spawn_particles",
+        "particle": "minecraft:heart",
+        "count": 30,
+        "speed": 0.1,
+        "force": true,
+        "spread": {
+          "x": 0.7,
+          "y": 0.9,
+          "z": 0.7
+        }
+      },
+      {
+        "type": "origins:spawn_particles",
+        "particle": "minecraft:totem_of_undying",
+        "count": 60,
+        "speed": 0.3,
+        "force": true,
+        "spread": {
+          "x": 0.6,
+          "y": 0.8,
+          "z": 0.6
+        }
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:item.totem.use",
+        "volume": 1.0,
+        "pitch": 1.25
+      }
+    ]
+  },
+  "cooldown": 900,
+  "key": {
+    "key": "key.origins.secondary_active"
+  },
+  "condition": {
+    "type": "origins:sneaking"
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 4
+  }
+}

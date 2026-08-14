@@ -1,0 +1,164 @@
+{
+  "type": "origins:active_self",
+  "name": "Illusory Realm",
+  "description": "Drag everyone within 16 blocks into your sealed dark for 20 seconds. Inside it they are blind, sluggish and visible to you alone -- and their strength is not their own.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:execute_command",
+        "command": "title @a[distance=..16] title {\"text\":\"ILLUSORY REALM\",\"color\":\"dark_purple\",\"bold\":true}"
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "title @a[distance=..16] subtitle {\"text\":\"Something reaches into the dark...\",\"color\":\"gray\"}"
+      },
+      {
+        "type": "origins:area_of_effect",
+        "radius": 16,
+        "shape": "sphere",
+        "bientity_action": {
+          "type": "origins:target_action",
+          "action": {
+            "type": "origins:and",
+            "actions": [
+              {
+                "type": "origins:apply_effect",
+                "effect": {
+                  "effect": "minecraft:blindness",
+                  "duration": 400,
+                  "amplifier": 0,
+                  "is_ambient": true,
+                  "show_particles": false,
+                  "show_icon": true
+                }
+              },
+              {
+                "type": "origins:apply_effect",
+                "effect": {
+                  "effect": "minecraft:darkness",
+                  "duration": 400,
+                  "amplifier": 0,
+                  "is_ambient": true,
+                  "show_particles": false,
+                  "show_icon": true
+                }
+              },
+              {
+                "type": "origins:apply_effect",
+                "effect": {
+                  "effect": "minecraft:slowness",
+                  "duration": 400,
+                  "amplifier": 1,
+                  "is_ambient": true,
+                  "show_particles": false,
+                  "show_icon": true
+                }
+              },
+              {
+                "type": "origins:apply_effect",
+                "effect": {
+                  "effect": "minecraft:weakness",
+                  "duration": 400,
+                  "amplifier": 1,
+                  "is_ambient": true,
+                  "show_particles": false,
+                  "show_icon": true
+                }
+              },
+              {
+                "type": "origins:apply_effect",
+                "effect": {
+                  "effect": "minecraft:mining_fatigue",
+                  "duration": 400,
+                  "amplifier": 2,
+                  "is_ambient": true,
+                  "show_particles": false,
+                  "show_icon": true
+                }
+              },
+              {
+                "type": "origins:apply_effect",
+                "effect": {
+                  "effect": "minecraft:glowing",
+                  "duration": 400,
+                  "amplifier": 0,
+                  "is_ambient": true,
+                  "show_particles": false,
+                  "show_icon": true
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "origins:and",
+        "actions": [
+          {
+            "type": "origins:apply_effect",
+            "effect": {
+              "effect": "minecraft:night_vision",
+              "duration": 400,
+              "amplifier": 0,
+              "is_ambient": true,
+              "show_particles": false,
+              "show_icon": true
+            }
+          },
+          {
+            "type": "origins:apply_effect",
+            "effect": {
+              "effect": "minecraft:strength",
+              "duration": 400,
+              "amplifier": 1,
+              "is_ambient": true,
+              "show_particles": false,
+              "show_icon": true
+            }
+          },
+          {
+            "type": "origins:apply_effect",
+            "effect": {
+              "effect": "minecraft:resistance",
+              "duration": 400,
+              "amplifier": 0,
+              "is_ambient": true,
+              "show_particles": false,
+              "show_icon": true
+            }
+          }
+        ]
+      },
+      {
+        "type": "origins:spawn_particles",
+        "particle": "minecraft:squid_ink",
+        "count": 200,
+        "speed": 0.05,
+        "force": true,
+        "spread": {
+          "x": 8.0,
+          "y": 3.0,
+          "z": 8.0
+        }
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:entity.enderman.stare",
+        "volume": 1.0,
+        "pitch": 0.5
+      }
+    ]
+  },
+  "cooldown": 6000,
+  "key": {
+    "key": "key.origins.secondary_active"
+  },
+  "condition": {
+    "type": "origins:sneaking"
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 2
+  }
+}

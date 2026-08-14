@@ -1,0 +1,47 @@
+{
+  "type": "origins:active_self",
+  "name": "Overload",
+  "description": "Dump the whole cell into the next swing: within 20 seconds, one hit lands for double and inflicts Wither.",
+  "entity_action": {
+    "type": "origins:and",
+    "actions": [
+      {
+        "type": "origins:trigger_cooldown",
+        "power": "powersmp:overload_window"
+      },
+      {
+        "type": "origins:spawn_particles",
+        "particle": "minecraft:electric_spark",
+        "count": 45,
+        "speed": 0.08,
+        "force": true,
+        "spread": {
+          "x": 0.5,
+          "y": 0.8,
+          "z": 0.5
+        }
+      },
+      {
+        "type": "origins:play_sound",
+        "sound": "minecraft:block.respawn_anchor.charge",
+        "volume": 1.0,
+        "pitch": 1.6
+      },
+      {
+        "type": "origins:execute_command",
+        "command": "title @s actionbar {\"text\":\"OVERLOAD -- next hit empowered.\",\"color\":\"yellow\",\"bold\":true}"
+      }
+    ]
+  },
+  "cooldown": 900,
+  "key": {
+    "key": "key.origins.secondary_active"
+  },
+  "condition": {
+    "type": "origins:sneaking"
+  },
+  "hud_render": {
+    "should_render": true,
+    "bar_index": 6
+  }
+}

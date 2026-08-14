@@ -1,0 +1,19 @@
+{
+  "powers": [
+    "powersmp:six_eyes",
+    "powersmp:infinity",
+    "powersmp:cursed_technique_blue",
+    "powersmp:cursed_technique_red",
+    "powersmp:hollow_purple",
+    "powersmp:limitless_warp",
+    "powersmp:reverse_cursed_technique",
+    "powersmp:unlimited_void"
+  ],
+  "icon": {
+    "item": "minecraft:ender_eye"
+  },
+  "order": 0,
+  "impact": 3,
+  "name": "The Honored One",
+  "description": "Limitless and the Six Eyes. Nothing reaches you, and everything is within reach: Blue draws in, Red throws away, Hollow Purple erases, and the void is yours to open."
+}
