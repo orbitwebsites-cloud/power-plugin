@@ -29,13 +29,10 @@
           "type": "origins:can_see"
         },
         "bientity_action": {
-          "type": "origins:target_action",
-          "action": {
-            "type": "origins:add_velocity",
-            "z": -1.8,
-            "y": 0.25,
-            "reference": "position"
-          }
+          "type": "origins:add_velocity",
+          "z": -1.8,
+          "y": 0.25,
+          "reference": "position"
         }
       },
       {
